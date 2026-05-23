@@ -1,0 +1,9 @@
+pub mod agents;
+pub mod commands;
+pub mod ipc;
+pub mod state;
+pub mod gui;
+pub mod rag;
+pub mod storage;
+pub mod utils;
+pub mod waybar;

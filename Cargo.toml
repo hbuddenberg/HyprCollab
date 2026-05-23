@@ -1,0 +1,67 @@
+[package]
+name = "hyprcollab"
+version = "0.1.0"
+edition = "2021"
+description = "AI chat agent for Hyprland — multi-agent conversations with persistent memory, RAG, and Waybar integration"
+
+[dependencies]
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# GUI
+gtk4 = "0.9"
+gtk4-layer-shell = "0.5"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# HTTP client (for OpenAI-compatible API)
+reqwest = { version = "0.12", features = ["json", "stream"] }
+
+# Async stream combinators (StreamExt for SSE parsing)
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-appender = "0.2"
+
+# XDG paths
+directories = "6"
+
+# Unix sockets
+tokio-util = "0.7"
+
+# UUID for IDs
+uuid = { version = "1", features = ["v4"] }
+
+# Error handling
+anyhow = "1"
+thiserror = "2"
+libc = "0.2"
+
+# Date/time
+chrono = { version = "0.4", features = ["serde"] }
+
+# File watching (for waybar)
+notify = "7"
+
+# Markdown rendering
+pulldown-cmark = "0.12"
+
+# YAML config
+serde_yaml = "0.9"
+
+[dev-dependencies]
+tempfile = "3"
+uuid = { version = "1", features = ["v4"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
