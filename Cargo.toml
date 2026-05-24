@@ -28,6 +28,7 @@ members = [
     "crates/hyprcollab-provider-ollama",
     "crates/hyprcollab-provider-openrouter",
     "crates/hyprcollab-provider-native",
+    "crates/hyprcollab-router",
     "platforms/hyprcollab-tauri",
     "platforms/hyprcollab-tui",
     "platforms/hyprcollab-pwa",

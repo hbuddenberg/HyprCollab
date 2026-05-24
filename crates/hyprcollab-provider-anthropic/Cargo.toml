@@ -6,3 +6,18 @@ license.workspace = true
 description = "Anthropic Claude provider"
 
 [dependencies]
+hyprcollab-core = { path = "../hyprcollab-core" }
+reqwest = { workspace = true }
+tokio = { workspace = true }
+tokio-stream = "0.1"
+futures = { workspace = true }
+async-trait = "0.1"
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+eventsource-stream = "0.2"
+
+[dev-dependencies]
+mockito = "1"

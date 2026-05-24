@@ -1,14 +1,11 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//! # hyprcollab-provider-anthropic
+//!
+//! Anthropic Claude LLM provider for HyprCollab.
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub mod client;
+pub mod embeddings;
+pub mod streaming;
+pub mod types;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use client::AnthropicClient;
+pub use types::*;

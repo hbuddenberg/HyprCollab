@@ -1,0 +1,20 @@
+[package]
+name = "hyprcollab-router"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "LLM Router: multi-provider model routing with fallback"
+
+[dependencies]
+hyprcollab-core = { path = "../hyprcollab-core" }
+hyprcollab-provider-openai = { path = "../hyprcollab-provider-openai" }
+hyprcollab-provider-anthropic = { path = "../hyprcollab-provider-anthropic" }
+hyprcollab-provider-ollama = { path = "../hyprcollab-provider-ollama" }
+async-trait = "0.1"
+tokio = { workspace = true }
+futures = { workspace = true }
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
