@@ -6,3 +6,15 @@ license.workspace = true
 description = "SQLite memory engine with migrations"
 
 [dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+rusqlite = { workspace = true }
+hyprcollab-core = { path = "../hyprcollab-core" }
+
+[dev-dependencies]
+tempfile = "3"

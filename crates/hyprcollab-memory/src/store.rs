@@ -1,0 +1,577 @@
+//! SQLite-backed memory store with CRUD operations.
+//!
+//! Provides [`MemoryStore`] — the primary interface for persisting chats, messages,
+//! and settings in a local SQLite database.
+
+use std::path::Path;
+
+use hyprcollab_core::errors::{CoreError, Result};
+use hyprcollab_core::types::*;
+
+use crate::migrations;
+
+// ── Store ──────────────────────────────────────────────────────────────
+
+/// SQLite-backed memory store.
+pub struct MemoryStore {
+    conn: rusqlite::Connection,
+}
+
+impl MemoryStore {
+    // ── Lifecycle ──────────────────────────────────────────────────────
+
+    /// Open (or create) a database at the given filesystem path and run migrations.
+    pub fn open(path: &Path) -> Result<Self> {
+        let conn = rusqlite::Connection::open(path)
+            .map_err(|e| CoreError::Memory(format!("failed to open database: {e}")))?;
+
+        // Enable WAL mode and foreign keys.
+        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")
+            .map_err(|e| CoreError::Memory(format!("pragma setup failed: {e}")))?;
+
+        migrations::run(&conn)?;
+        Ok(Self { conn })
+    }
+
+    /// Open an in-memory database (useful for tests).
+    pub fn open_in_memory() -> Result<Self> {
+        let conn = rusqlite::Connection::open_in_memory()
+            .map_err(|e| CoreError::Memory(format!("failed to open in-memory db: {e}")))?;
+
+        conn.execute_batch("PRAGMA foreign_keys=ON;")
+            .map_err(|e| CoreError::Memory(format!("pragma setup failed: {e}")))?;
+
+        migrations::run(&conn)?;
+        Ok(Self { conn })
+    }
+
+    // ── Chat CRUD ──────────────────────────────────────────────────────
+
+    /// Insert a new chat record. Returns the same [`ChatId`] for convenience.
+    pub fn create_chat(
+        &self,
+        id: ChatId,
+        title: &str,
+        workspace_id: Option<WorkspaceId>,
+        persona_id: Option<PersonaId>,
+        agent_role_id: Option<AgentRoleId>,
+        model: &str,
+    ) -> Result<ChatId> {
+        let now = chrono::Utc::now().to_rfc3339();
+        self.conn
+            .execute(
+                "INSERT INTO chats (id, title, workspace_id, persona_id, agent_role_id, model, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                rusqlite::params![
+                    id.to_string(),
+                    title,
+                    workspace_id.map(|w| w.to_string()),
+                    persona_id.map(|p| p.to_string()),
+                    agent_role_id.map(|a| a.to_string()),
+                    model,
+                    now,
+                    now,
+                ],
+            )
+            .map_err(|e| CoreError::Memory(format!("create_chat failed: {e}")))?;
+        Ok(id)
+    }
+
+    /// Retrieve a single chat by its ID.
+    pub fn get_chat(&self, id: ChatId) -> Result<Option<ChatRecord>> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT id, title, workspace_id, persona_id, agent_role_id, model, created_at, updated_at
+                 FROM chats WHERE id = ?1",
+            )
+            .map_err(|e| CoreError::Memory(format!("get_chat prepare: {e}")))?;
+
+        let id_str = id.to_string();
+        let mut rows = stmt
+            .query(rusqlite::params![id_str])
+            .map_err(|e| CoreError::Memory(format!("get_chat query: {e}")))?;
+
+        match rows
+            .next()
+            .map_err(|e| CoreError::Memory(format!("get_chat next: {e}")))?
+        {
+            Some(row) => Ok(Some(ChatRecord::from_row(row)?)),
+            None => Ok(None),
+        }
+    }
+
+    /// List all chats, ordered by most recently updated first.
+    pub fn list_chats(&self) -> Result<Vec<ChatRecord>> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT id, title, workspace_id, persona_id, agent_role_id, model, created_at, updated_at
+                 FROM chats ORDER BY updated_at DESC",
+            )
+            .map_err(|e| CoreError::Memory(format!("list_chats prepare: {e}")))?;
+
+        let rows = stmt
+            .query_map([], |row| {
+                ChatRecord::from_row(row)
+                    .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))
+            })
+            .map_err(|e| CoreError::Memory(format!("list_chats query: {e}")))?;
+
+        let mut chats = Vec::new();
+        for row in rows {
+            chats.push(row.map_err(|e| CoreError::Memory(format!("list_chats row: {e}")))?);
+        }
+        Ok(chats)
+    }
+
+    /// Delete a chat (cascades to messages and settings).
+    pub fn delete_chat(&self, id: ChatId) -> Result<bool> {
+        let affected = self
+            .conn
+            .execute(
+                "DELETE FROM chats WHERE id = ?1",
+                rusqlite::params![id.to_string()],
+            )
+            .map_err(|e| CoreError::Memory(format!("delete_chat: {e}")))?;
+        Ok(affected > 0)
+    }
+
+    // ── Message CRUD ───────────────────────────────────────────────────
+
+    /// Add a message to a chat.
+    pub fn add_message(&self, msg: &Message) -> Result<()> {
+        let tool_calls_json = if msg.tool_calls.is_empty() {
+            None
+        } else {
+            Some(serde_json::to_string(&msg.tool_calls)?)
+        };
+        let artifacts_json = if msg.artifacts.is_empty() {
+            None
+        } else {
+            Some(serde_json::to_string(&msg.artifacts)?)
+        };
+        let metadata_json = if msg.metadata.is_null() {
+            None
+        } else {
+            Some(serde_json::to_string(&msg.metadata)?)
+        };
+
+        self.conn
+            .execute(
+                "INSERT INTO messages (id, chat_id, role, content, tool_calls, artifacts, timestamp, metadata)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                rusqlite::params![
+                    msg.id.to_string(),
+                    msg.chat_id.to_string(),
+                    msg.role.to_string(),
+                    msg.content,
+                    tool_calls_json,
+                    artifacts_json,
+                    msg.timestamp.to_rfc3339(),
+                    metadata_json,
+                ],
+            )
+            .map_err(|e| CoreError::Memory(format!("add_message failed: {e}")))?;
+
+        // Bump the chat's updated_at.
+        let now = chrono::Utc::now().to_rfc3339();
+        self.conn
+            .execute(
+                "UPDATE chats SET updated_at = ?1 WHERE id = ?2",
+                rusqlite::params![now, msg.chat_id.to_string()],
+            )
+            .map_err(|e| CoreError::Memory(format!("update chat timestamp: {e}")))?;
+
+        Ok(())
+    }
+
+    /// Get all messages for a chat, ordered chronologically.
+    pub fn get_messages(&self, chat_id: ChatId) -> Result<Vec<Message>> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT id, chat_id, role, content, tool_calls, artifacts, timestamp, metadata
+                 FROM messages WHERE chat_id = ?1 ORDER BY timestamp ASC",
+            )
+            .map_err(|e| CoreError::Memory(format!("get_messages prepare: {e}")))?;
+
+        let chat_id_str = chat_id.to_string();
+        let rows = stmt
+            .query_map(rusqlite::params![chat_id_str], message_from_row)
+            .map_err(|e| CoreError::Memory(format!("get_messages query: {e}")))?;
+
+        let mut messages = Vec::new();
+        for row in rows {
+            messages.push(row.map_err(|e| CoreError::Memory(format!("get_messages row: {e}")))?);
+        }
+        Ok(messages)
+    }
+
+    /// Get the *N* most recent messages for a chat.
+    pub fn get_recent(&self, chat_id: ChatId, limit: usize) -> Result<Vec<Message>> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT id, chat_id, role, content, tool_calls, artifacts, timestamp, metadata
+                 FROM messages WHERE chat_id = ?1 ORDER BY timestamp DESC LIMIT ?2",
+            )
+            .map_err(|e| CoreError::Memory(format!("get_recent prepare: {e}")))?;
+
+        let chat_id_str = chat_id.to_string();
+        let rows = stmt
+            .query_map(
+                rusqlite::params![chat_id_str, limit as i64],
+                message_from_row,
+            )
+            .map_err(|e| CoreError::Memory(format!("get_recent query: {e}")))?;
+
+        let mut messages = Vec::new();
+        for row in rows {
+            messages.push(row.map_err(|e| CoreError::Memory(format!("get_recent row: {e}")))?);
+        }
+        // Reverse so they're in chronological order.
+        messages.reverse();
+        Ok(messages)
+    }
+
+    // ── Chat Settings ──────────────────────────────────────────────────
+
+    /// Get a setting value for a chat.
+    pub fn get_setting(&self, chat_id: ChatId, key: &str) -> Result<Option<String>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT value FROM chat_settings WHERE chat_id = ?1 AND key = ?2")
+            .map_err(|e| CoreError::Memory(format!("get_setting prepare: {e}")))?;
+
+        let chat_id_str = chat_id.to_string();
+        let mut rows = stmt
+            .query(rusqlite::params![chat_id_str, key])
+            .map_err(|e| CoreError::Memory(format!("get_setting query: {e}")))?;
+
+        match rows
+            .next()
+            .map_err(|e| CoreError::Memory(format!("get_setting next: {e}")))?
+        {
+            Some(row) => {
+                Ok(Some(row.get(0).map_err(|e| {
+                    CoreError::Memory(format!("get_setting get: {e}"))
+                })?))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// Set (upsert) a setting value for a chat.
+    pub fn set_setting(&self, chat_id: ChatId, key: &str, value: &str) -> Result<()> {
+        self.conn
+            .execute(
+                "INSERT INTO chat_settings (chat_id, key, value) VALUES (?1, ?2, ?3)
+                 ON CONFLICT(chat_id, key) DO UPDATE SET value = excluded.value",
+                rusqlite::params![chat_id.to_string(), key, value],
+            )
+            .map_err(|e| CoreError::Memory(format!("set_setting: {e}")))?;
+        Ok(())
+    }
+}
+
+// ── Helper types ───────────────────────────────────────────────────────
+
+/// A flat representation of a chat row from the database.
+#[derive(Debug, Clone)]
+pub struct ChatRecord {
+    pub id: ChatId,
+    pub title: String,
+    pub workspace_id: Option<WorkspaceId>,
+    pub persona_id: Option<PersonaId>,
+    pub agent_role_id: Option<AgentRoleId>,
+    pub model: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+impl ChatRecord {
+    fn from_row(row: &rusqlite::Row<'_>) -> Result<Self> {
+        let id_str: String = row
+            .get(0)
+            .map_err(|e| CoreError::Memory(format!("chat id: {e}")))?;
+        let title: String = row.get(1).unwrap_or_default();
+        let ws: Option<String> = row.get(2).unwrap_or(None);
+        let pid: Option<String> = row.get(3).unwrap_or(None);
+        let arid: Option<String> = row.get(4).unwrap_or(None);
+        let model: String = row.get(5).unwrap_or_default();
+        let created_at: String = row.get(6).unwrap_or_default();
+        let updated_at: String = row.get(7).unwrap_or_default();
+
+        Ok(Self {
+            id: ChatId(
+                uuid::Uuid::parse_str(&id_str)
+                    .map_err(|e| CoreError::Memory(format!("invalid chat id '{id_str}': {e}")))?,
+            ),
+            title,
+            workspace_id: ws
+                .as_deref()
+                .map(|s| WorkspaceId(uuid::Uuid::parse_str(s).unwrap()))
+                .take(),
+            persona_id: pid
+                .as_deref()
+                .map(|s| PersonaId(uuid::Uuid::parse_str(s).unwrap()))
+                .take(),
+            agent_role_id: arid
+                .as_deref()
+                .map(|s| AgentRoleId(uuid::Uuid::parse_str(s).unwrap()))
+                .take(),
+            model,
+            created_at,
+            updated_at,
+        })
+    }
+}
+
+// ── Row mapping helper for Message ─────────────────────────────────────
+
+/// Parse a SQLite row into a [`Message`]. Used as a `query_map` callback.
+fn message_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Message> {
+    let id_str: String = row.get(0)?;
+    let chat_id_str: String = row.get(1)?;
+    let role_str: String = row.get(2)?;
+    let content: String = row.get(3).unwrap_or_default();
+    let tool_calls_json: Option<String> = row.get(4).unwrap_or(None);
+    let artifacts_json: Option<String> = row.get(5).unwrap_or(None);
+    let timestamp_str: String = row.get(6)?;
+    let metadata_json: Option<String> = row.get(7).unwrap_or(None);
+
+    let role = match role_str.as_str() {
+        "user" => MessageRole::User,
+        "assistant" => MessageRole::Assistant,
+        "system" => MessageRole::System,
+        "tool" => MessageRole::Tool,
+        _ => {
+            return Err(rusqlite::Error::FromSqlConversionFailure(
+                2,
+                rusqlite::types::Type::Text,
+                Box::from(format!("unknown message role: {role_str}")),
+            ));
+        }
+    };
+
+    let tool_calls: Vec<ToolCall> = tool_calls_json
+        .as_deref()
+        .map(|s| serde_json::from_str(s))
+        .transpose()
+        .map_err(|e| {
+            rusqlite::Error::FromSqlConversionFailure(4, rusqlite::types::Type::Text, Box::from(e))
+        })?
+        .unwrap_or_default();
+
+    let artifacts: Vec<Artifact> = artifacts_json
+        .as_deref()
+        .map(|s| serde_json::from_str(s))
+        .transpose()
+        .map_err(|e| {
+            rusqlite::Error::FromSqlConversionFailure(5, rusqlite::types::Type::Text, Box::from(e))
+        })?
+        .unwrap_or_default();
+
+    let metadata: serde_json::Value = metadata_json
+        .as_deref()
+        .map(|s| serde_json::from_str(s))
+        .transpose()
+        .map_err(|e| {
+            rusqlite::Error::FromSqlConversionFailure(7, rusqlite::types::Type::Text, Box::from(e))
+        })?
+        .unwrap_or(serde_json::Value::Null);
+
+    let timestamp = chrono::DateTime::parse_from_rfc3339(&timestamp_str)
+        .map_err(|e| {
+            rusqlite::Error::FromSqlConversionFailure(6, rusqlite::types::Type::Text, Box::from(e))
+        })?
+        .to_utc();
+
+    Ok(Message {
+        id: MessageId(uuid::Uuid::parse_str(&id_str).map_err(|e| {
+            rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::from(e))
+        })?),
+        chat_id: ChatId(uuid::Uuid::parse_str(&chat_id_str).map_err(|e| {
+            rusqlite::Error::FromSqlConversionFailure(1, rusqlite::types::Type::Text, Box::from(e))
+        })?),
+        role,
+        content,
+        tool_calls,
+        artifacts,
+        timestamp,
+        metadata,
+    })
+}
+
+// ── Tests ──────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_message(chat_id: ChatId, role: MessageRole, content: &str) -> Message {
+        Message {
+            id: MessageId::new(),
+            chat_id,
+            role,
+            content: content.to_string(),
+            tool_calls: Vec::new(),
+            artifacts: Vec::new(),
+            timestamp: chrono::Utc::now(),
+            metadata: serde_json::Value::Null,
+        }
+    }
+
+    #[test]
+    fn open_in_memory_works() {
+        let store = MemoryStore::open_in_memory().expect("open");
+        drop(store);
+    }
+
+    #[test]
+    fn create_and_get_chat() {
+        let store = MemoryStore::open_in_memory().unwrap();
+        let id = ChatId::new();
+        store
+            .create_chat(id, "Test Chat", None, None, None, "gpt-4")
+            .unwrap();
+
+        let chat = store.get_chat(id).unwrap().expect("chat should exist");
+        assert_eq!(chat.id, id);
+        assert_eq!(chat.title, "Test Chat");
+        assert_eq!(chat.model, "gpt-4");
+    }
+
+    #[test]
+    fn list_chats_returns_created() {
+        let store = MemoryStore::open_in_memory().unwrap();
+        let id1 = ChatId::new();
+        let id2 = ChatId::new();
+        store
+            .create_chat(id1, "Chat 1", None, None, None, "gpt-4")
+            .unwrap();
+        store
+            .create_chat(id2, "Chat 2", None, None, None, "claude-3")
+            .unwrap();
+
+        let chats = store.list_chats().unwrap();
+        assert_eq!(chats.len(), 2);
+    }
+
+    #[test]
+    fn delete_chat_removes_it() {
+        let store = MemoryStore::open_in_memory().unwrap();
+        let id = ChatId::new();
+        store
+            .create_chat(id, "Bye", None, None, None, "gpt-4")
+            .unwrap();
+
+        assert!(store.delete_chat(id).unwrap());
+        assert!(store.get_chat(id).unwrap().is_none());
+    }
+
+    #[test]
+    fn add_and_get_messages() {
+        let store = MemoryStore::open_in_memory().unwrap();
+        let chat_id = ChatId::new();
+        store
+            .create_chat(chat_id, "Msg Test", None, None, None, "gpt-4")
+            .unwrap();
+
+        let msg1 = make_message(chat_id, MessageRole::User, "Hello");
+        let msg2 = make_message(chat_id, MessageRole::Assistant, "Hi there!");
+        store.add_message(&msg1).unwrap();
+        store.add_message(&msg2).unwrap();
+
+        let messages = store.get_messages(chat_id).unwrap();
+        assert_eq!(messages.len(), 2);
+        assert_eq!(messages[0].content, "Hello");
+        assert_eq!(messages[1].content, "Hi there!");
+    }
+
+    #[test]
+    fn get_recent_limits_results() {
+        let store = MemoryStore::open_in_memory().unwrap();
+        let chat_id = ChatId::new();
+        store
+            .create_chat(chat_id, "Recent", None, None, None, "gpt-4")
+            .unwrap();
+
+        for i in 0..5 {
+            let msg = make_message(chat_id, MessageRole::User, &format!("msg {i}"));
+            store.add_message(&msg).unwrap();
+        }
+
+        let recent = store.get_recent(chat_id, 3).unwrap();
+        assert_eq!(recent.len(), 3);
+        // Should be the last 3 in chronological order.
+        assert_eq!(recent[0].content, "msg 2");
+        assert_eq!(recent[2].content, "msg 4");
+    }
+
+    #[test]
+    fn chat_settings_crud() {
+        let store = MemoryStore::open_in_memory().unwrap();
+        let chat_id = ChatId::new();
+        store
+            .create_chat(chat_id, "Settings", None, None, None, "gpt-4")
+            .unwrap();
+
+        // Initially absent.
+        assert!(store.get_setting(chat_id, "temperature").unwrap().is_none());
+
+        // Set and retrieve.
+        store.set_setting(chat_id, "temperature", "0.7").unwrap();
+        assert_eq!(
+            store.get_setting(chat_id, "temperature").unwrap(),
+            Some("0.7".to_string())
+        );
+
+        // Update existing.
+        store.set_setting(chat_id, "temperature", "0.9").unwrap();
+        assert_eq!(
+            store.get_setting(chat_id, "temperature").unwrap(),
+            Some("0.9".to_string())
+        );
+    }
+
+    #[test]
+    fn message_with_tool_calls_and_artifacts() {
+        let store = MemoryStore::open_in_memory().unwrap();
+        let chat_id = ChatId::new();
+        store
+            .create_chat(chat_id, "Tools", None, None, None, "gpt-4")
+            .unwrap();
+
+        let msg = Message {
+            id: MessageId::new(),
+            chat_id,
+            role: MessageRole::Assistant,
+            content: "Let me run that.".to_string(),
+            tool_calls: vec![ToolCall {
+                id: "tc_1".to_string(),
+                name: "run_code".to_string(),
+                arguments: serde_json::json!({"lang": "python"}),
+            }],
+            artifacts: vec![Artifact {
+                id: "art_1".to_string(),
+                artifact_type: ArtifactType::Code,
+                title: "main.py".to_string(),
+                content: "print('hello')".to_string(),
+                language: Some("python".to_string()),
+            }],
+            timestamp: chrono::Utc::now(),
+            metadata: serde_json::json!({"token_usage": 42}),
+        };
+
+        store.add_message(&msg).unwrap();
+        let fetched = store.get_messages(chat_id).unwrap();
+        assert_eq!(fetched.len(), 1);
+        assert_eq!(fetched[0].tool_calls.len(), 1);
+        assert_eq!(fetched[0].tool_calls[0].name, "run_code");
+        assert_eq!(fetched[0].artifacts.len(), 1);
+        assert_eq!(fetched[0].artifacts[0].title, "main.py");
+        assert_eq!(fetched[0].metadata["token_usage"], 42);
+    }
+}
