@@ -3,6 +3,19 @@ name = "hyprcollab-tools"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Built-in tool implementations"
+description = "Built-in tool implementations: shell, file_ops, web_search, web_fetch, memory_tools"
 
 [dependencies]
+hyprcollab-core = { workspace = true }
+tokio = { workspace = true, features = ["process", "fs", "io-util"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+async-trait = "0.1"
+tracing = { workspace = true }
+chrono = { workspace = true }
+reqwest = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util", "macros", "process", "fs"] }
+tempfile = "3"

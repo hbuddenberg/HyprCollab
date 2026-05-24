@@ -3,6 +3,17 @@ name = "hyprcollab-commands"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Slash command system"
+description = "Slash command system: parser, registry, and built-in commands"
 
 [dependencies]
+hyprcollab-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+async-trait = "0.1"
+tracing = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util", "macros"] }
