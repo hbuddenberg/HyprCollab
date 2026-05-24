@@ -1,6 +1,6 @@
 # HyprCollab — Product Requirements Document
 
-> **OpenSpec SSD v2.0** · Agentic AI Chat Platform · Rust-Native · Multi-Platform
+> **OpenSpec SSD v2.0** · Agentic AI Chat Platform · Rust 2024 Edition · Multi-Platform
 
 ---
 
@@ -171,7 +171,8 @@ sequenceDiagram
 
 ## 3. Tech Stack
 
-- **Backend Core:** Rust + Axum 0.8 — performance, safety, async-native
+- **Language:** Rust 2024 Edition — latest stable, `unsafe` hygiene, `gen` reserved, improved async
+- **Backend Core:** Axum 0.8 — performance, safety, async-native
 - **Agent Runtime:** rig-rs (0xPlaygrounds/rig) ⭐7.4k — framework LLM Rust
 - **Frontend Web:** Dioxus 0.6 ⭐36k — fullstack Rust → WASM
 - **Desktop App:** Tauri 2.0 — compila a binario nativo (Linux/macOS/Windows)

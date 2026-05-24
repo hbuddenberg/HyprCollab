@@ -1,6 +1,6 @@
 # HyprCollab — Technical Requirements Document
 
-> **OpenSpec SSD v2.0** · Agentic AI Chat Platform · Rust-Native · Multi-Platform
+> **OpenSpec SSD v2.0** · Agentic AI Chat Platform · Rust 2024 Edition · Multi-Platform
 
 ---
 
@@ -1236,9 +1236,11 @@ POST   /api/export/:conversation_id
 
 ## 6. Estructura de Crates (~30)
 
+> **Rust 2024 Edition** · `edition = "2024"` en workspace root · todas las crates heredan vía `edition.workspace = true`
+
 ```
 hyprcollab/
-├── Cargo.toml
+├── Cargo.toml                      # [workspace.package] edition = "2024"
 ├── crates/
 │   ├── hyprcollab-core/            # Shared types, traits, errors
 │   ├── hyprcollab-server/          # Axum HTTP + SSE + WS

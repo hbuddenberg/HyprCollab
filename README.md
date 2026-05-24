@@ -1,6 +1,6 @@
 # HyprCollab
 
-**Agentic AI Chat Platform — 100% Rust**
+**Agentic AI Chat Platform — 100% Rust (2024 Edition)**
 
 A fullstack agentic chat platform combining the best of LibreChat (UX + Artifacts + MCP), AnythingLLM (RAG + workspaces), ClaudeCodeUI (ACP visualization + mobile), and Hermes Agent (evolutive memory + skills + learning) — with a terminal-first aesthetic.
 

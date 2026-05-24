@@ -1,6 +1,6 @@
 # HyprCollab — Implementation Plan
 
-> **OpenSpec SSD v2.0** · 9 Fases · 39 Semanas
+> **OpenSpec SSD v2.0** · Rust 2024 Edition · 9 Fases · 39 Semanas
 
 ---
 
