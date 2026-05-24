@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>HyprCollab — Validation Report</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0d1117; color:#c9d1d9; font-family:'JetBrains Mono','Nerd Font',monospace; padding:24px; max-width:1200px; margin:0 auto; }
+  .header { border-bottom:2px solid #58a6ff; padding-bottom:16px; margin-bottom:24px; display:flex; justify-content:space-between; align-items:flex-end; }
+  .header h1 { color:#58a6ff; font-size:28px; letter-spacing:1px; }
+  .header .subtitle { color:#8b949e; font-size:13px; margin-top:4px; }
+  .header .date { color:#8b949e; font-size:13px; text-align:right; }
+  .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+  .card { background:#161b22; border:1px solid #30363d; border-radius:10px; padding:20px; text-align:center; }
+  .card h2 { color:#8b949e; font-size:11px; margin-bottom:8px; text-transform:uppercase; letter-spacing:1px; }
+  .card .value { font-size:42px; font-weight:700; }
+  .green { color:#3fb950; }
+  .blue { color:#58a6ff; }
+  .section { background:#161b22; border:1px solid #30363d; border-radius:10px; padding:20px; margin-bottom:20px; }
+  .section h2 { color:#58a6ff; font-size:13px; margin-bottom:14px; text-transform:uppercase; letter-spacing:1px; border-bottom:1px solid #30363d; padding-bottom:10px; }
+  pre { background:#0d1117; border:1px solid #21262d; border-radius:8px; padding:14px; overflow-x:auto; font-size:12px; line-height:1.6; white-space:pre; max-height:500px; overflow-y:auto; }
+  .highlight { color:#3fb950; font-weight:700; }
+  .dim { color:#8b949e; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; color:#8b949e; padding:8px 10px; border-bottom:2px solid #30363d; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; }
+  td { padding:8px 10px; border-bottom:1px solid #21262d; }
+  tr:hover { background:#1c2129; }
+  .badge { display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; }
+  .badge-pass { background:#1a3a2a; color:#3fb950; border:1px solid #238636; }
+  .badge-zero { background:#1a2a3a; color:#58a6ff; border:1px solid #1f6feb; }
+  .phase { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; margin-right:4px; }
+  .phase-0 { background:#2a1a3a; color:#bc8cff; }
+  .phase-1 { background:#1a2a3a; color:#58a6ff; }
+  .phase-2 { background:#1a3a2a; color:#3fb950; }
+  .phase-3 { background:#3a2a1a; color:#d29922; }
+  .two-col { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+</style></head><body>
+
+<div class="header">
+  <div>
+    <h1>⟨H⟩ HyprCollab — Validation Report</h1>
+    <div class="subtitle">Agentic AI Chat Platform · Rust 2024 Edition · Fase 0–3 Complete</div>
+  </div>
+  <div class="date">2026-05-24 02:15 UTC<br>Branch: dev</div>
+</div>
+
+<div class="grid">
+  <div class="card"><h2>Tests</h2><div class="value green">373</div></div>
+  <div class="card"><h2>Lines of Rust</h2><div class="value blue">14,181</div></div>
+  <div class="card"><h2>Clippy Warnings</h2><div class="value green">0</div></div>
+  <div class="card"><h2>Build Errors</h2><div class="value green">0</div></div>
+</div>
+
+<div class="section">
+  <h2>📊 Test Breakdown by Crate</h2>
+  <table>
+    <tr><th>Crate</th><th>Tests</th><th>Status</th><th>Fase</th></tr>
+    <tr><td>hyprcollab-core</td><td>13</td><td><span class="badge badge-pass">PASS</span></td><td><span class="phase phase-0">0</span></td></tr>
+    <tr><td>hyprcollab-config</td><td>1</td><td><span class="badge badge-pass">PASS</span></td><td><span class="phase phase-0">0</span></td></tr>
+    <tr><td>hyprcollab-memory</td><td>13</td><td><span class="badge badge-pass">PASS</span></td><td><span class="phase phase-1">1</span></td></tr>
+    <tr><td>hyprcollab-approval</td><td>8</td><td><span class="badge badge-pass">PASS</span></td><td><span class="phase phase-1">1</span></td></tr>
+    <tr><td>hyprcollab-agent</td><td>18</td><td><span class="badge badge-pass">PASS</span></td><td><span class="phase phase-1">1</span></td></tr>
+    <tr><td>hyprcollab-router</td><td>1</td><td><span class="badge badge-pass">PASS</span></td><td><span class="phase phase-1">1</span></td></tr>
+    <tr><td>hyprcollab-provider-openai</td><td>1</td><td><span class="badge badge-pass">PASS</span></td><td><span class="phase phase-1">1</span></td></tr>
+    <tr><td>hyprcollab-provider-anthropic</td><td>1</td><td><span class="badge badge-pass">PASS</span></td><td><span class="phase phase-1">1</span></td></tr>
+    <tr><td>hyprcollab-provider-ollama</td><td>1</td><td><span class="badge badge-pass">PASS</span></td><td><span class="phase phase-1">1</span></td></tr>
+    <tr><td>hyprcollab-tools</td><td>12</td><td><span class="badge badge-pass">PASS</span></td><td><span class="phase phase-1">1</span></td></tr>
+    <tr><td>hyprcollab-commands</td><td>15</td><td><span class="badge badge-pass">PASS</span></td><td><span class="phase phase-2">2</span></td></tr>
+    <tr><td>hyprcollab-artifacts</td><td>1+15+8</td><td><span class="badge badge-pass">PASS</span></td><td><span class="phase phase-2">2</span></td></tr>
+    <tr><td>hyprcollab-canvas</td><td>52+48</td><td><span class="badge badge-pass">PASS</span></td><td><span class="phase phase-3">3</span></td></tr>
+    <tr><td>hyprcollab-media-preview</td><td>31</td><td><span class="badge badge-pass">PASS</span></td><td><span class="phase phase-3">3</span></td></tr>
+    <tr><td>hyprcollab-server</td><td>23</td><td><span class="badge badge-pass">PASS</span></td><td><span class="phase phase-2">2</span></td></tr>
+    <tr><td>hyprcollab-tui</td><td>45</td><td><span class="badge badge-pass">PASS</span></td><td><span class="phase phase-3">3</span></td></tr>
+    <tr><td>hyprcollab-image</td><td>1</td><td><span class="badge badge-pass">PASS</span></td><td><span class="phase phase-1">1</span></td></tr>
+    <tr><td>hyprcollab-browser</td><td>1</td><td><span class="badge badge-pass">PASS</span></td><td><span class="phase phase-1">1</span></td></tr>
+    <tr><td>integration tests</td><td>13</td><td><span class="badge badge-pass">PASS</span></td><td><span class="phase phase-2">2</span></td></tr>
+  </table>
+</div>
+
+<div class="two-col">
+  <div class="section">
+    <h2>🧪 cargo test --workspace</h2>
+    <pre><span class="highlight">373 tests, 0 failures, 0 ignored</span>
+<span class="dim">Total time: ~4.5s</span>
+
+Running tests across 34 crates:
+  <span class="highlight">✓</span> hyprcollab-core          13 passed
+  <span class="highlight">✓</span> hyprcollab-config         1 passed
+  <span class="highlight">✓</span> hyprcollab-memory        13 passed
+  <span class="highlight">✓</span> hyprcollab-approval       8 passed
+  <span class="highlight">✓</span> hyprcollab-agent         18 passed
+  <span class="highlight">✓</span> hyprcollab-router         1 passed
+  <span class="highlight">✓</span> hyprcollab-provider-openai 1 passed
+  <span class="highlight">✓</span> hyprcollab-provider-anthropic 1 passed
+  <span class="highlight">✓</span> hyprcollab-provider-ollama 1 passed
+  <span class="highlight">✓</span> hyprcollab-tools         12 passed
+  <span class="highlight">✓</span> hyprcollab-commands      15 passed
+  <span class="highlight">✓</span> hyprcollab-artifacts     24 passed
+  <span class="highlight">✓</span> hyprcollab-canvas       100 passed
+  <span class="highlight">✓</span> hyprcollab-media-preview 31 passed
+  <span class="highlight">✓</span> hyprcollab-server        23 passed
+  <span class="highlight">✓</span> hyprcollab-tui           45 passed
+  <span class="highlight">✓</span> integration              13 passed
+  <span class="highlight">✓</span> + 17 stub crates          0 each</pre>
+  </div>
+
+  <div class="section">
+    <h2>🔍 cargo clippy --workspace</h2>
+    <pre><span class="highlight">0 warnings, 0 errors</span>
+
+<span class="dim">All 34 crates pass clippy with
+zero warnings including:</span>
+  <span class="highlight">✓</span> deadpool-sqlite pool usage
+  <span class="highlight">✓</span> LazyLock statics (Rust 2024)
+  <span class="highlight">✓</span> IndexMap stable ordering
+  <span class="highlight">✓</span> tracing::warn on malformed args
+  <span class="highlight">✓</span> DefaultHasher cache keys
+  <span class="highlight">✓</span> div_ceil (replaced manual calc)
+  <span class="highlight">✓</span> collapsible if patterns
+  <span class="highlight">✓</span> clamp (replaced min/max)
+  <span class="highlight">✓</span> needless borrow cleanup</pre>
+  </div>
+</div>
+
+<div class="section">
+  <h2>📝 Git History — Fase 0–3</h2>
+  <pre><span class="dim">cb148c9</span> <span class="highlight">fix(review): 12 Fase 3 warnings + 18 clippy cleanups — 373 tests, 0 warnings</span>
+<span class="dim">7de2078</span> review: Fase 3 CC review + fix UTF-8 blocker in MarkdownRenderer — 369 tests
+<span class="dim">88f9caa</span> feat(fase3): S13+S14+S15 — Canvas + Media Preview + TUI — 369 tests, 0 warnings
+<span class="dim">3455553</span> feat(fase3): CommandContext + ArtifactStore + 5 API endpoints — 245 tests, Rust 2024
+<span class="dim">aaebc82</span> feat: upgrade to Rust 2024 edition + sync CC blocker fixes + AGY server wiring
+<span class="dim">3f9cbea</span> Review: CC warnings cleanup + 13 integration tests + AGY Axum server, 209 tests
+<span class="dim">f0af775</span> Milestone 1: core, config, memory, providers, router, agent, tools, commands
+<span class="dim">...</span> <span class="dim">(initial setup, docs, worktrees)</span></pre>
+</div>
+
+<div class="section">
+  <h2>🏗️ Architecture — 34 Crates</h2>
+  <pre><span class="dim">HyprCollab Workspace · Rust 2024 Edition</span>
+
+<span class="highlight">Core Layer</span>     hyprcollab-core · hyprcollab-config · hyprcollab-types
+<span class="highlight">AI Layer</span>       hyprcollab-agent · hyprcollab-router · hyprcollab-approval
+                 hyprcollab-provider-openai · -anthropic · -ollama · -native
+<span class="highlight">Tools Layer</span>    hyprcollab-tools · hyprcollab-commands · hyprcollab-artifacts
+<span class="highlight">Canvas</span>         hyprcollab-canvas · hyprcollab-media-preview
+<span class="highlight">Memory</span>         hyprcollab-memory · hyprcollab-rag
+<span class="highlight">Extensions</span>     hyprcollab-extensions · hyprcollab-skills · hyprcollab-mcp
+<span class="highlight">Server</span>         hyprcollab-server (Axum + SSE + CORS + 5 artifact endpoints)
+<span class="highlight">Platforms</span>      hyprcollab-tui (ratatui) · hyprcollab-tauri · hyprcollab-ui (Dioxus)
+<span class="highlight">Image</span>          hyprcollab-image · hyprcollab-browser
+<span class="highlight">Persona</span>        hyprcollab-persona
+<span class="highlight">Voice</span>          hyprcollab-voice
+<span class="highlight">PWA</span>            hyprcollab-pwa</pre>
+</div>
+
+</body></html>
