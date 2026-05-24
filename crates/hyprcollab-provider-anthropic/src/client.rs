@@ -10,7 +10,6 @@ use hyprcollab_core::errors::{CoreError, Result};
 use hyprcollab_core::traits::LlmProvider;
 use hyprcollab_core::types::*;
 
-use crate::embeddings;
 use crate::streaming;
 use crate::types::*;
 

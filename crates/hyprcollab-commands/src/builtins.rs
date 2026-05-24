@@ -22,7 +22,6 @@ pub use review::ReviewCommand;
 pub use help::HelpCommand;
 pub use config_cmd::ConfigCommand;
 
-use hyprcollab_core::traits::SlashCommand;
 use crate::registry::CommandRegistry;
 
 /// Register all built-in commands into a registry.

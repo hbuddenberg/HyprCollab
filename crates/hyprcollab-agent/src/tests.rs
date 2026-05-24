@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use hyprcollab_core::errors::Result;
-use hyprcollab_core::traits::{LlmProvider, Tool, ToolDefinition};
+use hyprcollab_core::traits::{LlmProvider, Tool};
 use hyprcollab_core::types::*;
 
 use crate::session::AgentSession;
@@ -33,7 +33,8 @@ impl MockTool {
         }
     }
 
-    fn call_count(&self) -> usize {
+        #[allow(dead_code)]
+        pub fn call_count(&self) -> usize {
         self.calls.lock().unwrap().len()
     }
 }

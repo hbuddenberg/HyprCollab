@@ -38,6 +38,7 @@ struct ShellState {
 /// A tracked background process.
 struct BackgroundProcess {
     child: Child,
+    #[allow(dead_code)]
     command: String,
     started_at: Instant,
     stdout_buffer: Arc<Mutex<String>>,

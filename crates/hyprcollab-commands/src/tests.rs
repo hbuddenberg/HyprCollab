@@ -2,7 +2,6 @@
 
 use hyprcollab_core::traits::SlashCommand;
 use crate::builtins::*;
-use crate::parser::ParsedCommand;
 use crate::registry::CommandRegistry;
 
 // ── Parser tests are in parser.rs ────────────────────────────────────

@@ -1,14 +1,11 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+pub mod app;
+pub mod error;
+pub mod sse;
+pub mod state;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use app::{
+    create_app, ApprovalRequest, ApprovalResponse, ChatRequest, ChatResponse, ChatStreamChunk,
+    HealthResponse,
+};
+pub use error::AppError;
+pub use state::AppState;

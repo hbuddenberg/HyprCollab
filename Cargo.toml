@@ -1,3 +1,24 @@
+[package]
+name = "hyprcollab"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "HyprCollab workspace-root integration-test harness"
+
+[dev-dependencies]
+hyprcollab-core     = { path = "crates/hyprcollab-core" }
+hyprcollab-router   = { path = "crates/hyprcollab-router" }
+hyprcollab-agent    = { path = "crates/hyprcollab-agent" }
+hyprcollab-tools    = { path = "crates/hyprcollab-tools" }
+hyprcollab-commands = { path = "crates/hyprcollab-commands" }
+hyprcollab-approval = { path = "crates/hyprcollab-approval" }
+async-trait         = "0.1"
+tokio               = { workspace = true }
+futures             = { workspace = true }
+serde_json          = { workspace = true }
+chrono              = { workspace = true }
+uuid                = { workspace = true }
+
 [workspace]
 resolver = "2"
 members = [

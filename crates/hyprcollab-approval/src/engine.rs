@@ -29,7 +29,7 @@ impl ApprovalEngine {
     }
 
     /// Check whether a tool call requires explicit user approval.
-    pub fn needs_approval(&self, tool_name: &str, args: &serde_json::Value) -> bool {
+    pub fn needs_approval(&self, tool_name: &str, _args: &serde_json::Value) -> bool {
         // Global mode overrides everything.
         match self.mode {
             ApprovalMode::Auto => return false,

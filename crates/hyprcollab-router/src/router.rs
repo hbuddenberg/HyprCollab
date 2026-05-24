@@ -64,7 +64,7 @@ impl LlmRouter {
         }
 
         // Try to find a provider that knows this model
-        for (name, provider) in &self.providers {
+        for (_name, provider) in &self.providers {
             // Simple heuristic: if the model name contains the provider name, use it
             let provider_prefix = provider.name();
             if resolved.starts_with(provider_prefix) {
@@ -192,7 +192,6 @@ impl LlmProvider for LlmRouter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hyprcollab_core::types::*;
 
     /// Mock provider for testing routing logic.
     struct MockProvider {
