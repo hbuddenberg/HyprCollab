@@ -44,8 +44,13 @@ impl ArtifactRenderer for MarkdownRenderer {
             RenderMode::Html => Ok(RenderedArtifact::Html(Self::to_html(content))),
             RenderMode::Terminal => Ok(RenderedArtifact::Text(Self::to_text(content))),
             RenderMode::Preview => {
-                let preview = if content.len() > PREVIEW_CHARS {
-                    format!("{}…", &content[..PREVIEW_CHARS])
+                let preview = if content.chars().count() > PREVIEW_CHARS {
+                    let end = content
+                        .char_indices()
+                        .nth(PREVIEW_CHARS)
+                        .map(|(i, _)| i)
+                        .unwrap_or(content.len());
+                    format!("{}…", &content[..end])
                 } else {
                     content.to_string()
                 };
