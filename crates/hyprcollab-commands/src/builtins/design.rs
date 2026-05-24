@@ -1,8 +1,9 @@
 //! `/design` command — load design mode.
 
 use async_trait::async_trait;
-use hyprcollab_core::errors::{CoreError, Result};
+use hyprcollab_core::errors::Result;
 use hyprcollab_core::traits::SlashCommand;
+use hyprcollab_core::types::CommandContext;
 
 pub struct DesignCommand;
 
@@ -14,21 +15,13 @@ impl SlashCommand for DesignCommand {
         "Load a design file and switch to design review mode"
     }
 
-    fn parse_args(&self, raw: &str) -> Result<serde_json::Value> {
-        if raw.trim().is_empty() {
-            return Ok(serde_json::json!({"action": "info"}));
-        }
-        Ok(serde_json::json!({"action": "load", "file": raw.trim()}))
-    }
+    async fn execute(&self, args: serde_json::Value, _ctx: &mut CommandContext) -> Result<String> {
+        let raw = args["raw"].as_str().unwrap_or("").trim().to_string();
 
-    async fn execute(&self, args: serde_json::Value) -> Result<String> {
-        match args["action"].as_str().unwrap_or("info") {
-            "info" => Ok("Design mode: provide a .md file to review.\nUsage: /design path/to/DESIGN.md".into()),
-            "load" => {
-                let file = args["file"].as_str().unwrap_or("");
-                Ok(format!("🎨 Design mode activated. Reviewing: {file}"))
-            }
-            _ => Err(CoreError::Config("Invalid design action".into())),
+        if raw.is_empty() {
+            Ok("Design mode: provide a .md file to review.\nUsage: /design path/to/DESIGN.md".into())
+        } else {
+            Ok(format!("Design mode activated. Reviewing: {raw}"))
         }
     }
 }

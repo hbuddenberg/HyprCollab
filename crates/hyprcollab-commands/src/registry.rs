@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 use hyprcollab_core::errors::{CoreError, Result};
 use hyprcollab_core::traits::SlashCommand;
+use hyprcollab_core::types::CommandContext;
 
 use crate::ParsedCommand;
 
@@ -52,7 +53,8 @@ impl CommandRegistry {
     /// Parse and execute a raw input string.
     ///
     /// Returns `None` if the input is not a slash command.
-    pub async fn execute(&self, input: &str) -> Option<Result<String>> {
+    /// `ctx` is passed through to the command and may be mutated.
+    pub async fn execute(&self, input: &str, ctx: &mut CommandContext) -> Option<Result<String>> {
         let parsed = ParsedCommand::parse(input)?;
 
         match parsed {
@@ -60,12 +62,11 @@ impl CommandRegistry {
                 let command = self.commands.get(&cmd.name);
                 match command {
                     Some(cmd_impl) => {
-                        let args_str = cmd.args_joined();
-                        let args = match cmd_impl.parse_args(&args_str) {
-                            Ok(a) => a,
-                            Err(e) => return Some(Err(e)),
-                        };
-                        Some(cmd_impl.execute(args).await)
+                        let args = serde_json::json!({
+                            "raw": cmd.args_joined(),
+                            "args": cmd.args,
+                        });
+                        Some(cmd_impl.execute(args, ctx).await)
                     }
                     None => Some(Err(CoreError::Config(format!(
                         "Unknown command: /{}. Type /help for available commands.",
@@ -98,6 +99,17 @@ impl Default for CommandRegistry {
 mod registry_tests {
     use super::*;
     use async_trait::async_trait;
+    use hyprcollab_core::types::ApprovalMode;
+
+    fn test_ctx() -> CommandContext {
+        CommandContext {
+            session_id: "test-session".to_string(),
+            workspace_id: None,
+            model: "test-model".to_string(),
+            temperature: None,
+            approval_mode: ApprovalMode::Normal,
+        }
+    }
 
     struct MockCommand {
         name: String,
@@ -114,11 +126,7 @@ mod registry_tests {
             &self.desc
         }
 
-        fn parse_args(&self, raw: &str) -> Result<serde_json::Value> {
-            Ok(serde_json::json!({"raw": raw}))
-        }
-
-        async fn execute(&self, args: serde_json::Value) -> Result<String> {
+        async fn execute(&self, args: serde_json::Value, _ctx: &mut CommandContext) -> Result<String> {
             Ok(format!("executed {} with {}", self.name, args["raw"].as_str().unwrap_or("")))
         }
     }
@@ -155,21 +163,24 @@ mod registry_tests {
             name: "/echo".into(),
             desc: "Echo".into(),
         }));
-        let result = reg.execute("/echo hello world").await.unwrap().unwrap();
+        let mut ctx = test_ctx();
+        let result = reg.execute("/echo hello world", &mut ctx).await.unwrap().unwrap();
         assert!(result.contains("hello world"));
     }
 
     #[tokio::test]
     async fn execute_unknown() {
         let reg = CommandRegistry::new();
-        let result = reg.execute("/unknown").await.unwrap();
+        let mut ctx = test_ctx();
+        let result = reg.execute("/unknown", &mut ctx).await.unwrap();
         assert!(result.is_err());
     }
 
     #[tokio::test]
     async fn not_a_command() {
         let reg = CommandRegistry::new();
-        assert!(reg.execute("hello world").await.is_none());
+        let mut ctx = test_ctx();
+        assert!(reg.execute("hello world", &mut ctx).await.is_none());
     }
 
     #[test]

@@ -678,6 +678,19 @@ dependencies = [
 [[package]]
 name = "hyprcollab-artifacts"
 version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "hyprcollab-core",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "uuid",
+]
 
 [[package]]
 name = "hyprcollab-browser"
@@ -866,8 +879,10 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "futures",
+ "hyprcollab-artifacts",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror",
  "tokio",
  "tower",

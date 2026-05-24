@@ -2,7 +2,7 @@ use axum::{
     extract::State,
     http::Method,
     response::{IntoResponse, Response, sse::Event, Sse},
-    routing::{get, post},
+    routing::{delete, get, post, put},
     Json, Router,
 };
 use tower_http::cors::{Any, CorsLayer};
@@ -11,8 +11,11 @@ use futures::stream;
 
 use crate::state::AppState;
 use crate::error::AppError;
+use crate::artifacts::{
+    create_artifact, delete_artifact, get_artifact, list_artifacts, update_artifact,
+};
 
-/// Request payload for chat completions.
+/// HTTP request payload for chat completions.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct ChatRequest {
     pub message: String,
@@ -60,17 +63,24 @@ pub struct ApprovalResponse {
     pub reason: Option<String>,
 }
 
-/// Create the Axum Router configured with CORS and endpoints.
+/// Create the Axum Router configured with CORS and all endpoints.
 pub fn create_app(state: AppState) -> Router {
     let cors = CorsLayer::new()
         .allow_origin(Any)
-        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
         .allow_headers(Any);
 
     Router::new()
+        // Core endpoints
         .route("/api/health", get(health_handler))
         .route("/api/chat", post(chat_handler))
         .route("/api/tools/approve", post(approve_handler))
+        // Artifact endpoints
+        .route("/api/artifacts", post(create_artifact))
+        .route("/api/artifacts", get(list_artifacts))
+        .route("/api/artifacts/{id}", get(get_artifact))
+        .route("/api/artifacts/{id}", put(update_artifact))
+        .route("/api/artifacts/{id}", delete(delete_artifact))
         .layer(cors)
         .with_state(state)
 }
@@ -96,15 +106,15 @@ async fn chat_handler(
         let response_text = format!("Response to: {}", payload.message);
         let words: Vec<String> = response_text
             .split_whitespace()
-            .map(|w| format!("{} ", w))
+            .map(|w| format!("{w} "))
             .collect();
-        
+
         let model = payload.model.clone();
         let persona_id = payload.persona_id.clone();
-        
+
         let mut events = Vec::new();
         let len = words.len();
-        
+
         for (i, word) in words.into_iter().enumerate() {
             let done = i == len - 1;
             let chunk = ChatStreamChunk {
@@ -113,15 +123,14 @@ async fn chat_handler(
                 model: model.clone(),
                 persona_id: persona_id.clone(),
             };
-            
             let event = Event::default()
                 .json_data(&chunk)
                 .map_err(|e| AppError::Internal(e.to_string()))?;
             events.push(Ok::<Event, Infallible>(event));
         }
-        
-        let stream = stream::iter(events);
-        Ok(Sse::new(stream).into_response())
+
+        let s = stream::iter(events);
+        Ok(Sse::new(s).into_response())
     } else {
         let response = ChatResponse {
             response: format!("Response to: {}", payload.message),
@@ -141,18 +150,21 @@ async fn approve_handler(
     }
 
     {
-        let mut approvals = state
-            .approvals
-            .lock()
-            .map_err(|_| AppError::Internal("Lock poisoned".to_string()))?;
+        let mut approvals = state.approvals.lock().await;
         approvals.push(payload.tool_name.clone());
     }
 
     let approved = !payload.tool_name.starts_with("unsafe");
     let reason = if approved {
-        Some(format!("Tool '{}' execution is approved by default policy", payload.tool_name))
+        Some(format!(
+            "Tool '{}' execution is approved by default policy",
+            payload.tool_name
+        ))
     } else {
-        Some(format!("Tool '{}' execution requires explicit user authorization", payload.tool_name))
+        Some(format!(
+            "Tool '{}' execution requires explicit user authorization",
+            payload.tool_name
+        ))
     };
 
     Ok(Json(ApprovalResponse { approved, reason }))

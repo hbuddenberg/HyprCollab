@@ -84,6 +84,16 @@ pub enum ApprovalMode {
     Strict,
 }
 
+impl std::fmt::Display for ApprovalMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Auto => write!(f, "auto"),
+            Self::Normal => write!(f, "normal"),
+            Self::Strict => write!(f, "strict"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ArtifactType {
@@ -179,6 +189,31 @@ pub struct TokenChunk {
     /// Assembled tool calls, populated only when `finish_reason == ToolCalls`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tool_calls: Vec<ToolCall>,
+}
+
+/// Shared execution context passed to every slash command.
+///
+/// Holds mutable per-session settings so commands like `/temperature` and
+/// `/approval` can persist their changes across the current session.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommandContext {
+    pub session_id: String,
+    pub workspace_id: Option<WorkspaceId>,
+    pub model: String,
+    pub temperature: Option<f32>,
+    pub approval_mode: ApprovalMode,
+}
+
+impl Default for CommandContext {
+    fn default() -> Self {
+        Self {
+            session_id: uuid::Uuid::new_v4().to_string(),
+            workspace_id: None,
+            model: "openai/gpt-4o".to_string(),
+            temperature: None,
+            approval_mode: ApprovalMode::Normal,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

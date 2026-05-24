@@ -3,6 +3,7 @@
 use async_trait::async_trait;
 use hyprcollab_core::errors::Result;
 use hyprcollab_core::traits::SlashCommand;
+use hyprcollab_core::types::CommandContext;
 
 pub struct HelpCommand;
 
@@ -14,28 +15,24 @@ impl SlashCommand for HelpCommand {
         "Show available slash commands and their descriptions"
     }
 
-    fn parse_args(&self, raw: &str) -> Result<serde_json::Value> {
-        Ok(serde_json::json!({"query": raw.trim().to_string()}))
-    }
-
-    async fn execute(&self, args: serde_json::Value) -> Result<String> {
-        let query = args["query"].as_str().unwrap_or("");
+    async fn execute(&self, args: serde_json::Value, _ctx: &mut CommandContext) -> Result<String> {
+        let query = args["raw"].as_str().unwrap_or("").trim().to_string();
 
         let commands = [
-            ("/agent", "Manage agent roles: list, load, assign, create"),
-            ("/approval", "Set approval mode: strict, normal, auto"),
-            ("/browse", "Open URL in embedded browser"),
-            ("/config", "View or edit configuration"),
-            ("/design", "Load design review mode"),
-            ("/help", "Show this help message"),
-            ("/review", "Start code review mode"),
-            ("/run", "Execute command with approval check"),
-            ("/skill", "Manage skills: list, load"),
-            ("/temperature", "Set chat temperature (0.0-2.0)"),
+            ("/agent",       "Manage agent roles: list, load, assign, create"),
+            ("/approval",    "Set approval mode: strict, normal, auto"),
+            ("/browse",      "Open URL in embedded browser"),
+            ("/config",      "View or edit configuration"),
+            ("/design",      "Load design review mode"),
+            ("/help",        "Show this help message"),
+            ("/review",      "Start code review mode"),
+            ("/run",         "Execute command with approval check"),
+            ("/skill",       "Manage skills: list, load"),
+            ("/temperature", "Set chat temperature (0.0–2.0)"),
         ];
 
         if query.is_empty() {
-            let mut lines = vec!["📖 Available commands:\n".to_string()];
+            let mut lines = vec!["Available commands:\n".to_string()];
             for (name, desc) in &commands {
                 lines.push(format!("  {name:<15} {desc}"));
             }
@@ -43,7 +40,7 @@ impl SlashCommand for HelpCommand {
             Ok(lines.join("\n"))
         } else {
             for (name, desc) in &commands {
-                if name.contains(query) || desc.contains(query) {
+                if name.contains(&query) || desc.to_lowercase().contains(&query.to_lowercase()) {
                     return Ok(format!("{name} — {desc}"));
                 }
             }

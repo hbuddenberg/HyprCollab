@@ -195,11 +195,7 @@ impl SlashCommand for MockSlashCommand {
         "A mock slash command for integration testing"
     }
 
-    fn parse_args(&self, raw: &str) -> Result<serde_json::Value> {
-        Ok(serde_json::json!({"raw": raw}))
-    }
-
-    async fn execute(&self, args: serde_json::Value) -> Result<String> {
+    async fn execute(&self, args: serde_json::Value, _ctx: &mut hyprcollab_core::types::CommandContext) -> Result<String> {
         let raw = args["raw"].as_str().unwrap_or("");
         Ok(format!("{}: {raw}", self.cmd_name.trim_start_matches('/')))
     }

@@ -113,9 +113,23 @@ pub trait SlashCommand: Send + Sync {
     /// Short description shown in help text.
     fn description(&self) -> &str;
 
-    /// Parse raw argument string into a typed value.
-    fn parse_args(&self, raw: &str) -> Result<serde_json::Value>;
+    /// Alternative names that also route to this command.
+    fn aliases(&self) -> Vec<&str> {
+        vec![]
+    }
+
+    /// Tab-completion suggestions for the given partial input.
+    fn completions(&self, _partial: &str) -> Vec<String> {
+        vec![]
+    }
 
     /// Execute the command.
-    async fn execute(&self, args: serde_json::Value) -> Result<String>;
+    ///
+    /// `args` is a JSON object with at minimum `"raw"` (the joined arg string)
+    /// and `"args"` (positional tokens as an array). Commands perform their own
+    /// validation and parsing inside this method.
+    ///
+    /// `ctx` holds session-scoped settings (model, temperature, approval_mode)
+    /// and may be mutated by commands such as `/temperature` or `/approval`.
+    async fn execute(&self, args: serde_json::Value, ctx: &mut CommandContext) -> Result<String>;
 }
