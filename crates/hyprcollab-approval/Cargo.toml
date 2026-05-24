@@ -1,0 +1,8 @@
+[package]
+name = "hyprcollab-approval"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Approval engine for tool execution"
+
+[dependencies]

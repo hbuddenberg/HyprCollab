@@ -1,0 +1,8 @@
+[package]
+name = "hyprcollab-rag"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "RAG pipeline: parse, chunk, embed, store, query"
+
+[dependencies]

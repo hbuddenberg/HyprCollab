@@ -1,0 +1,8 @@
+[package]
+name = "hyprcollab-provider-native"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Native GGUF inference (llama.cpp + candle + mistral.rs)"
+
+[dependencies]

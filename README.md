@@ -1,57 +1,91 @@
 # HyprCollab
 
-**Agentic AI chat platform for developers** — Multi-platform, Rust-native, terminal-first.
+**Agentic AI Chat Platform — 100% Rust**
 
-Combines the best of LibreChat (UX + Artifacts), AnythingLLM (RAG + Workspaces), ClaudeCodeUI (ACP), and Hermes Agent (memory + skills) into one cohesive Rust application.
+A fullstack agentic chat platform combining the best of LibreChat (UX + Artifacts + MCP), AnythingLLM (RAG + workspaces), ClaudeCodeUI (ACP visualization + mobile), and Hermes Agent (evolutive memory + skills + learning) — with a terminal-first aesthetic.
 
-## Platforms
+![CI](https://github.com/hbuddenberg/HyprCollab/actions/workflows/ci.yml/badge.svg)
+![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
+![Crates](https://img.shields.io/badge/crates-30-orange)
 
-- 🖥️ **Desktop** — Tauri 2.0 (Linux, macOS, Windows)
-- 🌐 **Web Server** — Axum + Dioxus WASM
-- ⌨️ **TUI** — ratatui + kitty image protocol
-- 📱 **Mobile** — PWA + Tauri 2.0
+## Architecture
 
-## Features
+```
+Backend (Axum)          Frontend (Dioxus 0.6 WASM)      Platforms
+├── LLM Router          ├── Sidebar (3 panels)           ├── Tauri 2.0 (Desktop)
+├── Agent Runtime       ├── Chat Messages                ├── PWA (Web)
+├── RAG Pipeline        ├── Artifacts Panel              ├── TUI (ratatui)
+├── Memory (SQLite)     ├── Status Bar                   └── Mobile (future)
+├── MCP Client          └── Input Area
+├── ACP Connector
+├── Persona System
+├── Skills Engine
+├── Playwright Browser
+└── Approval Engine
+```
 
-- Multi-provider LLM (OpenAI, Anthropic, Ollama, OpenRouter)
-- Agent runtime with tools (shell, web, files, browser)
-- Artifacts canvas with live preview
-- RAG pipeline with LanceDB
-- Memory + auto-learning skills
-- ACP visualization (Claude Code, Codex, AGY)
-- Slash commands (`/.agent`, `/.skill`, `/.design`, `/.browse`)
-- Approval system for dangerous operations
-- Kitty image protocol preview (TUI)
-- Native web browser engine
+## Tech Stack
 
-## Stack
-
-- **Backend:** Rust + Axum + rig-rs
-- **Frontend:** Dioxus 0.6 (WASM) + Tauri 2.0
-- **DB:** SQLite + LanceDB
-- **License:** MIT
+| Layer | Technology |
+|---|---|
+| Backend | Axum 0.8, rig-rs, SQLite, LanceDB |
+| Frontend | Dioxus 0.6 (WASM), terminal-first CSS |
+| Desktop | Tauri 2.0 |
+| TUI | ratatui + kitty image protocol |
+| LLM | OpenAI, Anthropic, Ollama, Native GGUF |
+| Config | Lua (mlua) + YAML fallback |
+| Extensions | WASM + Lua |
 
 ## Quick Start
 
 ```bash
 # Build
-cargo build
+cargo build --workspace
 
-# Run web server
-cargo run -- serve
+# Test
+cargo test --workspace
 
-# Run TUI
-cargo run -- tui
-
-# Run tests
-cargo test
+# Lint
+cargo clippy --workspace -- -D warnings
+cargo fmt --check --all
 ```
 
-## Documentation
+## Project Structure
 
-- [PRD](docs/PRD.md) — Product Requirements
-- [TRD](docs/TRD.md) — Technical Requirements
-- [PLAN](docs/PLAN.md) — Implementation Plan
+```
+crates/
+├── hyprcollab-core/              # Shared types, traits, errors
+├── hyprcollab-server/            # Axum HTTP + SSE + WS
+├── hyprcollab-agent/             # Agent runtime (rig-rs)
+├── hyprcollab-memory/            # SQLite memory engine
+├── hyprcollab-rag/               # RAG pipeline
+├── hyprcollab-artifacts/         # Artifact types + render
+├── hyprcollab-acp/               # ACP connector
+├── hyprcollab-skills/            # Skills engine
+├── hyprcollab-tools/             # Built-in tools
+├── hyprcollab-mcp/               # MCP client
+├── hyprcollab-commands/          # Slash commands
+├── hyprcollab-browser/           # Playwright + scraping
+├── hyprcollab-approval/          # Approval engine
+├── hyprcollab-media-preview/     # Kitty/Sixel preview
+├── hyprcollab-image/             # Image generation
+├── hyprcollab-voice/             # STT + TTS
+├── hyprcollab-config/            # Config resolver
+├── hyprcollab-lua/               # Lua engine (mlua)
+├── hyprcollab-ext/               # Extensions (WASM + Lua)
+├── hyprcollab-marketplace/       # Package registry
+├── hyprcollab-persona/           # Persona + Agent Roles
+├── hyprcollab-ui/                # UI registry + themes
+├── hyprcollab-provider-openai/   # OpenAI provider
+├── hyprcollab-provider-anthropic/# Anthropic provider
+├── hyprcollab-provider-ollama/   # Ollama provider
+├── hyprcollab-provider-openrouter/# OpenRouter provider
+└── hyprcollab-provider-native/   # Native GGUF inference
+platforms/
+├── hyprcollab-tauri/             # Desktop app
+├── hyprcollab-tui/               # Terminal UI
+└── hyprcollab-pwa/               # Web PWA
+```
 
 ## License
 

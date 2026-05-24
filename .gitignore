@@ -1,7 +1,9 @@
 /target
+**/target
 *.swp
 *.swo
 *~
 .DS_Store
 .env
-*.log
+.env.*
+!.env.example

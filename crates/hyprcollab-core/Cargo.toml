@@ -1,0 +1,8 @@
+[package]
+name = "hyprcollab-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Shared types, traits, and error definitions"
+
+[dependencies]

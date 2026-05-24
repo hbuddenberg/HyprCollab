@@ -1,0 +1,8 @@
+[package]
+name = "hyprcollab-pwa"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Progressive Web App with service worker"
+
+[dependencies]

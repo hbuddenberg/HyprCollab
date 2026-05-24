@@ -1,0 +1,8 @@
+[package]
+name = "hyprcollab-memory"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "SQLite memory engine with migrations"
+
+[dependencies]

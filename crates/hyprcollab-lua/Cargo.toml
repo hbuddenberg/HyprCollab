@@ -1,0 +1,8 @@
+[package]
+name = "hyprcollab-lua"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Lua config engine with mlua sandbox"
+
+[dependencies]

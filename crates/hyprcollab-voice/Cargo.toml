@@ -1,0 +1,8 @@
+[package]
+name = "hyprcollab-voice"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Whisper STT and TTS"
+
+[dependencies]

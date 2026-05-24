@@ -1,0 +1,8 @@
+[package]
+name = "hyprcollab-provider-anthropic"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Anthropic Claude provider"
+
+[dependencies]

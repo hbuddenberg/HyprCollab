@@ -1,0 +1,8 @@
+[package]
+name = "hyprcollab-media-preview"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Kitty/Sixel image preview for TUI"
+
+[dependencies]
