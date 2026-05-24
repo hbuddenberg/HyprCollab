@@ -1,0 +1,20 @@
+[package]
+name = "hyprcollab-canvas"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Artifact rendering engine: code highlighting, markdown, SVG, Mermaid, diff, canvas management"
+
+[dependencies]
+hyprcollab-artifacts = { path = "../hyprcollab-artifacts" }
+async-trait = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+syntect = { workspace = true }
+pulldown-cmark = { workspace = true }
+resvg = { workspace = true }
+tiny-skia = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

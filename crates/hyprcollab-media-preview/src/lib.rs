@@ -1,14 +1,20 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//! hyprcollab-media-preview — terminal image preview via kitty and sixel protocols.
+//!
+//! # Usage
+//!
+//! ```no_run
+//! use hyprcollab_media_preview::ImagePreview;
+//!
+//! let mut preview = ImagePreview::auto();
+//! // preview.encode_png(&png_bytes, 80) → escape sequence or Unavailable
+//! ```
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub mod capabilities;
+pub mod kitty;
+pub mod preview;
+pub mod sixel;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use capabilities::{GraphicsProtocol, TerminalCapabilities};
+pub use kitty::encode_kitty;
+pub use preview::{ImagePreview, PreviewOutput};
+pub use sixel::encode_sixel;

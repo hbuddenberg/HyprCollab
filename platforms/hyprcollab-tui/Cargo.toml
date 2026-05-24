@@ -3,6 +3,20 @@ name = "hyprcollab-tui"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Terminal UI with ratatui"
+description = "Terminal UI — ratatui chat + artifact panes, vim keybinds, SSE/WS client"
 
 [dependencies]
+hyprcollab-artifacts = { path = "../../crates/hyprcollab-artifacts" }
+hyprcollab-canvas    = { path = "../../crates/hyprcollab-canvas" }
+hyprcollab-media-preview = { path = "../../crates/hyprcollab-media-preview" }
+anyhow      = { workspace = true }
+thiserror   = { workspace = true }
+tokio       = { workspace = true }
+serde       = { workspace = true }
+serde_json  = { workspace = true }
+ratatui     = { workspace = true }
+crossterm   = { workspace = true }
+reqwest     = { workspace = true }
+tokio-tungstenite = { workspace = true }
+futures     = { workspace = true }
+tracing     = { workspace = true }

@@ -3,6 +3,10 @@ name = "hyprcollab-media-preview"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Kitty/Sixel image preview for TUI"
+description = "Kitty / Sixel image preview for TUI — terminal capability detection and protocol encoders"
 
 [dependencies]
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+base64 = { workspace = true }
+image = { workspace = true }

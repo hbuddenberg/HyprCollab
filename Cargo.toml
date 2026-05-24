@@ -50,6 +50,7 @@ members = [
     "crates/hyprcollab-provider-openrouter",
     "crates/hyprcollab-provider-native",
     "crates/hyprcollab-router",
+    "crates/hyprcollab-canvas",
     "platforms/hyprcollab-tauri",
     "platforms/hyprcollab-tui",
     "platforms/hyprcollab-pwa",
@@ -96,6 +97,26 @@ chrono = { version = "0.4", features = ["serde"] }
 
 # Internal crates
 hyprcollab-core = { path = "crates/hyprcollab-core" }
+
+# Async traits
+async-trait = "0.1"
+
+# TUI
+ratatui = { version = "0.29", features = ["crossterm"] }
+crossterm = "0.28"
+
+# Rendering
+syntect = { version = "5", default-features = false, features = ["default-fancy"] }
+pulldown-cmark = "0.12"
+resvg = "0.44"
+tiny-skia = "0.11"
+
+# Media / encoding
+base64 = "0.22"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+
+# WebSocket
+tokio-tungstenite = { version = "0.24", default-features = false }
 
 # Testing
 tempfile = "3"
