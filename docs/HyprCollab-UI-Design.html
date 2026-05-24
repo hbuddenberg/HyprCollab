@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HyprCollab — UI Design</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
+  
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  :root {
+    --bg-primary: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-tertiary: #1c2128;
+    --bg-hover: #1f2937;
+    --bg-active: #253040;
+    --border: #30363d;
+    --border-light: #21262d;
+    --text-primary: #e6edf3;
+    --text-secondary: #8b949e;
+    --text-muted: #6e7681;
+    --accent: #58a6ff;
+    --accent-dim: #1f6feb;
+    --accent-bg: rgba(56, 139, 253, 0.15);
+    --green: #3fb950;
+    --green-dim: #238636;
+    --yellow: #d29922;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --orange: #f0883e;
+    --cyan: #39d2c0;
+    --sidebar-width: 260px;
+    --panel-width: 420px;
+    --font: 'JetBrains Mono', monospace;
+  }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    height: 100vh;
+    overflow: hidden;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  /* ===== APP LAYOUT ===== */
+  .app {
+    display: grid;
+    grid-template-columns: var(--sidebar-width) 1fr var(--panel-width);
+    height: 100vh;
+  }
+
+  /* ===== SIDEBAR ===== */
+  .sidebar {
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sidebar-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .sidebar-header .logo {
+    width: 28px;
+    height: 28px;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+  }
+
+  .sidebar-header h1 {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+  }
+
+  .sidebar-header .new-chat {
+    margin-left: auto;
+    background: var(--accent-dim);
+    border: none;
+    color: white;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .sidebar-search {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-search input {
+    width: 100%;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: var(--text-primary);
+    font-family: var(--font);
+    font-size: 12px;
+    outline: none;
+  }
+
+  .sidebar-search input:focus {
+    border-color: var(--accent);
+  }
+
+  .sidebar-scroll {
+    flex: 1;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .sidebar-section {
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .sidebar-section-header {
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .sidebar-section-header:hover {
+    color: var(--text-secondary);
+  }
+
+  .sidebar-section-header .icon {
+    font-size: 13px;
+  }
+
+  .sidebar-section-header .count {
+    margin-left: auto;
+    background: var(--bg-tertiary);
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+
+  .sidebar-section-header .chevron {
+    font-size: 10px;
+    transition: transform 0.15s;
+  }
+
+  .chat-item {
+    padding: 7px 14px 7px 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    border-left: 2px solid transparent;
+  }
+
+  .chat-item:hover {
+    background: var(--bg-hover);
+  }
+
+  .chat-item.active {
+    background: var(--accent-bg);
+    border-left-color: var(--accent);
+  }
+
+  .chat-item .chat-icon {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .chat-item .chat-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 12px;
+  }
+
+  .chat-item .chat-time {
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+
+  .agent-item {
+    padding: 7px 14px 7px 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    border-left: 2px solid transparent;
+  }
+
+  .agent-item:hover {
+    background: var(--bg-hover);
+  }
+
+  .agent-item.active {
+    background: var(--accent-bg);
+    border-left-color: var(--accent);
+  }
+
+  .agent-item .agent-avatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .agent-item .agent-name {
+    flex: 1;
+    font-size: 12px;
+  }
+
+  .agent-item .agent-model {
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+
+  .agent-item .personality-badge {
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: rgba(188, 140, 255, 0.15);
+    color: var(--purple);
+  }
+
+  /* Personality sub-panel (inside agent) */
+  .personality-sub {
+    padding: 8px 14px 8px 40px;
+    border-left: 2px solid var(--purple);
+    margin-left: 34px;
+    background: rgba(188, 140, 255, 0.05);
+  }
+
+  .personality-sub .trait-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    padding: 2px 0;
+  }
+
+  .personality-sub .trait-label {
+    color: var(--text-muted);
+    min-width: 70px;
+  }
+
+  .personality-sub .trait-value {
+    color: var(--purple);
+  }
+
+  .sidebar-section-footer {
+    padding: 6px 14px 6px 24px;
+    font-size: 11px;
+    color: var(--accent);
+    cursor: pointer;
+  }
+
+  .sidebar-section-footer:hover {
+    text-decoration: underline;
+  }
+
+  /* ===== MAIN CHAT ===== */
+  .main {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .chat-header {
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--bg-secondary);
+  }
+
+  .chat-header .model-badge {
+    background: var(--accent-bg);
+    color: var(--accent);
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  .chat-header .agent-badge {
+    background: rgba(63, 185, 80, 0.15);
+    color: var(--green);
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  .chat-header .header-sep {
+    color: var(--text-muted);
+  }
+
+  .chat-header .header-title {
+    font-weight: 500;
+    font-size: 14px;
+  }
+
+  .chat-header .header-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+  }
+
+  .chat-header .header-btn {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-family: var(--font);
+    font-size: 11px;
+    cursor: pointer;
+  }
+
+  .chat-header .header-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .message {
+    display: flex;
+    gap: 12px;
+    max-width: 800px;
+  }
+
+  .message.user {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+  }
+
+  .message .avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .message .avatar.agent-avatar {
+    background: linear-gradient(135deg, var(--accent-dim), var(--accent));
+    color: white;
+  }
+
+  .message .avatar.user-avatar {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+  }
+
+  .message .bubble {
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .message.assistant .bubble {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+  }
+
+  .message.user .bubble {
+    background: var(--accent-dim);
+    color: white;
+  }
+
+  .message .bubble code {
+    background: var(--bg-primary);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 12px;
+    color: var(--accent);
+  }
+
+  .message .bubble .code-block {
+    margin: 8px 0;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .message .bubble .code-block .code-header {
+    padding: 4px 10px;
+    background: var(--bg-tertiary);
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .message .bubble .code-block pre {
+    padding: 10px;
+    font-size: 12px;
+    overflow-x: auto;
+    line-height: 1.5;
+  }
+
+  .message .bubble .code-block pre .kw { color: var(--purple); }
+  .message .bubble .code-block pre .fn { color: var(--accent); }
+  .message .bubble .code-block pre .str { color: var(--green); }
+  .message .bubble .code-block pre .cmt { color: var(--text-muted); }
+  .message .bubble .code-block pre .ty { color: var(--orange); }
+
+  /* Tool call inline */
+  .tool-call {
+    margin: 6px 0;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .tool-call-header {
+    padding: 6px 10px;
+    background: var(--bg-tertiary);
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .tool-call-header .tool-name {
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .tool-call-header .tool-status {
+    margin-left: auto;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+  }
+
+  .tool-call-header .tool-status.ok {
+    background: rgba(63, 185, 80, 0.15);
+    color: var(--green);
+  }
+
+  .tool-call-body {
+    padding: 8px 10px;
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  /* Streaming cursor */
+  .streaming-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 14px;
+    background: var(--accent);
+    margin-left: 2px;
+    animation: blink 0.8s infinite;
+    vertical-align: text-bottom;
+  }
+
+  @keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+  }
+
+  /* Input area */
+  .input-area {
+    padding: 12px 20px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-secondary);
+  }
+
+  .input-wrapper {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .input-wrapper:focus-within {
+    border-color: var(--accent);
+  }
+
+  .input-top {
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 8px;
+  }
+
+  .input-top .context-pills {
+    display: flex;
+    gap: 4px;
+    padding: 8px 0;
+    flex-wrap: wrap;
+  }
+
+  .input-top .pill {
+    background: var(--accent-bg);
+    color: var(--accent);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .input-top .pill.green {
+    background: rgba(63, 185, 80, 0.15);
+    color: var(--green);
+  }
+
+  .input-top .pill.purple {
+    background: rgba(188, 140, 255, 0.15);
+    color: var(--purple);
+  }
+
+  .input-top .pill .remove {
+    cursor: pointer;
+    opacity: 0.6;
+  }
+
+  textarea {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-family: var(--font);
+    font-size: 13px;
+    padding: 8px 12px;
+    resize: none;
+    outline: none;
+    min-height: 40px;
+    max-height: 150px;
+  }
+
+  .input-bottom {
+    display: flex;
+    align-items: center;
+    padding: 6px 12px;
+    gap: 6px;
+    border-top: 1px solid var(--border-light);
+  }
+
+  .input-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px;
+    border-radius: 4px;
+  }
+
+  .input-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+  }
+
+  .input-btn.send {
+    margin-left: auto;
+    background: var(--accent-dim);
+    color: white;
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .input-btn.send:hover {
+    background: var(--accent);
+  }
+
+  /* Status bar */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 4px 20px;
+    border-top: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .status-bar .status-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .status-bar .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+  }
+
+  .status-bar .status-right {
+    margin-left: auto;
+    display: flex;
+    gap: 12px;
+  }
+
+  /* ===== RIGHT PANEL ===== */
+  .panel {
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-tabs {
+    display: flex;
+    gap: 2px;
+    flex: 1;
+  }
+
+  .panel-tab {
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    cursor: pointer;
+    color: var(--text-muted);
+  }
+
+  .panel-tab:hover {
+    color: var(--text-secondary);
+    background: var(--bg-hover);
+  }
+
+  .panel-tab.active {
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+  }
+
+  .panel-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  /* Artifact card */
+  .artifact-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+
+  .artifact-card-header {
+    padding: 8px 12px;
+    background: var(--bg-tertiary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+  }
+
+  .artifact-card-header .artifact-type {
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 500;
+  }
+
+  .artifact-card-header .artifact-type.code {
+    background: rgba(88, 166, 255, 0.15);
+    color: var(--accent);
+  }
+
+  .artifact-card-header .artifact-type.diagram {
+    background: rgba(63, 185, 80, 0.15);
+    color: var(--green);
+  }
+
+  .artifact-card-header .artifact-name {
+    font-weight: 500;
+  }
+
+  .artifact-card-header .artifact-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 4px;
+  }
+
+  .artifact-card-body {
+    padding: 12px;
+  }
+
+  /* Mermaid-like diagram */
+  .diagram-placeholder {
+    background: var(--bg-primary);
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    padding: 20px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 12px;
+  }
+
+  .diagram-placeholder .mermaid-render {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 12px;
+  }
+
+  .diagram-node {
+    background: var(--bg-secondary);
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 11px;
+    color: var(--accent);
+  }
+
+  .diagram-arrow {
+    display: flex;
+    align-items: center;
+    color: var(--text-muted);
+    font-size: 16px;
+  }
+
+  /* Approval dialog */
+  .approval-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--yellow);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+
+  .approval-card .approval-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    color: var(--yellow);
+  }
+
+  .approval-card .approval-cmd {
+    background: var(--bg-tertiary);
+    padding: 8px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+  }
+
+  .approval-card .approval-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .approval-card .approval-btn {
+    padding: 4px 12px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-family: var(--font);
+    font-size: 11px;
+    cursor: pointer;
+  }
+
+  .approval-card .approval-btn.approve {
+    background: var(--green-dim);
+    border-color: var(--green);
+    color: white;
+  }
+
+  .approval-card .approval-btn.reject {
+    border-color: var(--red);
+    color: var(--red);
+  }
+
+  /* Resize handles */
+  .resize-handle {
+    width: 4px;
+    cursor: col-resize;
+    background: transparent;
+    transition: background 0.15s;
+  }
+
+  .resize-handle:hover {
+    background: var(--accent);
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- ===== SIDEBAR ===== -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">H</div>
+      <h1>HyprCollab</h1>
+      <button class="new-chat" title="New Chat">+</button>
+    </div>
+
+    <div class="sidebar-search">
+      <input type="text" placeholder="Search chats, agents, skills..." />
+    </div>
+
+    <div class="sidebar-scroll">
+      <!-- Chats -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-header">
+          <span class="icon">💬</span> Chats
+          <span class="count">12</span>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="chat-item active">
+          <span class="chat-icon">●</span>
+          <span class="chat-name">Config system refactor</span>
+          <span class="chat-time">2m</span>
+        </div>
+        <div class="chat-item">
+          <span class="chat-icon">●</span>
+          <span class="chat-name">RAG pipeline debugging</span>
+          <span class="chat-time">1h</span>
+        </div>
+        <div class="chat-item">
+          <span class="chat-icon">○</span>
+          <span class="chat-name">AUR PKGBUILD for v0.1</span>
+          <span class="chat-time">3h</span>
+        </div>
+        <div class="chat-item">
+          <span class="chat-icon">○</span>
+          <span class="chat-name">Design sidebar layout</span>
+          <span class="chat-time">1d</span>
+        </div>
+        <div class="chat-item">
+          <span class="chat-icon">○</span>
+          <span class="chat-name">Tauri window management</span>
+          <span class="chat-time">2d</span>
+        </div>
+        <div class="sidebar-section-footer">View all 12 →</div>
+      </div>
+
+      <!-- Agents (con personality integrado) -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-header">
+          <span class="icon">🤖</span> Agents
+          <span class="count">4</span>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="agent-item active">
+          <div class="agent-avatar" style="background: var(--accent-dim); color: var(--accent);">SA</div>
+          <span class="agent-name">security-auditor</span>
+          <span class="personality-badge">🎭 technical</span>
+        </div>
+        <!-- Personality sub-panel (dentro del agente seleccionado) -->
+        <div class="personality-sub">
+          <div class="trait-row">
+            <span class="trait-label">tone</span>
+            <span class="trait-value">technical</span>
+          </div>
+          <div class="trait-row">
+            <span class="trait-label">language</span>
+            <span class="trait-value">en</span>
+          </div>
+          <div class="trait-row">
+            <span class="trait-label">length</span>
+            <span class="trait-value">concise</span>
+          </div>
+          <div class="trait-row">
+            <span class="trait-label">formality</span>
+            <span class="trait-value">formal</span>
+          </div>
+          <div class="trait-row">
+            <span class="trait-label">humor</span>
+            <span class="trait-value">none</span>
+          </div>
+        </div>
+        <div class="agent-item">
+          <div class="agent-avatar" style="background: rgba(63,185,80,0.15); color: var(--green);">RA</div>
+          <span class="agent-name">rust-architect</span>
+          <span class="personality-badge">🎭 friendly</span>
+        </div>
+        <div class="agent-item">
+          <div class="agent-avatar" style="background: rgba(188,140,255,0.15); color: var(--purple);">CR</div>
+          <span class="agent-name">code-reviewer</span>
+          <span class="personality-badge">🎭 strict</span>
+        </div>
+        <div class="agent-item">
+          <div class="agent-avatar" style="background: rgba(240,136,62,0.15); color: var(--orange);">DX</div>
+          <span class="agent-name">devops-helper</span>
+          <span class="personality-badge">🎭 casual</span>
+        </div>
+        <div class="sidebar-section-footer">+ New agent</div>
+      </div>
+
+      <!-- Skills -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-header">
+          <span class="icon">⚡</span> Skills
+          <span class="count">6</span>
+          <span class="chevron">▶</span>
+        </div>
+      </div>
+
+      <!-- MCP Servers -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-header">
+          <span class="icon">🔌</span> MCP Servers
+          <span class="count">3</span>
+          <span class="chevron">▶</span>
+        </div>
+      </div>
+
+      <!-- ACP Sessions -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-header">
+          <span class="icon">📡</span> ACP Sessions
+          <span class="count">1</span>
+          <span class="chevron">▶</span>
+        </div>
+      </div>
+
+      <!-- Extensions -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-header">
+          <span class="icon">🧩</span> Extensions
+          <span class="count">8</span>
+          <span class="chevron">▶</span>
+        </div>
+      </div>
+
+      <!-- Marketplace -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-header">
+          <span class="icon">🏪</span> Marketplace
+          <span class="chevron">▶</span>
+        </div>
+      </div>
+
+      <!-- Settings -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-header">
+          <span class="icon">⚙️</span> Settings
+          <span class="chevron">▶</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Resize handle -->
+  <div class="resize-handle"></div>
+
+  <!-- ===== MAIN CHAT ===== -->
+  <div class="main">
+    <div class="chat-header">
+      <span class="model-badge">claude-sonnet-4</span>
+      <span class="agent-badge">🤖 security-auditor</span>
+      <span class="header-sep">·</span>
+      <span class="header-title">Config system refactor</span>
+      <div class="header-actions">
+        <button class="header-btn">🎨 Canvas</button>
+        <button class="header-btn">/ commands</button>
+      </div>
+    </div>
+
+    <div class="messages">
+      <!-- User message -->
+      <div class="message user">
+        <div class="avatar user-avatar">HB</div>
+        <div class="bubble">
+          Review the new config system. I want to make sure the Lua sandbox is secure — check for escape vectors in the <code>os.getenv</code> and <code>io.popen</code> calls.
+        </div>
+      </div>
+
+      <!-- Assistant message -->
+      <div class="message assistant">
+        <div class="avatar agent-avatar">SA</div>
+        <div class="bubble">
+          Running security audit on <code>hyprcollab-lua</code> sandbox configuration...
+
+          <div class="tool-call">
+            <div class="tool-call-header">
+              <span class="tool-name">📋 file_read</span>
+              <span>crates/hyprcollab-lua/src/sandbox.rs</span>
+              <span class="tool-status ok">✓ 247 lines</span>
+            </div>
+            <div class="tool-call-body">Reading Lua sandbox restrictions and API whitelist...</div>
+          </div>
+
+          <div class="tool-call">
+            <div class="tool-call-header">
+              <span class="tool-name">🔍 shell</span>
+              <span>cargo audit</span>
+              <span class="tool-status ok">✓ 0 vulnerabilities</span>
+            </div>
+          </div>
+
+          **Findings:**
+
+          1. ✅ <code>os.getenv()</code> — Read-only, safe. No write access to env.
+          2. ⚠️ <code>io.popen()</code> — **Medium risk**. Current implementation allows arbitrary read commands. Recommend whitelisting specific commands.
+
+          <div class="code-block">
+            <div class="code-header">
+              <span>sandbox.rs (suggested fix)</span>
+              <span>Copy</span>
+            </div>
+            <pre><span class="cmt">// Before: allows any read command</span>
+<span class="kw">fn</span> <span class="fn">whitelist_popen</span>(cmd: &<span class="ty">str</span>) -> <span class="ty">bool</span> {
+    <span class="cmt">// After: only specific safe patterns</span>
+    cmd.<span class="fn">starts_with</span>(<span class="str">"git "</span>)
+        || cmd.<span class="fn">starts_with</span>(<span class="str">"cargo "</span>)
+        || cmd.<span class="fn">starts_with</span>(<span class="str">"ls"</span>)
+}
+
+<span class="cmt">// Also add timeout enforcement</span>
+<span class="kw">let</span> output = <span class="ty">Command</span>::<span class="fn">new</span>(<span class="str">"sh"</span>)
+    .<span class="fn">arg</span>(<span class="str">"-c"</span>)
+    .<span class="fn">arg</span>(cmd)
+    .<span class="fn">output</span>()
+    .<span class="fn">timeout</span>(<span class="ty">Duration</span>::<span class="fn">from_secs</span>(<span class="str">5</span>))<span class="streaming-cursor"></span></pre>
+          </div>
+
+          3. ✅ <code>require()</code> — Properly restricted to whitelisted modules only.
+          4. ✅ Time limit enforcement — 5s max execution, proper cleanup on timeout.
+
+          **Verdict:** Low risk overall. The <code>io.popen</code> fix should land before release. Recommend adding it to the v0.1 milestone.
+        </div>
+      </div>
+    </div>
+
+    <div class="status-bar">
+      <div class="status-item">
+        <div class="status-dot"></div>
+        <span>Connected</span>
+      </div>
+      <div class="status-item">Tokens: 1,247 / 200k</div>
+      <div class="status-item">Approval: normal</div>
+      <div class="status-right">
+        <span>~/developments/hyprcollab</span>
+        <span>~150MB</span>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <div class="input-wrapper">
+        <div class="input-top">
+          <div class="context-pills">
+            <span class="pill green">🤖 security-auditor</span>
+            <span class="pill">claude-sonnet-4</span>
+            <span class="pill purple">🎭 technical · formal</span>
+          </div>
+        </div>
+        <textarea rows="2" placeholder="Type a message... (/ for commands, @ for agents)">Apply the io.popen fix and add a regression test</textarea>
+        <div class="input-bottom">
+          <button class="input-btn" title="Attach file">📎</button>
+          <button class="input-btn" title="Voice input">🎙️</button>
+          <button class="input-btn" title="Slash commands">/</button>
+          <button class="input-btn send" title="Send">▶</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Resize handle -->
+  <div class="resize-handle"></div>
+
+  <!-- ===== RIGHT PANEL ===== -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-tabs">
+        <span class="panel-tab active">Artifacts</span>
+        <span class="panel-tab">ACP</span>
+        <span class="panel-tab">Browser</span>
+      </div>
+    </div>
+
+    <div class="panel-content">
+      <!-- Artifact: Code -->
+      <div class="artifact-card">
+        <div class="artifact-card-header">
+          <span class="artifact-type code">Rust</span>
+          <span class="artifact-name">sandbox.rs</span>
+          <div class="artifact-actions">
+            <span style="cursor:pointer;font-size:12px;color:var(--text-muted)">📋</span>
+            <span style="cursor:pointer;font-size:12px;color:var(--text-muted)">📥</span>
+          </div>
+        </div>
+        <div class="artifact-card-body">
+          <div style="font-size:11px;color:var(--text-secondary);line-height:1.6;">
+            <span style="color:var(--purple)">pub fn</span> <span style="color:var(--accent)">whitelist_popen</span>(cmd: &<span style="color:var(--orange)">str</span>) -> <span style="color:var(--orange)">bool</span> {<br>
+            &nbsp;&nbsp;cmd.<span style="color:var(--accent)">starts_with</span>(<span style="color:var(--green)">"git "</span>)<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;|| cmd.<span style="color:var(--accent)">starts_with</span>(<span style="color:var(--green)">"cargo "</span>)<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;|| cmd.<span style="color:var(--accent)">starts_with</span>(<span style="color:var(--green)">"ls"</span>)<br>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Artifact: Diagram -->
+      <div class="artifact-card">
+        <div class="artifact-card-header">
+          <span class="artifact-type diagram">Mermaid</span>
+          <span class="artifact-name">Config Resolution Flow</span>
+          <div class="artifact-actions">
+            <span style="cursor:pointer;font-size:12px;color:var(--text-muted)">⛶</span>
+          </div>
+        </div>
+        <div class="artifact-card-body">
+          <div class="diagram-placeholder">
+            <div style="margin-bottom:8px;">Config Resolution Pipeline</div>
+            <div class="mermaid-render">
+              <div class="diagram-node">Global<br><small>config.lua</small></div>
+              <div class="diagram-arrow">→</div>
+              <div class="diagram-node">Folder<br><small>.hyprcollab/</small></div>
+              <div class="diagram-arrow">→</div>
+              <div class="diagram-node">Agent<br><small>agent.md</small></div>
+              <div class="diagram-arrow">→</div>
+              <div class="diagram-node" style="border-color:var(--green);color:var(--green)">Resolved<br><small>✓ final</small></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Approval dialog -->
+      <div class="approval-card">
+        <div class="approval-header">
+          ⚠️ Approval Required
+        </div>
+        <div class="approval-cmd">$ cargo test --lib hyprcollab_lua</div>
+        <div class="approval-actions">
+          <button class="approval-btn approve">✓ Approve</button>
+          <button class="approval-btn reject">✗ Reject</button>
+          <button class="approval-btn">Always allow</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
