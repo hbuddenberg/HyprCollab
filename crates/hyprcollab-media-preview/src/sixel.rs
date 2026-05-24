@@ -44,7 +44,7 @@ pub fn encode_image_sixel(img: &DynamicImage) -> Result<String> {
     }
 
     // Encode pixel rows in bands of 6
-    let bands = (h as usize + BAND_HEIGHT - 1) / BAND_HEIGHT;
+    let bands = (h as usize).div_ceil(BAND_HEIGHT);
 
     for band in 0..bands {
         let y_start = band * BAND_HEIGHT;

@@ -1,10 +1,12 @@
+use std::sync::LazyLock;
+
 use anyhow::Result;
 use async_trait::async_trait;
 use hyprcollab_artifacts::Artifact;
 use syntect::{
     easy::HighlightLines,
-    html::{styled_line_to_highlighted_html, IncludeBackground},
     highlighting::ThemeSet,
+    html::{styled_line_to_highlighted_html, IncludeBackground},
     parsing::SyntaxSet,
     util::{as_24_bit_terminal_escaped, LinesWithEndings},
 };
@@ -14,37 +16,35 @@ use crate::renderer::{ArtifactRenderer, RenderMode, RenderedArtifact};
 const DARK_THEME: &str = "base16-ocean.dark";
 const PREVIEW_LINES: usize = 30;
 
-pub struct CodeRenderer {
-    syntax_set: SyntaxSet,
-    theme_set: ThemeSet,
-}
+// Loaded once at first use (~2 MB each); all subsequent calls are zero-cost.
+static SYNTAX_SET: LazyLock<SyntaxSet> = LazyLock::new(SyntaxSet::load_defaults_newlines);
+static THEME_SET: LazyLock<ThemeSet> = LazyLock::new(ThemeSet::load_defaults);
+
+pub struct CodeRenderer;
 
 impl CodeRenderer {
     pub fn new() -> Self {
-        Self {
-            syntax_set: SyntaxSet::load_defaults_newlines(),
-            theme_set: ThemeSet::load_defaults(),
-        }
+        Self
     }
 
-    fn find_syntax<'a>(&'a self, language: &str) -> &'a syntect::parsing::SyntaxReference {
+    fn find_syntax(language: &str) -> &'static syntect::parsing::SyntaxReference {
         let lower = language.to_lowercase();
-        self.syntax_set
+        SYNTAX_SET
             .find_syntax_by_name(language)
-            .or_else(|| self.syntax_set.find_syntax_by_name(&lower))
-            .or_else(|| self.syntax_set.find_syntax_by_extension(&lower))
-            .or_else(|| self.syntax_set.find_syntax_by_extension(language))
-            .unwrap_or_else(|| self.syntax_set.find_syntax_plain_text())
+            .or_else(|| SYNTAX_SET.find_syntax_by_name(&lower))
+            .or_else(|| SYNTAX_SET.find_syntax_by_extension(&lower))
+            .or_else(|| SYNTAX_SET.find_syntax_by_extension(language))
+            .unwrap_or_else(|| SYNTAX_SET.find_syntax_plain_text())
     }
 
     /// Highlights `code` with 24-bit ANSI escape sequences.
     pub fn highlight_terminal(&self, code: &str, language: &str) -> String {
-        let syntax = self.find_syntax(language);
-        let theme = &self.theme_set.themes[DARK_THEME];
+        let syntax = Self::find_syntax(language);
+        let theme = &THEME_SET.themes[DARK_THEME];
         let mut h = HighlightLines::new(syntax, theme);
         let mut out = String::new();
         for line in LinesWithEndings::from(code) {
-            if let Ok(ranges) = h.highlight_line(line, &self.syntax_set) {
+            if let Ok(ranges) = h.highlight_line(line, &SYNTAX_SET) {
                 out.push_str(&as_24_bit_terminal_escaped(&ranges, false));
             }
         }
@@ -54,12 +54,13 @@ impl CodeRenderer {
 
     /// Highlights `code` and returns an HTML fragment with inline styles.
     pub fn highlight_html(&self, code: &str, language: &str) -> Result<String> {
-        let syntax = self.find_syntax(language);
-        let theme = &self.theme_set.themes[DARK_THEME];
+        let syntax = Self::find_syntax(language);
+        let theme = &THEME_SET.themes[DARK_THEME];
         let mut h = HighlightLines::new(syntax, theme);
         let mut html = String::from("<pre><code>");
         for line in LinesWithEndings::from(code) {
-            let ranges = h.highlight_line(line, &self.syntax_set)
+            let ranges = h
+                .highlight_line(line, &SYNTAX_SET)
                 .map_err(|e| anyhow::anyhow!("syntect highlight error: {e}"))?;
             html.push_str(
                 &styled_line_to_highlighted_html(&ranges, IncludeBackground::No)

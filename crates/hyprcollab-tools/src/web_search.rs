@@ -78,27 +78,27 @@ impl WebSearchTool {
             .map_err(|e| CoreError::Tool(format!("Failed to parse Brave response: {e}")))?;
 
         let mut results = Vec::new();
-        if let Some(web_results) = body.get("web").and_then(|w| w.get("results")) {
-            if let Some(arr) = web_results.as_array() {
-                for item in arr.iter().take(count) {
-                    results.push(SearchResult {
-                        title: item
-                            .get("title")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("")
-                            .to_string(),
-                        url: item
-                            .get("url")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("")
-                            .to_string(),
-                        snippet: item
-                            .get("description")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("")
-                            .to_string(),
-                    });
-                }
+        if let Some(web_results) = body.get("web").and_then(|w| w.get("results"))
+            && let Some(arr) = web_results.as_array()
+        {
+            for item in arr.iter().take(count) {
+                results.push(SearchResult {
+                    title: item
+                        .get("title")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    url: item
+                        .get("url")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    snippet: item
+                        .get("description")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                });
             }
         }
 
@@ -199,7 +199,7 @@ impl Tool for WebSearchTool {
         let params: SearchParams = serde_json::from_value(args)
             .map_err(|e| CoreError::Tool(format!("Invalid web_search params: {e}")))?;
 
-        let count = params.count.min(10).max(1);
+        let count = params.count.clamp(1, 10);
 
         let response = if self.brave_api_key.is_some() {
             self.search_brave(&params.query, count).await?

@@ -57,14 +57,14 @@ impl LlmRouter {
             .unwrap_or(model);
 
         // Check for provider/model format
-        if let Some((provider, rest)) = resolved.split_once('/') {
-            if self.providers.contains_key(provider) {
-                return Ok((provider.to_string(), rest.to_string()));
-            }
+        if let Some((provider, rest)) = resolved.split_once('/')
+            && self.providers.contains_key(provider)
+        {
+            return Ok((provider.to_string(), rest.to_string()));
         }
 
         // Try to find a provider that knows this model
-        for (_name, provider) in &self.providers {
+        for provider in self.providers.values() {
             // Simple heuristic: if the model name contains the provider name, use it
             let provider_prefix = provider.name();
             if resolved.starts_with(provider_prefix) {
@@ -101,7 +101,7 @@ impl LlmRouter {
     /// List all available models from all providers.
     pub async fn all_models(&self) -> Vec<ModelInfo> {
         let mut all = Vec::new();
-        for (_name, provider) in &self.providers {
+        for provider in self.providers.values() {
             match provider.models().await {
                 Ok(models) => all.extend(models),
                 Err(_) => continue,

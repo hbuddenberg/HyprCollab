@@ -6,7 +6,6 @@ use crate::input::{AppMode, FocusedPane, InputHandler};
 pub struct App {
     session_id: String,
     pub mode: AppMode,
-    pub pane: FocusedPane,
     pub input: InputHandler,
     pub chat: ChatPane,
     pub artifacts: ArtifactPane,
@@ -17,7 +16,6 @@ impl App {
         Self {
             session_id,
             mode: AppMode::Normal,
-            pane: FocusedPane::Chat,
             input: InputHandler::new(),
             chat: ChatPane::new(),
             artifacts: ArtifactPane::new(),
@@ -30,5 +28,10 @@ impl App {
 
     pub fn mode(&self) -> AppMode {
         self.mode
+    }
+
+    /// Single source of truth for which pane is focused.
+    pub fn focused_pane(&self) -> FocusedPane {
+        self.input.pane
     }
 }

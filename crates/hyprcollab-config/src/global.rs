@@ -228,7 +228,7 @@ pub(crate) fn interpolate_env_vars(input: &str) -> String {
     let mut result = input.to_owned();
     // Naïve but sufficient for config files: find `${...}` patterns.
     let re = regex_lazy();
-    re.find_all(&input, &mut result);
+    re.find_all(input, &mut result);
     result
 }
 

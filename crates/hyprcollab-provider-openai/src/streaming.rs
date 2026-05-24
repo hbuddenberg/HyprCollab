@@ -115,17 +115,17 @@ async fn run_stream(
                         }
 
                         // Emit content text deltas as they arrive.
-                        if let Some(text) = choice.delta.content {
-                            if !text.is_empty() {
-                                let tc = TokenChunk {
-                                    delta: text,
-                                    finish_reason: None,
-                                    usage: None,
-                                    tool_calls: vec![],
-                                };
-                                if tx.send(Ok(tc)).await.is_err() {
-                                    break;
-                                }
+                        if let Some(text) = choice.delta.content
+                            && !text.is_empty()
+                        {
+                            let tc = TokenChunk {
+                                delta: text,
+                                finish_reason: None,
+                                usage: None,
+                                tool_calls: vec![],
+                            };
+                            if tx.send(Ok(tc)).await.is_err() {
+                                break;
                             }
                         }
 
@@ -142,11 +142,21 @@ async fn run_stream(
                             let assembled: Vec<ToolCall> = if finish_reason == FinishReason::ToolCalls {
                                 partial_tool_calls
                                     .drain(..)
-                                    .map(|acc| ToolCall {
-                                        id: acc.id,
-                                        name: acc.name,
-                                        arguments: serde_json::from_str(&acc.arguments)
-                                            .unwrap_or(serde_json::Value::Null),
+                                    .map(|acc| {
+                                        let arguments = serde_json::from_str(&acc.arguments)
+                                            .unwrap_or_else(|e| {
+                                                tracing::warn!(
+                                                    "malformed tool call arguments for {}: {}",
+                                                    acc.name,
+                                                    e
+                                                );
+                                                serde_json::Value::Null
+                                            });
+                                        ToolCall {
+                                            id: acc.id,
+                                            name: acc.name,
+                                            arguments,
+                                        }
                                     })
                                     .collect()
                             } else {

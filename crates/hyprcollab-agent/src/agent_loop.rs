@@ -66,7 +66,7 @@ pub async fn run_agent_loop(
 
                 for tc in calls {
                     // Check approval before executing the tool.
-                    let blocked = approval.map_or(false, |eng| {
+                    let blocked = approval.is_some_and(|eng| {
                         eng.needs_approval(&tc.name, &tc.arguments)
                             && config.approval_mode == hyprcollab_core::types::ApprovalMode::Strict
                     });

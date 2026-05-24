@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+use deadpool_sqlite::{Config, Pool, Runtime};
 use rusqlite::params;
 
 use crate::error::{ArtifactError, Result};
@@ -12,13 +13,20 @@ use crate::types::{Artifact, ArtifactId, ArtifactMeta};
 /// `db_path` holds SQLite metadata. Text content is also written to
 /// `artifacts_dir/{id}.{ext}` so it can be served as static files.
 ///
-/// All database access uses `tokio::task::spawn_blocking` so the store is
-/// safe to use from async handlers even though `rusqlite::Connection` is
-/// `!Send`.
-#[derive(Debug, Clone)]
+/// All database access uses `deadpool_sqlite`'s `interact()` which dispatches
+/// to a dedicated blocking thread, keeping every async caller unblocked.
+#[derive(Clone)]
 pub struct ArtifactStore {
-    pub db_path: PathBuf,
+    pool: Pool,
     pub artifacts_dir: PathBuf,
+}
+
+impl std::fmt::Debug for ArtifactStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ArtifactStore")
+            .field("artifacts_dir", &self.artifacts_dir)
+            .finish_non_exhaustive()
+    }
 }
 
 impl ArtifactStore {
@@ -32,77 +40,89 @@ impl ArtifactStore {
     pub async fn new(db_path: PathBuf, artifacts_dir: PathBuf) -> Result<Self> {
         tokio::fs::create_dir_all(&artifacts_dir).await?;
 
-        // Initialise the schema on a blocking thread.
-        let db_path_clone = db_path.clone();
-        tokio::task::spawn_blocking(move || {
-            let conn = rusqlite::Connection::open(&db_path_clone)?;
-            conn.execute_batch(SCHEMA)?;
-            Ok::<_, ArtifactError>(())
-        })
-        .await
-        .map_err(|e| ArtifactError::Internal(e.to_string()))??;
+        let cfg = Config::new(db_path.to_string_lossy().to_string());
+        let pool = cfg
+            .create_pool(Runtime::Tokio1)
+            .map_err(|e| ArtifactError::Internal(e.to_string()))?;
 
-        Ok(Self { db_path, artifacts_dir })
+        let conn = pool
+            .get()
+            .await
+            .map_err(|e| ArtifactError::Internal(e.to_string()))?;
+        conn.interact(|c| c.execute_batch(SCHEMA))
+            .await
+            .map_err(|e| ArtifactError::Internal(e.to_string()))?
+            .map_err(ArtifactError::Db)?;
+
+        Ok(Self { pool, artifacts_dir })
     }
 
     /// Persist a new artifact and return its generated ID.
     pub async fn create(&self, chat_id: &str, artifact: Artifact) -> Result<ArtifactId> {
         let id = ArtifactId::new();
         let now = chrono::Utc::now().timestamp();
+        let extension = artifact.extension().to_string();
 
         // Write text content to filesystem if applicable.
         if let Some(text) = artifact.content_str() {
             let file_path = self
                 .artifacts_dir
-                .join(format!("{}.{}", id.0, artifact.extension()));
+                .join(format!("{}.{}", id.0, extension));
             tokio::fs::write(&file_path, text).await?;
         }
 
-        let artifact_json = serde_json::to_string(&artifact)
-            .map_err(ArtifactError::Json)?;
+        let artifact_json = serde_json::to_string(&artifact).map_err(ArtifactError::Json)?;
         let artifact_type = artifact.type_name().to_string();
 
-        let db_path = self.db_path.clone();
         let id_str = id.0.clone();
         let chat_id = chat_id.to_string();
 
-        tokio::task::spawn_blocking(move || {
-            let conn = rusqlite::Connection::open(&db_path)?;
-            conn.execute(
-                "INSERT INTO artifacts (id, chat_id, artifact_type, artifact_json, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                params![id_str, chat_id, artifact_type, artifact_json, now, now],
-            )?;
-            Ok::<_, ArtifactError>(())
+        let conn = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| ArtifactError::Internal(e.to_string()))?;
+        conn.interact(move |c| {
+            c.execute(
+                "INSERT INTO artifacts \
+                 (id, chat_id, artifact_type, artifact_json, extension, created_at, updated_at) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params![id_str, chat_id, artifact_type, artifact_json, extension, now, now],
+            )
         })
         .await
-        .map_err(|e| ArtifactError::Internal(e.to_string()))??;
+        .map_err(|e| ArtifactError::Internal(e.to_string()))?
+        .map_err(ArtifactError::Db)?;
 
         Ok(id)
     }
 
     /// Retrieve a full artifact by ID.
     pub async fn get(&self, id: &ArtifactId) -> Result<Option<Artifact>> {
-        let db_path = self.db_path.clone();
         let id_str = id.0.clone();
 
-        tokio::task::spawn_blocking(move || {
-            let conn = rusqlite::Connection::open(&db_path)?;
-            let mut stmt = conn.prepare(
-                "SELECT artifact_json FROM artifacts WHERE id = ?1",
-            )?;
-            let mut rows = stmt.query(params![id_str])?;
-            if let Some(row) = rows.next()? {
-                let json: String = row.get(0)?;
-                let artifact = serde_json::from_str(&json)
-                    .map_err(ArtifactError::Json)?;
-                Ok(Some(artifact))
-            } else {
-                Ok(None)
-            }
-        })
-        .await
-        .map_err(|e| ArtifactError::Internal(e.to_string()))?
+        let conn = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| ArtifactError::Internal(e.to_string()))?;
+        let maybe_json: Option<String> = conn
+            .interact(move |c| {
+                let mut stmt = c.prepare("SELECT artifact_json FROM artifacts WHERE id = ?1")?;
+                let mut rows = stmt.query(params![id_str])?;
+                if let Some(row) = rows.next()? {
+                    Ok(Some(row.get::<_, String>(0)?))
+                } else {
+                    Ok(None)
+                }
+            })
+            .await
+            .map_err(|e| ArtifactError::Internal(e.to_string()))?
+            .map_err(ArtifactError::Db)?;
+
+        maybe_json
+            .map(|json| serde_json::from_str(&json).map_err(ArtifactError::Json))
+            .transpose()
     }
 
     /// Replace the artifact content for an existing ID.
@@ -117,86 +137,107 @@ impl ArtifactStore {
             tokio::fs::write(&file_path, text).await?;
         }
 
-        let artifact_json = serde_json::to_string(&artifact)
-            .map_err(ArtifactError::Json)?;
+        let artifact_json = serde_json::to_string(&artifact).map_err(ArtifactError::Json)?;
         let artifact_type = artifact.type_name().to_string();
-
-        let db_path = self.db_path.clone();
+        let extension = artifact.extension().to_string();
         let id_str = id.0.clone();
+        let id_for_err = id.0.clone();
 
-        tokio::task::spawn_blocking(move || {
-            let conn = rusqlite::Connection::open(&db_path)?;
-            let rows_affected = conn.execute(
-                "UPDATE artifacts SET artifact_type = ?1, artifact_json = ?2, updated_at = ?3
-                 WHERE id = ?4",
-                params![artifact_type, artifact_json, now, id_str],
-            )?;
-            if rows_affected == 0 {
-                Err(ArtifactError::NotFound(id_str))
-            } else {
-                Ok(())
-            }
-        })
-        .await
-        .map_err(|e| ArtifactError::Internal(e.to_string()))?
+        let conn = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| ArtifactError::Internal(e.to_string()))?;
+        let rows_affected = conn
+            .interact(move |c| {
+                c.execute(
+                    "UPDATE artifacts \
+                     SET artifact_type = ?1, artifact_json = ?2, extension = ?3, updated_at = ?4 \
+                     WHERE id = ?5",
+                    params![artifact_type, artifact_json, extension, now, id_str],
+                )
+            })
+            .await
+            .map_err(|e| ArtifactError::Internal(e.to_string()))?
+            .map_err(ArtifactError::Db)?;
+
+        if rows_affected == 0 {
+            Err(ArtifactError::NotFound(id_for_err))
+        } else {
+            Ok(())
+        }
     }
 
     /// List lightweight metadata for all artifacts belonging to a chat.
     pub async fn list_for_chat(&self, chat_id: &str) -> Result<Vec<ArtifactMeta>> {
-        let db_path = self.db_path.clone();
         let chat_id = chat_id.to_string();
 
-        tokio::task::spawn_blocking(move || {
-            let conn = rusqlite::Connection::open(&db_path)?;
-            let mut stmt = conn.prepare(
+        let conn = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| ArtifactError::Internal(e.to_string()))?;
+        conn.interact(move |c| {
+            let mut stmt = c.prepare(
                 "SELECT id, chat_id, artifact_type, created_at, updated_at
                  FROM artifacts WHERE chat_id = ?1
                  ORDER BY created_at ASC",
             )?;
-            let metas: std::result::Result<Vec<ArtifactMeta>, _> = stmt
-                .query_map(params![chat_id], |row| {
-                    let created_ts: i64 = row.get(3)?;
-                    let updated_ts: i64 = row.get(4)?;
-                    Ok(ArtifactMeta {
-                        id: ArtifactId(row.get(0)?),
-                        chat_id: row.get(1)?,
-                        artifact_type: row.get(2)?,
-                        created_at: chrono::DateTime::from_timestamp(created_ts, 0)
-                            .unwrap_or_default(),
-                        updated_at: chrono::DateTime::from_timestamp(updated_ts, 0)
-                            .unwrap_or_default(),
-                    })
-                })?
-                .collect();
-            Ok(metas?)
+            stmt.query_map(params![chat_id], |row| {
+                let created_ts: i64 = row.get(3)?;
+                let updated_ts: i64 = row.get(4)?;
+                Ok(ArtifactMeta {
+                    id: ArtifactId(row.get(0)?),
+                    chat_id: row.get(1)?,
+                    artifact_type: row.get(2)?,
+                    created_at: chrono::DateTime::from_timestamp(created_ts, 0)
+                        .unwrap_or_default(),
+                    updated_at: chrono::DateTime::from_timestamp(updated_ts, 0)
+                        .unwrap_or_default(),
+                })
+            })?
+            .collect::<std::result::Result<Vec<ArtifactMeta>, _>>()
         })
         .await
         .map_err(|e| ArtifactError::Internal(e.to_string()))?
+        .map_err(ArtifactError::Db)
     }
 
     /// Delete an artifact. Returns `true` if the row existed, `false` otherwise.
+    ///
+    /// Looks up the stored extension from the DB before deleting, so no
+    /// hardcoded extension list is needed.
     pub async fn delete(&self, id: &ArtifactId) -> Result<bool> {
-        // Best-effort filesystem cleanup — ignore errors if the file is missing.
-        for ext in &[
-            "rs", "py", "js", "ts", "md", "html", "svg", "mmd", "jsx", "tex", "txt", "json",
-        ] {
+        let id_str = id.0.clone();
+
+        let conn = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| ArtifactError::Internal(e.to_string()))?;
+        let (extension, rows_deleted): (Option<String>, usize) = conn
+            .interact(move |c| {
+                let ext: Option<String> = c
+                    .query_row(
+                        "SELECT extension FROM artifacts WHERE id = ?1",
+                        params![id_str.clone()],
+                        |row| row.get(0),
+                    )
+                    .ok();
+                let rows = c.execute("DELETE FROM artifacts WHERE id = ?1", params![id_str])?;
+                Ok::<_, rusqlite::Error>((ext, rows))
+            })
+            .await
+            .map_err(|e| ArtifactError::Internal(e.to_string()))?
+            .map_err(ArtifactError::Db)?;
+
+        // Best-effort filesystem cleanup using the stored extension.
+        if let Some(ext) = extension {
             let path = self.artifacts_dir.join(format!("{}.{}", id.0, ext));
             let _ = tokio::fs::remove_file(&path).await;
         }
 
-        let db_path = self.db_path.clone();
-        let id_str = id.0.clone();
-
-        tokio::task::spawn_blocking(move || {
-            let conn = rusqlite::Connection::open(&db_path)?;
-            let rows = conn.execute(
-                "DELETE FROM artifacts WHERE id = ?1",
-                params![id_str],
-            )?;
-            Ok::<bool, ArtifactError>(rows > 0)
-        })
-        .await
-        .map_err(|e| ArtifactError::Internal(e.to_string()))?
+        Ok(rows_deleted > 0)
     }
 }
 
@@ -211,6 +252,7 @@ CREATE TABLE IF NOT EXISTS artifacts (
     chat_id       TEXT NOT NULL,
     artifact_type TEXT NOT NULL,
     artifact_json TEXT NOT NULL,
+    extension     TEXT NOT NULL DEFAULT '',
     created_at    INTEGER NOT NULL,
     updated_at    INTEGER NOT NULL
 );

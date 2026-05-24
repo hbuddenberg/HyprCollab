@@ -1,5 +1,10 @@
 /// Compute a unified-diff string between `old` and `new`.
 ///
+/// This is a display diff for human review, not a patch that can be applied
+/// with `patch -p0`. The hunk header encodes the actual first changed line in
+/// each file so diffs of large files are readable, but multi-hunk output is
+/// not implemented (the entire file is emitted as one hunk).
+///
 /// Returns an empty string when the two inputs are identical.
 /// Uses the LCS algorithm for minimal edit distance.
 pub fn unified_diff(old: &str, new: &str) -> String {
@@ -12,13 +17,26 @@ pub fn unified_diff(old: &str, new: &str) -> String {
 
     let matches = lcs_indices(&old_lines, &new_lines);
 
+    // Determine the first changed line in each file (1-based).
+    // A "changed" line is one that has no match at the same position.
+    let matched_old: std::collections::HashSet<usize> = matches.iter().map(|&(o, _)| o).collect();
+    let matched_new: std::collections::HashSet<usize> = matches.iter().map(|&(_, n)| n).collect();
+    let first_old = (0..old_lines.len())
+        .find(|i| !matched_old.contains(i))
+        .unwrap_or(0)
+        + 1;
+    let first_new = (0..new_lines.len())
+        .find(|i| !matched_new.contains(i))
+        .unwrap_or(0)
+        + 1;
+
     let mut result = String::new();
     result.push_str("--- a\n+++ b\n");
     result.push_str(&format!(
         "@@ -{},{} +{},{} @@\n",
-        1,
+        first_old,
         old_lines.len(),
-        1,
+        first_new,
         new_lines.len()
     ));
 
@@ -26,33 +44,28 @@ pub fn unified_diff(old: &str, new: &str) -> String {
     let mut new_i = 0usize;
     let mut match_iter = matches.iter().peekable();
 
-    loop {
-        match match_iter.peek() {
-            Some(&&(oi, ni)) => {
-                // deletions before this common line
-                while old_i < oi {
-                    result.push('-');
-                    result.push_str(old_lines[old_i]);
-                    result.push('\n');
-                    old_i += 1;
-                }
-                // insertions before this common line
-                while new_i < ni {
-                    result.push('+');
-                    result.push_str(new_lines[new_i]);
-                    result.push('\n');
-                    new_i += 1;
-                }
-                // context line
-                result.push(' ');
-                result.push_str(old_lines[old_i]);
-                result.push('\n');
-                old_i += 1;
-                new_i += 1;
-                match_iter.next();
-            }
-            None => break,
+    while let Some(&&(oi, ni)) = match_iter.peek() {
+        // deletions before this common line
+        while old_i < oi {
+            result.push('-');
+            result.push_str(old_lines[old_i]);
+            result.push('\n');
+            old_i += 1;
         }
+        // insertions before this common line
+        while new_i < ni {
+            result.push('+');
+            result.push_str(new_lines[new_i]);
+            result.push('\n');
+            new_i += 1;
+        }
+        // context line
+        result.push(' ');
+        result.push_str(old_lines[old_i]);
+        result.push('\n');
+        old_i += 1;
+        new_i += 1;
+        match_iter.next();
     }
 
     // remaining deletions

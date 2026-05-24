@@ -85,6 +85,8 @@ impl Tool for ShellTool {
         })
     }
 
+    /// SAFETY: Callers (agent loop, /run command) are responsible for approval
+    /// gating before invoking this tool. Commands are passed directly to `sh -c`.
     async fn execute(&self, args: serde_json::Value) -> Result<String> {
         let params: ShellParams = serde_json::from_value(args)
             .map_err(|e| CoreError::Tool(format!("Invalid shell params: {e}")))?;

@@ -127,11 +127,11 @@ impl ChatPane {
     /// Append a token to the last assistant message if it is streaming;
     /// otherwise create a new streaming message.
     pub fn push_stream_token(&mut self, token: &str, done: bool) {
-        if let Some(last) = self.messages.last_mut() {
-            if last.streaming {
-                last.push_token(token, done);
-                return;
-            }
+        if let Some(last) = self.messages.last_mut()
+            && last.streaming
+        {
+            last.push_token(token, done);
+            return;
         }
         let mut msg = ChatMessage::streaming_assistant();
         msg.push_token(token, done);

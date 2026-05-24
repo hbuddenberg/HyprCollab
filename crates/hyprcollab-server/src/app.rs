@@ -64,6 +64,10 @@ pub struct ApprovalResponse {
 }
 
 /// Create the Axum Router configured with CORS and all endpoints.
+///
+/// `allow_origin(Any)` is intentional: HyprCollab runs as a local desktop
+/// server accessed by the companion web/Tauri frontend on the same machine.
+/// In production deployments this should be restricted to specific origins.
 pub fn create_app(state: AppState) -> Router {
     let cors = CorsLayer::new()
         .allow_origin(Any)

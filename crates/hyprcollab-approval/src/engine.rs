@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+use std::hash::{DefaultHasher, Hash, Hasher};
+
 use crate::rules::{ApprovalAction, ApprovalRule, RulePattern};
 use hyprcollab_core::types::ApprovalMode;
-use std::collections::HashMap;
 
 /// Engine that decides whether a tool call needs user approval.
 pub struct ApprovalEngine {
@@ -61,14 +63,25 @@ impl ApprovalEngine {
     }
 
     /// Cache a user's approval decision for future calls.
-    pub fn cache_decision(&mut self, tool_name: &str, _args: &serde_json::Value, allowed: bool) {
-        self.cache.insert(tool_name.to_string(), allowed);
+    ///
+    /// Keyed by `"{tool_name}:{args_hash}"` so that approving
+    /// `file_ops { read: /safe }` does not also approve
+    /// `file_ops { write: /etc/passwd }`.
+    pub fn cache_decision(&mut self, tool_name: &str, args: &serde_json::Value, allowed: bool) {
+        self.cache.insert(cache_key(tool_name, args), allowed);
     }
 
     /// Check the cache for a previous decision.
-    pub fn check_cache(&self, tool_name: &str) -> Option<bool> {
-        self.cache.get(tool_name).copied()
+    pub fn check_cache(&self, tool_name: &str, args: &serde_json::Value) -> Option<bool> {
+        self.cache.get(&cache_key(tool_name, args)).copied()
     }
+}
+
+fn cache_key(tool_name: &str, args: &serde_json::Value) -> String {
+    let json = args.to_string();
+    let mut h = DefaultHasher::new();
+    json.hash(&mut h);
+    format!("{tool_name}:{}", h.finish())
 }
 
 #[cfg(test)]
@@ -125,9 +138,20 @@ mod tests {
     #[test]
     fn cache_stores_decisions() {
         let mut engine = ApprovalEngine::new(ApprovalMode::Normal);
-        engine.cache_decision("read_file", &serde_json::json!({}), true);
-        assert_eq!(engine.check_cache("read_file"), Some(true));
-        assert_eq!(engine.check_cache("unknown"), None);
+        let args = serde_json::json!({});
+        engine.cache_decision("read_file", &args, true);
+        assert_eq!(engine.check_cache("read_file", &args), Some(true));
+        assert_eq!(engine.check_cache("unknown", &args), None);
+    }
+
+    #[test]
+    fn cache_different_args_are_separate_entries() {
+        let mut engine = ApprovalEngine::new(ApprovalMode::Normal);
+        let safe = serde_json::json!({"path": "/safe"});
+        let danger = serde_json::json!({"path": "/etc/passwd"});
+        engine.cache_decision("file_ops", &safe, true);
+        assert_eq!(engine.check_cache("file_ops", &safe), Some(true));
+        assert_eq!(engine.check_cache("file_ops", &danger), None);
     }
 
     #[test]

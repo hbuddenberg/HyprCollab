@@ -1,6 +1,7 @@
 use anyhow::Result;
 use image::DynamicImage;
 use std::collections::HashMap;
+use std::hash::{DefaultHasher, Hash, Hasher};
 
 use crate::capabilities::{GraphicsProtocol, TerminalCapabilities};
 use crate::kitty::encode_kitty;
@@ -19,6 +20,7 @@ pub enum PreviewOutput {
 /// protocol and resizes images to fit the terminal width.
 pub struct ImagePreview {
     caps: TerminalCapabilities,
+    /// Cache: hash of (png_bytes, max_cols) → encoded escape sequence.
     cache: HashMap<u64, String>,
 }
 
@@ -42,9 +44,17 @@ impl ImagePreview {
     /// Encode `png_bytes` using the best available protocol.
     ///
     /// Resizes to `max_cols` terminal columns if `max_cols > 0`.
+    /// Results are cached by content hash so repeated calls for the same
+    /// image are free after the first encode.
     pub fn encode_png(&mut self, png_bytes: &[u8], max_cols: u16) -> Result<PreviewOutput> {
         if !self.caps.supports_any_graphics() {
             return Ok(PreviewOutput::Unavailable);
+        }
+
+        // Check cache first.
+        let cache_key = hash_key(png_bytes, max_cols);
+        if let Some(cached) = self.cache.get(&cache_key) {
+            return Ok(PreviewOutput::EscapeSequence(cached.clone()));
         }
 
         let img = image::load_from_memory(png_bytes)
@@ -67,12 +77,20 @@ impl ImagePreview {
             GraphicsProtocol::None => return Ok(PreviewOutput::Unavailable),
         };
 
+        self.cache.insert(cache_key, seq.clone());
         Ok(PreviewOutput::EscapeSequence(seq))
     }
 
     pub fn clear_cache(&mut self) {
         self.cache.clear();
     }
+}
+
+fn hash_key(png_bytes: &[u8], max_cols: u16) -> u64 {
+    let mut h = DefaultHasher::new();
+    png_bytes.hash(&mut h);
+    max_cols.hash(&mut h);
+    h.finish()
 }
 
 /// Scale `img` so that its width fits within `cols` terminal columns.
@@ -134,6 +152,39 @@ mod tests {
             }
             PreviewOutput::Unavailable => panic!("expected sixel output"),
         }
+    }
+
+    #[test]
+    fn cache_hit_returns_same_sequence() {
+        let mut preview =
+            ImagePreview::new(TerminalCapabilities::with_protocol(GraphicsProtocol::Kitty));
+        let png = tiny_png_bytes();
+        let first = preview.encode_png(&png, 80).unwrap();
+        let second = preview.encode_png(&png, 80).unwrap();
+        let (PreviewOutput::EscapeSequence(a), PreviewOutput::EscapeSequence(b)) = (first, second)
+        else {
+            panic!("expected escape sequences")
+        };
+        assert_eq!(a, b, "cached result should match original");
+    }
+
+    #[test]
+    fn different_cols_different_cache_entry() {
+        let mut preview =
+            ImagePreview::new(TerminalCapabilities::with_protocol(GraphicsProtocol::Kitty));
+        let png = tiny_png_bytes();
+        preview.encode_png(&png, 0).unwrap();
+        preview.encode_png(&png, 80).unwrap();
+        assert_eq!(preview.cache.len(), 2);
+    }
+
+    #[test]
+    fn clear_cache_empties_map() {
+        let mut preview =
+            ImagePreview::new(TerminalCapabilities::with_protocol(GraphicsProtocol::Kitty));
+        preview.encode_png(&tiny_png_bytes(), 0).unwrap();
+        preview.clear_cache();
+        assert!(preview.cache.is_empty());
     }
 
     #[test]

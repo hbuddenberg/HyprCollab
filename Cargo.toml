@@ -87,7 +87,11 @@ tower-http = { version = "0.6", features = ["cors", "trace"] }
 reqwest = { version = "0.12", features = ["json", "stream"] }
 
 # Database
-rusqlite = { version = "0.34", features = ["bundled"] }
+rusqlite = { version = "0.38", features = ["bundled"] }
+deadpool-sqlite = { version = "0.13", features = ["rt_tokio_1"] }
+
+# Collections
+indexmap = "2"
 
 # IDs
 uuid = { version = "1", features = ["v4", "serde"] }

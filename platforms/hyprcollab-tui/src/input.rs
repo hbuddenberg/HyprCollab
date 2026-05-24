@@ -1,9 +1,10 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 /// The current vim-like editing mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum AppMode {
     /// Default mode: navigation keys active (j/k/gg/G/Tab/i/:).
+    #[default]
     Normal,
     /// Free-text input mode (entered via `i`).
     Insert,
@@ -11,23 +12,12 @@ pub enum AppMode {
     Command,
 }
 
-impl Default for AppMode {
-    fn default() -> Self {
-        Self::Normal
-    }
-}
-
 /// Which pane currently has focus.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum FocusedPane {
+    #[default]
     Chat,
     Artifact,
-}
-
-impl Default for FocusedPane {
-    fn default() -> Self {
-        Self::Chat
-    }
 }
 
 /// All state mutations produced by processing a single key event.

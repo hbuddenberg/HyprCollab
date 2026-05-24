@@ -66,6 +66,12 @@ fn default_limit() -> usize {
     10
 }
 
+impl Default for FactStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FactStore {
     pub fn new() -> Self {
         Self {

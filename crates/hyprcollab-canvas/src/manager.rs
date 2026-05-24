@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use indexmap::IndexMap;
 
 use hyprcollab_artifacts::{Artifact, ArtifactId};
 
@@ -23,7 +23,7 @@ struct ArtifactEntry {
 /// Tracks the active artifact, edit history per artifact, and emits
 /// `CanvasEvent`s that the UI layer can consume.
 pub struct CanvasManager {
-    open: HashMap<ArtifactId, ArtifactEntry>,
+    open: IndexMap<ArtifactId, ArtifactEntry>,
     active: Option<ArtifactId>,
     events: Vec<CanvasEvent>,
 }
@@ -31,7 +31,7 @@ pub struct CanvasManager {
 impl CanvasManager {
     pub fn new() -> Self {
         Self {
-            open: HashMap::new(),
+            open: IndexMap::new(),
             active: None,
             events: Vec::new(),
         }
@@ -56,7 +56,7 @@ impl CanvasManager {
 
     /// Close an artifact tab.  Returns `true` if the tab was open.
     pub fn close_artifact(&mut self, id: &ArtifactId) -> bool {
-        if self.open.remove(id).is_some() {
+        if self.open.shift_remove(id).is_some() {
             if self.active.as_ref() == Some(id) {
                 self.active = self.open.keys().next().cloned();
             }
