@@ -25,6 +25,8 @@ pub struct AgentSession {
     provider: Arc<dyn LlmProvider>,
     /// Chat ID shared by all messages in this session.
     chat_id: ChatId,
+    /// Optional approval engine consulted before each tool call.
+    approval_engine: Option<hyprcollab_approval::ApprovalEngine>,
 }
 
 impl AgentSession {
@@ -37,7 +39,14 @@ impl AgentSession {
             registry: ToolRegistry::new(),
             provider,
             chat_id: ChatId::new(),
+            approval_engine: None,
         }
+    }
+
+    /// Attach an approval engine (builder-style).
+    pub fn with_approval_engine(mut self, engine: hyprcollab_approval::ApprovalEngine) -> Self {
+        self.approval_engine = Some(engine);
+        self
     }
 
     /// Set a custom system prompt (builder-style).
@@ -76,8 +85,9 @@ impl AgentSession {
         // Build the message list for this run.
         let mut messages: Vec<Message> = Vec::new();
 
-        // Prepend system prompt if set.
-        if !self.config.system_prompt.is_empty() {
+        // Prepend system prompt only on the first turn (self.messages is empty).
+        // On subsequent turns the system message is already in the history.
+        if !self.config.system_prompt.is_empty() && self.messages.is_empty() {
             messages.push(Message {
                 id: MessageId::new(),
                 chat_id: self.chat_id,
@@ -113,6 +123,7 @@ impl AgentSession {
             &self.registry,
             self.chat_id,
             &self.config,
+            self.approval_engine.as_ref(),
         )
         .await?;
 

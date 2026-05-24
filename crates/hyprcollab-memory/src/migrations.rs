@@ -37,11 +37,11 @@ pub fn run(conn: &rusqlite::Connection) -> Result<()> {
                 .unchecked_transaction()
                 .map_err(|e| CoreError::Memory(format!("failed to begin transaction: {e}")))?;
 
-            conn.execute_batch(sql)
+            tx.execute_batch(sql)
                 .map_err(|e| CoreError::Memory(format!("migration {name} failed: {e}")))?;
 
             let now = chrono::Utc::now().to_rfc3339();
-            conn.execute(
+            tx.execute(
                 "INSERT INTO schema_version (version, name, applied) VALUES (?1, ?2, ?3)",
                 rusqlite::params![version, name, now],
             )

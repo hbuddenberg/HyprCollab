@@ -246,6 +246,26 @@ pub struct OpenAiStreamChoice {
     pub finish_reason: Option<String>,
 }
 
+/// Incremental tool-call fragment streamed within a single SSE chunk.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OpenAiStreamToolCallDelta {
+    pub index: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub call_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub function: Option<OpenAiStreamFunctionDelta>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OpenAiStreamFunctionDelta {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arguments: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OpenAiDelta {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -253,7 +273,7 @@ pub struct OpenAiDelta {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub tool_calls: Vec<serde_json::Value>,
+    pub tool_calls: Vec<OpenAiStreamToolCallDelta>,
 }
 
 impl OpenAiStreamChunk {
@@ -276,6 +296,7 @@ impl OpenAiStreamChunk {
                 None
             },
             usage,
+            tool_calls: vec![],
         })
     }
 }

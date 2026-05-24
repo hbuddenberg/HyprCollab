@@ -14,12 +14,17 @@ use crate::types::{AgentConfig, AgentOutput};
 /// `messages` is mutated in-place: the user message must already be appended
 /// by the caller, and this function will push assistant messages, tool-result
 /// messages, etc. as the loop progresses.
+///
+/// `approval` is consulted before each tool invocation. When `Strict` mode
+/// returns `needs_approval = true`, the tool call is skipped and a synthetic
+/// tool-result message is injected instead.
 pub async fn run_agent_loop(
     provider: &dyn LlmProvider,
     messages: &mut Vec<Message>,
     registry: &ToolRegistry,
     chat_id: ChatId,
     config: &AgentConfig,
+    approval: Option<&hyprcollab_approval::ApprovalEngine>,
 ) -> Result<AgentOutput, CoreError> {
     let mut tool_history: Vec<crate::types::TurnToolCall> = Vec::new();
     let tool_defs = registry.tool_definitions();
@@ -60,6 +65,34 @@ pub async fn run_agent_loop(
                 tracing::debug!(turn, n_calls = calls.len(), "Executing tool calls");
 
                 for tc in calls {
+                    // Check approval before executing the tool.
+                    let blocked = approval.map_or(false, |eng| {
+                        eng.needs_approval(&tc.name, &tc.arguments)
+                            && config.approval_mode == hyprcollab_core::types::ApprovalMode::Strict
+                    });
+                    if blocked {
+                        tracing::info!(tool = %tc.name, "Tool skipped: requires approval in Strict mode");
+                        let tool_msg = Message {
+                            id: MessageId::new(),
+                            chat_id,
+                            role: MessageRole::Tool,
+                            content: format!(
+                                "Tool '{}' was not executed: approval required (Strict mode)",
+                                tc.name
+                            ),
+                            tool_calls: Vec::new(),
+                            artifacts: Vec::new(),
+                            timestamp: chrono::Utc::now(),
+                            metadata: serde_json::json!({
+                                "tool_call_id": tc.id,
+                                "is_error": true,
+                                "approval_blocked": true,
+                            }),
+                        };
+                        messages.push(tool_msg);
+                        continue;
+                    }
+
                     let tool = registry.get(&tc.name).ok_or_else(|| {
                         CoreError::Tool(format!("Tool not found: {}", tc.name))
                     })?;

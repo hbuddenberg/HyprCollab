@@ -289,10 +289,10 @@ mod tests {
 
     #[test]
     fn interpolate_known_var() {
-        std::env::set_var("HYPRCOLLAB_TEST_INTERP", "hello_world");
+        unsafe { std::env::set_var("HYPRCOLLAB_TEST_INTERP", "hello_world") };
         let result = interpolate_env_vars("key: ${HYPRCOLLAB_TEST_INTERP}");
         assert_eq!(result, "key: hello_world");
-        std::env::remove_var("HYPRCOLLAB_TEST_INTERP");
+        unsafe { std::env::remove_var("HYPRCOLLAB_TEST_INTERP") };
     }
 
     #[test]

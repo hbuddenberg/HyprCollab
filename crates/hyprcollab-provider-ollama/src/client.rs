@@ -201,7 +201,7 @@ impl LlmProvider for OllamaClient {
                                     Some(_) => Some(FinishReason::Stop),
                                     None => None,
                                 };
-                                if tx.send(Ok(TokenChunk { delta, finish_reason, usage: None })).await.is_err() {
+                                if tx.send(Ok(TokenChunk { delta, finish_reason, usage: None, tool_calls: vec![] })).await.is_err() {
                                     break;
                                 }
                             }

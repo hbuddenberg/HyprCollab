@@ -52,44 +52,45 @@ impl WebFetchTool {
     }
 
     /// Naïve HTML tag stripper — removes everything between < and >.
+    ///
+    /// Iterates over `char_indices()` so multi-byte UTF-8 characters are
+    /// handled correctly (the old byte-cast approach corrupted non-ASCII text).
     pub fn strip_html(html: &str) -> String {
         let mut result = String::with_capacity(html.len());
         let mut in_tag = false;
         let mut in_script = false;
-
-        let bytes = html.as_bytes();
         let lower = html.to_ascii_lowercase();
 
-        // Detect <script> blocks
-        let mut i = 0;
-        while i < bytes.len() {
-            if lower[i..].starts_with("<script") {
+        let mut char_iter = html.char_indices().peekable();
+
+        while let Some((byte_pos, ch)) = char_iter.next() {
+            // Script block detection uses the byte-position slice of the
+            // lowercased string; byte_pos is always on a char boundary because
+            // char_indices guarantees it.
+            if lower[byte_pos..].starts_with("<script") {
                 in_script = true;
             }
-            if in_script && lower[i..].starts_with("</script") {
+            if in_script && lower[byte_pos..].starts_with("</script") {
                 in_script = false;
-                // Skip past >
-                while i < bytes.len() && bytes[i] != b'>' {
-                    i += 1;
+                // Consume up to and including the closing '>'.
+                for (_, c) in char_iter.by_ref() {
+                    if c == '>' {
+                        break;
+                    }
                 }
-                i += 1;
                 continue;
             }
             if in_script {
-                i += 1;
                 continue;
             }
-            if bytes[i] == b'<' {
+            if ch == '<' {
                 in_tag = true;
-            } else if bytes[i] == b'>' && in_tag {
+            } else if ch == '>' && in_tag {
                 in_tag = false;
                 result.push(' ');
-                i += 1;
-                continue;
             } else if !in_tag {
-                result.push(bytes[i] as char);
+                result.push(ch);
             }
-            i += 1;
         }
 
         // Collapse whitespace

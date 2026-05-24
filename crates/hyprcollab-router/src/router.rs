@@ -243,6 +243,7 @@ mod tests {
                     delta: format!("stream from {}", name),
                     finish_reason: Some(FinishReason::Stop),
                     usage: None,
+                    tool_calls: vec![],
                 })
             }))
         }

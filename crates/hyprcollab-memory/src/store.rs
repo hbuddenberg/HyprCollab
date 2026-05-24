@@ -4,6 +4,7 @@
 //! and settings in a local SQLite database.
 
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 
 use hyprcollab_core::errors::{CoreError, Result};
 use hyprcollab_core::types::*;
@@ -13,8 +14,11 @@ use crate::migrations;
 // ── Store ──────────────────────────────────────────────────────────────
 
 /// SQLite-backed memory store.
+///
+/// Wraps the connection in `Arc<Mutex<>>` so the store is `Send + Sync`
+/// and can be shared across Axum handlers.
 pub struct MemoryStore {
-    conn: rusqlite::Connection,
+    conn: Arc<Mutex<rusqlite::Connection>>,
 }
 
 impl MemoryStore {
@@ -30,7 +34,7 @@ impl MemoryStore {
             .map_err(|e| CoreError::Memory(format!("pragma setup failed: {e}")))?;
 
         migrations::run(&conn)?;
-        Ok(Self { conn })
+        Ok(Self { conn: Arc::new(Mutex::new(conn)) })
     }
 
     /// Open an in-memory database (useful for tests).
@@ -42,7 +46,13 @@ impl MemoryStore {
             .map_err(|e| CoreError::Memory(format!("pragma setup failed: {e}")))?;
 
         migrations::run(&conn)?;
-        Ok(Self { conn })
+        Ok(Self { conn: Arc::new(Mutex::new(conn)) })
+    }
+
+    fn lock_conn(&self) -> Result<std::sync::MutexGuard<'_, rusqlite::Connection>> {
+        self.conn
+            .lock()
+            .map_err(|_| CoreError::Memory("database mutex poisoned".to_string()))
     }
 
     // ── Chat CRUD ──────────────────────────────────────────────────────
@@ -57,9 +67,9 @@ impl MemoryStore {
         agent_role_id: Option<AgentRoleId>,
         model: &str,
     ) -> Result<ChatId> {
+        let conn = self.lock_conn()?;
         let now = chrono::Utc::now().to_rfc3339();
-        self.conn
-            .execute(
+        conn.execute(
                 "INSERT INTO chats (id, title, workspace_id, persona_id, agent_role_id, model, created_at, updated_at)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
                 rusqlite::params![
@@ -79,8 +89,8 @@ impl MemoryStore {
 
     /// Retrieve a single chat by its ID.
     pub fn get_chat(&self, id: ChatId) -> Result<Option<ChatRecord>> {
-        let mut stmt = self
-            .conn
+        let conn = self.lock_conn()?;
+        let mut stmt = conn
             .prepare(
                 "SELECT id, title, workspace_id, persona_id, agent_role_id, model, created_at, updated_at
                  FROM chats WHERE id = ?1",
@@ -103,8 +113,8 @@ impl MemoryStore {
 
     /// List all chats, ordered by most recently updated first.
     pub fn list_chats(&self) -> Result<Vec<ChatRecord>> {
-        let mut stmt = self
-            .conn
+        let conn = self.lock_conn()?;
+        let mut stmt = conn
             .prepare(
                 "SELECT id, title, workspace_id, persona_id, agent_role_id, model, created_at, updated_at
                  FROM chats ORDER BY updated_at DESC",
@@ -127,8 +137,8 @@ impl MemoryStore {
 
     /// Delete a chat (cascades to messages and settings).
     pub fn delete_chat(&self, id: ChatId) -> Result<bool> {
-        let affected = self
-            .conn
+        let conn = self.lock_conn()?;
+        let affected = conn
             .execute(
                 "DELETE FROM chats WHERE id = ?1",
                 rusqlite::params![id.to_string()],
@@ -157,8 +167,8 @@ impl MemoryStore {
             Some(serde_json::to_string(&msg.metadata)?)
         };
 
-        self.conn
-            .execute(
+        let conn = self.lock_conn()?;
+        conn.execute(
                 "INSERT INTO messages (id, chat_id, role, content, tool_calls, artifacts, timestamp, metadata)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
                 rusqlite::params![
@@ -176,8 +186,7 @@ impl MemoryStore {
 
         // Bump the chat's updated_at.
         let now = chrono::Utc::now().to_rfc3339();
-        self.conn
-            .execute(
+        conn.execute(
                 "UPDATE chats SET updated_at = ?1 WHERE id = ?2",
                 rusqlite::params![now, msg.chat_id.to_string()],
             )
@@ -188,8 +197,8 @@ impl MemoryStore {
 
     /// Get all messages for a chat, ordered chronologically.
     pub fn get_messages(&self, chat_id: ChatId) -> Result<Vec<Message>> {
-        let mut stmt = self
-            .conn
+        let conn = self.lock_conn()?;
+        let mut stmt = conn
             .prepare(
                 "SELECT id, chat_id, role, content, tool_calls, artifacts, timestamp, metadata
                  FROM messages WHERE chat_id = ?1 ORDER BY timestamp ASC",
@@ -210,8 +219,8 @@ impl MemoryStore {
 
     /// Get the *N* most recent messages for a chat.
     pub fn get_recent(&self, chat_id: ChatId, limit: usize) -> Result<Vec<Message>> {
-        let mut stmt = self
-            .conn
+        let conn = self.lock_conn()?;
+        let mut stmt = conn
             .prepare(
                 "SELECT id, chat_id, role, content, tool_calls, artifacts, timestamp, metadata
                  FROM messages WHERE chat_id = ?1 ORDER BY timestamp DESC LIMIT ?2",
@@ -239,8 +248,8 @@ impl MemoryStore {
 
     /// Get a setting value for a chat.
     pub fn get_setting(&self, chat_id: ChatId, key: &str) -> Result<Option<String>> {
-        let mut stmt = self
-            .conn
+        let conn = self.lock_conn()?;
+        let mut stmt = conn
             .prepare("SELECT value FROM chat_settings WHERE chat_id = ?1 AND key = ?2")
             .map_err(|e| CoreError::Memory(format!("get_setting prepare: {e}")))?;
 
@@ -264,8 +273,8 @@ impl MemoryStore {
 
     /// Set (upsert) a setting value for a chat.
     pub fn set_setting(&self, chat_id: ChatId, key: &str, value: &str) -> Result<()> {
-        self.conn
-            .execute(
+        let conn = self.lock_conn()?;
+        conn.execute(
                 "INSERT INTO chat_settings (chat_id, key, value) VALUES (?1, ?2, ?3)
                  ON CONFLICT(chat_id, key) DO UPDATE SET value = excluded.value",
                 rusqlite::params![chat_id.to_string(), key, value],
@@ -311,16 +320,28 @@ impl ChatRecord {
             title,
             workspace_id: ws
                 .as_deref()
-                .map(|s| WorkspaceId(uuid::Uuid::parse_str(s).unwrap()))
-                .take(),
+                .map(|s| {
+                    uuid::Uuid::parse_str(s)
+                        .map(WorkspaceId)
+                        .map_err(|e| CoreError::Memory(format!("invalid workspace_id '{s}': {e}")))
+                })
+                .transpose()?,
             persona_id: pid
                 .as_deref()
-                .map(|s| PersonaId(uuid::Uuid::parse_str(s).unwrap()))
-                .take(),
+                .map(|s| {
+                    uuid::Uuid::parse_str(s)
+                        .map(PersonaId)
+                        .map_err(|e| CoreError::Memory(format!("invalid persona_id '{s}': {e}")))
+                })
+                .transpose()?,
             agent_role_id: arid
                 .as_deref()
-                .map(|s| AgentRoleId(uuid::Uuid::parse_str(s).unwrap()))
-                .take(),
+                .map(|s| {
+                    uuid::Uuid::parse_str(s)
+                        .map(AgentRoleId)
+                        .map_err(|e| CoreError::Memory(format!("invalid agent_role_id '{s}': {e}")))
+                })
+                .transpose()?,
             model,
             created_at,
             updated_at,

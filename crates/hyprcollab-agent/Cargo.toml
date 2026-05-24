@@ -7,6 +7,7 @@ description = "Agent runtime core – LLM → tool call → execute → loop"
 
 [dependencies]
 hyprcollab-core = { workspace = true }
+hyprcollab-approval = { path = "../hyprcollab-approval" }
 tokio = { workspace = true }
 futures = { workspace = true }
 serde = { workspace = true }

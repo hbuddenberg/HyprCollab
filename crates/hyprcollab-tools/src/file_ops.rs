@@ -31,11 +31,23 @@ impl FileOpsTool {
     }
 
     /// Validate path is within sandbox if configured.
+    ///
+    /// For paths that may not exist yet (Write, Exists), falls back to
+    /// canonicalizing the parent directory so new files can still be checked.
     fn validate_path(&self, path: &str) -> Result<()> {
         if let Some(ref sandbox) = self.sandbox_dir {
-            let canonical = std::path::Path::new(path)
-                .canonicalize()
-                .map_err(|e| CoreError::Tool(format!("Invalid path {path}: {e}")))?;
+            let p = std::path::Path::new(path);
+            let canonical = p.canonicalize().or_else(|_| {
+                p.parent()
+                    .ok_or_else(|| {
+                        std::io::Error::new(
+                            std::io::ErrorKind::NotFound,
+                            "path has no parent directory",
+                        )
+                    })?
+                    .canonicalize()
+            })
+            .map_err(|e| CoreError::Tool(format!("Invalid path {path}: {e}")))?;
             let sandbox_path = std::path::Path::new(sandbox)
                 .canonicalize()
                 .map_err(|e| CoreError::Tool(format!("Invalid sandbox {sandbox}: {e}")))?;
@@ -136,6 +148,7 @@ impl Tool for FileOpsTool {
                 Ok(files.join("\n"))
             }
             FileParams::Exists { path } => {
+                self.validate_path(&path)?;
                 let exists = tokio::fs::metadata(&path).await.is_ok();
                 Ok(serde_json::json!({"exists": exists}).to_string())
             }

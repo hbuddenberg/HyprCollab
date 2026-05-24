@@ -101,6 +101,7 @@ async fn run_stream(
                                         delta: text,
                                         finish_reason: None,
                                         usage: None,
+                                    tool_calls: vec![],
                                     };
                                     if tx.send(Ok(chunk)).await.is_err() {
                                         break;
@@ -111,6 +112,7 @@ async fn run_stream(
                                         delta: partial_json.unwrap(),
                                         finish_reason: None,
                                         usage: None,
+                                    tool_calls: vec![],
                                     };
                                     if tx.send(Ok(chunk)).await.is_err() {
                                         break;
@@ -141,6 +143,7 @@ async fn run_stream(
                                     delta: String::new(),
                                     finish_reason: Some(finish_reason),
                                     usage,
+                                    tool_calls: vec![],
                                 };
                                 if tx.send(Ok(chunk)).await.is_err() {
                                     break;

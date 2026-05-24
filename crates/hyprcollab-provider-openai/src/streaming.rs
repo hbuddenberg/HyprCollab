@@ -6,10 +6,17 @@ use reqwest::Client;
 use tokio_stream::wrappers::ReceiverStream;
 
 use hyprcollab_core::errors::{CoreError, Result};
-use hyprcollab_core::types::TokenChunk;
+use hyprcollab_core::types::{FinishReason, TokenChunk, TokenUsage, ToolCall};
 
-use crate::types::OpenAiRequest;
-use crate::types::OpenAiStreamChunk;
+use crate::types::{OpenAiRequest, OpenAiStreamChunk};
+
+/// Accumulator for a single tool call being assembled across streaming chunks.
+#[derive(Default)]
+struct PartialToolCall {
+    id: String,
+    name: String,
+    arguments: String,
+}
 
 /// Creates a boxed stream of `TokenChunk` from a streaming OpenAI request.
 pub fn create_stream(
@@ -59,28 +66,100 @@ async fn run_stream(
     }
 
     let mut event_stream = resp.bytes_stream().eventsource();
+    // Buffer for assembling incremental tool call fragments across SSE chunks.
+    let mut partial_tool_calls: Vec<PartialToolCall> = Vec::new();
 
     while let Some(event) = event_stream.next().await {
         match event {
             Ok(event) => {
                 let data = event.data.trim();
 
-                // End of stream signal
                 if data == "[DONE]" {
                     break;
                 }
-
-                // Skip empty lines
                 if data.is_empty() {
                     continue;
                 }
 
-                // Parse the JSON chunk
                 match serde_json::from_str::<OpenAiStreamChunk>(data) {
                     Ok(chunk) => {
-                        if let Some(token_chunk) = chunk.into_token_chunk() {
-                            if tx.send(Ok(token_chunk)).await.is_err() {
-                                // Consumer dropped, stop.
+                        let usage = chunk.usage.map(|u| TokenUsage {
+                            prompt_tokens: u.prompt_tokens,
+                            completion_tokens: u.completion_tokens,
+                            total_tokens: u.total_tokens,
+                        });
+
+                        let choice = match chunk.choices.into_iter().next() {
+                            Some(c) => c,
+                            None => continue,
+                        };
+
+                        // Accumulate tool call fragments by index.
+                        for tc_delta in choice.delta.tool_calls {
+                            let idx = tc_delta.index;
+                            while partial_tool_calls.len() <= idx {
+                                partial_tool_calls.push(PartialToolCall::default());
+                            }
+                            let acc = &mut partial_tool_calls[idx];
+                            if let Some(id) = tc_delta.id {
+                                acc.id = id;
+                            }
+                            if let Some(func) = tc_delta.function {
+                                if let Some(name) = func.name {
+                                    acc.name = name;
+                                }
+                                if let Some(args) = func.arguments {
+                                    acc.arguments.push_str(&args);
+                                }
+                            }
+                        }
+
+                        // Emit content text deltas as they arrive.
+                        if let Some(text) = choice.delta.content {
+                            if !text.is_empty() {
+                                let tc = TokenChunk {
+                                    delta: text,
+                                    finish_reason: None,
+                                    usage: None,
+                                    tool_calls: vec![],
+                                };
+                                if tx.send(Ok(tc)).await.is_err() {
+                                    break;
+                                }
+                            }
+                        }
+
+                        // On finish, emit the terminal chunk with assembled tool calls.
+                        if choice.finish_reason.is_some() {
+                            let finish_reason = match choice.finish_reason.as_deref() {
+                                Some("stop") => FinishReason::Stop,
+                                Some("tool_calls") => FinishReason::ToolCalls,
+                                Some("length") => FinishReason::Length,
+                                Some("content_filter") => FinishReason::ContentFilter,
+                                _ => FinishReason::Stop,
+                            };
+
+                            let assembled: Vec<ToolCall> = if finish_reason == FinishReason::ToolCalls {
+                                partial_tool_calls
+                                    .drain(..)
+                                    .map(|acc| ToolCall {
+                                        id: acc.id,
+                                        name: acc.name,
+                                        arguments: serde_json::from_str(&acc.arguments)
+                                            .unwrap_or(serde_json::Value::Null),
+                                    })
+                                    .collect()
+                            } else {
+                                vec![]
+                            };
+
+                            let tc = TokenChunk {
+                                delta: String::new(),
+                                finish_reason: Some(finish_reason),
+                                usage,
+                                tool_calls: assembled,
+                            };
+                            if tx.send(Ok(tc)).await.is_err() {
                                 break;
                             }
                         }
@@ -97,9 +176,7 @@ async fn run_stream(
             }
             Err(e) => {
                 let _ = tx
-                    .send(Err(CoreError::Llm(format!(
-                        "SSE parse error: {e}"
-                    ))))
+                    .send(Err(CoreError::Llm(format!("SSE parse error: {e}"))))
                     .await;
                 break;
             }

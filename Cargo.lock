@@ -653,6 +653,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "futures",
+ "hyprcollab-approval",
  "hyprcollab-core",
  "serde",
  "serde_json",
