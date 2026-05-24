@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>HyprCollab — Roadmap</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0d1117; color:#c9d1d9; font-family:'JetBrains Mono',monospace; padding:24px; max-width:1100px; margin:0 auto; }
+  .header { border-bottom:2px solid #58a6ff; padding-bottom:16px; margin-bottom:24px; }
+  .header h1 { color:#58a6ff; font-size:28px; }
+  .header .sub { color:#8b949e; font-size:13px; margin-top:4px; }
+  .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:24px; }
+  .stat { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:14px; text-align:center; }
+  .stat .label { color:#8b949e; font-size:10px; text-transform:uppercase; letter-spacing:1px; }
+  .stat .val { font-size:32px; font-weight:700; }
+  .progress-bar { background:#21262d; border-radius:6px; height:12px; margin-bottom:24px; overflow:hidden; display:flex; }
+  .progress-bar .done { background:#3fb950; }
+  .progress-bar .partial { background:#d29922; }
+  .phase { background:#161b22; border-radius:10px; margin-bottom:16px; overflow:hidden; border:1px solid #30363d; }
+  .phase-header { padding:14px 20px; display:flex; justify-content:space-between; align-items:center; cursor:default; }
+  .phase-header .left { display:flex; align-items:center; gap:12px; }
+  .phase-header .tag { font-size:11px; font-weight:700; padding:3px 10px; border-radius:12px; }
+  .phase-header .title { font-size:15px; font-weight:700; }
+  .phase-header .weeks { font-size:12px; color:#8b949e; }
+  .phase-header .ms { font-size:11px; color:#8b949e; }
+  .week { border-top:1px solid #21262d; padding:10px 20px; display:grid; grid-template-columns:80px 160px 1fr 140px; gap:8px; align-items:start; }
+  .week:hover { background:#1c2129; }
+  .week .snum { font-size:12px; font-weight:700; }
+  .week .sname { font-size:12px; color:#c9d1d9; }
+  .week .tasks { font-size:11px; color:#8b949e; line-height:1.5; }
+  .week .status { font-size:11px; padding:3px 8px; border-radius:12px; text-align:center; font-weight:700; white-space:nowrap; }
+  .legend { display:flex; gap:16px; margin-bottom:20px; font-size:12px; }
+  .legend span { display:flex; align-items:center; gap:6px; }
+  .legend .dot { width:10px; height:10px; border-radius:50%; }
+  .footer { margin-top:24px; padding-top:16px; border-top:1px solid #30363d; color:#8b949e; font-size:11px; }
+</style></head><body>
+
+<div class="header">
+  <h1>⟨H⟩ HyprCollab — Roadmap</h1>
+  <div class="sub">39 Semanas · 9 Fases · 8 Milestones · Rust 2024 Edition</div>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="label">Total Semanas</div><div class="val" style="color:#58a6ff">39</div></div>
+  <div class="stat"><div class="label">Completadas</div><div class="val" style="color:#3fb950">12</div></div>
+  <div class="stat"><div class="label">Parciales</div><div class="val" style="color:#d29922">1</div></div>
+  <div class="stat"><div class="label">Pendientes</div><div class="val" style="color:#8b949e">26</div></div>
+</div>
+
+<div class="progress-bar">
+  <div class="done" style="width:31%"></div>
+  <div class="partial" style="width:3%"></div>
+</div>
+
+<div class="legend">
+  <span><div class="dot" style="background:#3fb950"></div> Completada (12)</span>
+  <span><div class="dot" style="background:#d29922"></div> Parcial (1)</span>
+  <span><div class="dot" style="background:#8b949e"></div> Pendiente (26)</span>
+</div>
+
+<div class="phase">
+  <div class="phase-header" style="background:#2a1a3a">
+    <div class="left">
+      <span class="tag" style="background:#2a1a3a;color:#bc8cff;border:1px solid #bc8cff">Fase 0</span>
+      <span class="title" style="color:#bc8cff">Foundation</span>
+      <span class="weeks">Semanas 1-2</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span class="ms">M0: Workspace compila, CI verde, SQLite migrations corren</span>
+      <span style="color:#bc8cff;font-size:12px;font-weight:700">2/2</span>
+    </div>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#bc8cff">S1</span>
+    <span class="sname">Scaffold + CI</span>
+    <span class="tasks">Cargo workspace con todos los crates · GitHub Actions (fmt, clippy, test, build) · README.md + deny.toml + flake.nix + Dockerfile</span>
+    <span class="status" style="background:#1a3a2a;color:#3fb950;border:1px solid #238636">✅</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#bc8cff">S2</span>
+    <span class="sname">Core Types + Traits</span>
+    <span class="tasks">hyprcollab-core: ChatRequest, Message, Artifact, ToolCall · hyprcollab-core: LlmProvider, Tool, SlashCommand traits · hyprcollab-config: GlobalConfig + serde_yaml + env vars · hyprcollab-memory: SQLite schema + migraciones + CRUD · hyprcollab-approval: ApprovalRule types + engine skeleton</span>
+    <span class="status" style="background:#1a3a2a;color:#3fb950;border:1px solid #238636">✅</span>
+  </div>
+</div>
+
+<div class="phase">
+  <div class="phase-header" style="background:#1a2a3a">
+    <div class="left">
+      <span class="tag" style="background:#1a2a3a;color:#58a6ff;border:1px solid #58a6ff">Fase 1</span>
+      <span class="title" style="color:#58a6ff">Core Chat + Slash Commands</span>
+      <span class="weeks">Semanas 3-6</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span class="ms">M1: Chat funciona end-to-end con streaming. Multi-provider. UI terminal. Slash commands básicos</span>
+      <span style="color:#58a6ff;font-size:12px;font-weight:700">2/4</span>
+    </div>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#58a6ff">S3</span>
+    <span class="sname">LLM Router</span>
+    <span class="tasks">hyprcollab-provider-openai: streaming SSE · hyprcollab-provider-anthropic: Messages API + streaming · hyprcollab-provider-openai: embeddings endpoint</span>
+    <span class="status" style="background:#1a3a2a;color:#3fb950;border:1px solid #238636">✅</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#58a6ff">S4</span>
+    <span class="sname">Más Providers + Router + Commands</span>
+    <span class="tasks">hyprcollab-provider-ollama: API compatible · hyprcollab-provider-native: llama.cpp + candle + mistral.rs · Router: selección por model name, fallback config · /model list|download|status · SlashCommand trait + parser + builtins</span>
+    <span class="status" style="background:#1a3a2a;color:#3fb950;border:1px solid #238636">✅</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#58a6ff">S5</span>
+    <span class="sname">Axum Server</span>
+    <span class="tasks">POST /api/chat/completions → SSE stream · GET/DELETE /api/conversations · AppState con DB pool + LLM router · CORS middleware</span>
+    <span class="status" style="background:#3a2a1a;color:#d29922;border:1px solid #9e6a03">🔄</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#58a6ff">S6</span>
+    <span class="sname">Frontend Chat + Terminal UI</span>
+    <span class="tasks">Dioxus setup con dx serve · Chat panel + input auto-resize + SSE consumer · Estilo terminal-dark (#0d1117) · Sidebar de conversaciones · Slash command autocomplete</span>
+    <span class="status" style="background:#21262d;color:#8b949e;border:1px solid #30363d">⬜</span>
+  </div>
+</div>
+
+<div class="phase">
+  <div class="phase-header" style="background:#1a3a2a">
+    <div class="left">
+      <span class="tag" style="background:#1a3a2a;color:#3fb950;border:1px solid #3fb950">Fase 2</span>
+      <span class="title" style="color:#3fb950">Agents + Tools + Approval</span>
+      <span class="weeks">Semanas 7-11</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span class="ms">M2: Agente autónomo con tools, approval system, slash commands completos</span>
+      <span style="color:#3fb950;font-size:12px;font-weight:700">4/5</span>
+    </div>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#3fb950">S7</span>
+    <span class="sname">Agent Runtime Core</span>
+    <span class="tasks">hyprcollab-agent: rig-rs integration · AgentSession con system prompt dinámico · Agent loop: prompt → LLM → tool call → execute → loop · Tool registry (HashMap<String, Box<dyn Tool>>)</span>
+    <span class="status" style="background:#1a3a2a;color:#3fb950;border:1px solid #238636">✅</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#3fb950">S8</span>
+    <span class="sname">Built-in Tools + Approval</span>
+    <span class="tasks">tools/shell: ejecutar comandos · tools/file_ops: leer/escribir archivos · tools/web_search: Brave/SearXNG · tools/web_fetch: HTTP fetch + parse · tools/memory_tools: store/search · ApprovalEngine: rule matching completo</span>
+    <span class="status" style="background:#1a3a2a;color:#3fb950;border:1px solid #238636">✅</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#3fb950">S9</span>
+    <span class="sname">Shell Tool Enhanced</span>
+    <span class="tasks">CWD tracking + env vars · Background processes: start/stop/status/stream · PTY allocation + timeout + stdout/stderr</span>
+    <span class="status" style="background:#1a3a2a;color:#3fb950;border:1px solid #238636">✅</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#3fb950">S10</span>
+    <span class="sname">Tool Visualization + Approval UI</span>
+    <span class="tasks">Frontend: ToolCall component · Frontend: thinking/reasoning display · Frontend: Approval dialog · SSE events estructurados</span>
+    <span class="status" style="background:#21262d;color:#8b949e;border:1px solid #30363d">⬜</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#3fb950">S11</span>
+    <span class="sname">Slash Commands Agénticos</span>
+    <span class="tasks">/agent, /skill, /temperature, /approval · /run, /browse, /design, /review · Autocompletado de comandos + argumentos</span>
+    <span class="status" style="background:#1a3a2a;color:#3fb950;border:1px solid #238636">✅</span>
+  </div>
+</div>
+
+<div class="phase">
+  <div class="phase-header" style="background:#3a2a1a">
+    <div class="left">
+      <span class="tag" style="background:#3a2a1a;color:#d29922;border:1px solid #d29922">Fase 3</span>
+      <span class="title" style="color:#d29922">Artifacts Canvas + TUI</span>
+      <span class="weeks">Semanas 12-15</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span class="ms">M3: Canvas de artifacts con inline render. TUI funcional con kitty image preview</span>
+      <span style="color:#d29922;font-size:12px;font-weight:700">4/4</span>
+    </div>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#d29922">S12</span>
+    <span class="sname">Artifact Types + Backend</span>
+    <span class="tasks">hyprcollab-artifacts: enum Artifact + serde · POST/GET/PUT/DELETE /api/artifacts · ArtifactCreateTool para agent · Filesystem storage + SQLite metadata</span>
+    <span class="status" style="background:#1a3a2a;color:#3fb950;border:1px solid #238636">✅</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#d29922">S13</span>
+    <span class="sname">Canvas Frontend</span>
+    <span class="tasks">hyprcollab-canvas: Code/Markdown/SVG/Mermaid renderers · syntect syntax highlighting · pulldown-cmark → HTML · resvg → PNG inline · CanvasManager con IndexMap tabs</span>
+    <span class="status" style="background:#1a3a2a;color:#3fb950;border:1px solid #238636">✅</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#d29922">S14</span>
+    <span class="sname">Media Preview</span>
+    <span class="tasks">hyprcollab-media-preview: kitty graphics protocol · sixel fallback encoder · Terminal capability detection · Image cache con DefaultHasher</span>
+    <span class="status" style="background:#1a3a2a;color:#3fb950;border:1px solid #238636">✅</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#d29922">S15</span>
+    <span class="sname">TUI Mode + WebSocket</span>
+    <span class="tasks">hyprcollab-tui: ratatui + crossterm · Chat pane + artifact pane + input · Vim keybinds (j/k, gg/G, i, :commands) · WebSocket /ws/artifacts/:id live updates</span>
+    <span class="status" style="background:#1a3a2a;color:#3fb950;border:1px solid #238636">✅</span>
+  </div>
+</div>
+
+<div class="phase">
+  <div class="phase-header" style="background:#3a1a1a">
+    <div class="left">
+      <span class="tag" style="background:#3a1a1a;color:#f85149;border:1px solid #f85149">Fase 4</span>
+      <span class="title" style="color:#f85149">RAG Pipeline + Browser Engine</span>
+      <span class="weeks">Semanas 16-20</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span class="ms">M4: RAG funcional. Browser embebido. Auto-indexing de web a RAG</span>
+      <span style="color:#f85149;font-size:12px;font-weight:700">0/5</span>
+    </div>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#f85149">S16</span>
+    <span class="sname">Document Parsers</span>
+    <span class="tasks">PDF, Markdown, Code, Text, CSV, JSON, HTML parsers</span>
+    <span class="status" style="background:#21262d;color:#8b949e;border:1px solid #30363d">⬜</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#f85149">S17</span>
+    <span class="sname">Chunking + Embeddings + Store</span>
+    <span class="tasks">RecursiveCharacter chunker · Provider embeddings integration · LanceDB store + vector search · POST /api/rag/upload</span>
+    <span class="status" style="background:#21262d;color:#8b949e;border:1px solid #30363d">⬜</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#f85149">S18</span>
+    <span class="sname">Browser Engine</span>
+    <span class="tasks">Playwright Rust bindings · BrowserPool + session management · web_navigate, web_screenshot, web_extract · Cookie jar + multi-engine</span>
+    <span class="status" style="background:#21262d;color:#8b949e;border:1px solid #30363d">⬜</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#f85149">S19</span>
+    <span class="sname">Image Generation</span>
+    <span class="tasks">DALL-E 3, Flux, ComfyUI, Automatic1111 providers · image_generate agent tool · /image slash commands · Inline preview + kitty protocol</span>
+    <span class="status" style="background:#21262d;color:#8b949e;border:1px solid #30363d">⬜</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#f85149">S20</span>
+    <span class="sname">Browser + RAG + Image Integration</span>
+    <span class="tasks">web_interact, web_js_execute · RAG auto-indexing: web → chunks → LanceDB · Query pipeline: embed → search → rerank → inject</span>
+    <span class="status" style="background:#21262d;color:#8b949e;border:1px solid #30363d">⬜</span>
+  </div>
+</div>
+
+<div class="phase">
+  <div class="phase-header" style="background:#1a2a3a">
+    <div class="left">
+      <span class="tag" style="background:#1a2a3a;color:#79c0ff;border:1px solid #79c0ff">Fase 5</span>
+      <span class="title" style="color:#79c0ff">Memory + Skills + Extras</span>
+      <span class="weeks">Semanas 21-25</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span class="ms">M5: Memoria evolutiva + skills auto-aprendidas. Branching, search, export</span>
+      <span style="color:#79c0ff;font-size:12px;font-weight:700">0/5</span>
+    </div>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#79c0ff">S21</span>
+    <span class="sname">Working Memory</span>
+    <span class="tasks">CRUD facts + auto-extracción · Categorías + confidence scoring · API /api/memory/facts</span>
+    <span class="status" style="background:#21262d;color:#8b949e;border:1px solid #30363d">⬜</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#79c0ff">S22</span>
+    <span class="sname">Memory + Themes</span>
+    <span class="tasks">Memory injection en system prompt · FTS5 + semantic search híbrido · Theme engine + presets</span>
+    <span class="status" style="background:#21262d;color:#8b949e;border:1px solid #30363d">⬜</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#79c0ff">S23</span>
+    <span class="sname">Skills Engine</span>
+    <span class="tasks">YAML skill loader + trigger matching · Auto-generar skills desde conversaciones · Usage tracking + success rate</span>
+    <span class="status" style="background:#21262d;color:#8b949e;border:1px solid #30363d">⬜</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#79c0ff">S24</span>
+    <span class="sname">Extras I</span>
+    <span class="tasks">Conversation branching (tree) · Bookmarks + pinned conversations · FTS5 full-text search</span>
+    <span class="status" style="background:#21262d;color:#8b949e;border:1px solid #30363d">⬜</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#79c0ff">S25</span>
+    <span class="sname">Extras II</span>
+    <span class="tasks">Token usage dashboard · Export: Markdown, JSON · Prompt templates + session persistence</span>
+    <span class="status" style="background:#21262d;color:#8b949e;border:1px solid #30363d">⬜</span>
+  </div>
+</div>
+
+<div class="phase">
+  <div class="phase-header" style="background:#2a1a3a">
+    <div class="left">
+      <span class="tag" style="background:#2a1a3a;color:#d2a8ff;border:1px solid #d2a8ff">Fase 6</span>
+      <span class="title" style="color:#d2a8ff">Desktop + ACP + Mobile</span>
+      <span class="weeks">Semanas 26-29</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span class="ms">M6: Desktop app Tauri. ACP visualization. PWA mobile. Voice mode</span>
+      <span style="color:#d2a8ff;font-size:12px;font-weight:700">0/4</span>
+    </div>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#d2a8ff">S26</span>
+    <span class="sname">Tauri Desktop</span>
+    <span class="tasks">Tauri 2.0 setup (Linux + macOS) · System tray + global shortcuts · Native notifications + auto-update</span>
+    <span class="status" style="background:#21262d;color:#8b949e;border:1px solid #30363d">⬜</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#d2a8ff">S27</span>
+    <span class="sname">ACP Connector</span>
+    <span class="tasks">claude -p, codex --acp, agy -p connectors · Process spawning + PTY · JSON lines stream parsing</span>
+    <span class="status" style="background:#21262d;color:#8b949e;border:1px solid #30363d">⬜</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#d2a8ff">S28</span>
+    <span class="sname">ACP Viz + Mobile</span>
+    <span class="tasks">ACP Monitor panel + token stream · PWA manifest + touch UI · Responsive design tablets</span>
+    <span class="status" style="background:#21262d;color:#8b949e;border:1px solid #30363d">⬜</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#d2a8ff">S29</span>
+    <span class="sname">Voice + Multi-model</span>
+    <span class="tasks">Whisper.cpp + edge-tts · Push-to-talk UI · Multi-model compare side-by-side</span>
+    <span class="status" style="background:#21262d;color:#8b949e;border:1px solid #30363d">⬜</span>
+  </div>
+</div>
+
+<div class="phase">
+  <div class="phase-header" style="background:#1a3a2a">
+    <div class="left">
+      <span class="tag" style="background:#1a3a2a;color:#56d364;border:1px solid #56d364">Fase 7</span>
+      <span class="title" style="color:#56d364">Polish + Release</span>
+      <span class="weeks">Semanas 30-35</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span class="ms">M7: v0.1.0 released. Desktop + web + TUI. AUR + Docker + GitHub</span>
+      <span style="color:#56d364;font-size:12px;font-weight:700">0/6</span>
+    </div>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#56d364">S30</span>
+    <span class="sname">MCP Client</span>
+    <span class="tasks">MCP stdio transport + tool discovery · /mcp slash command</span>
+    <span class="status" style="background:#21262d;color:#8b949e;border:1px solid #30363d">⬜</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#56d364">S31</span>
+    <span class="sname">Testing Full-Stack</span>
+    <span class="tasks">E2E Playwright tests · Property tests (proptest) · Benchmarks (criterion)</span>
+    <span class="status" style="background:#21262d;color:#8b949e;border:1px solid #30363d">⬜</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#56d364">S32</span>
+    <span class="sname">Documentation</span>
+    <span class="tasks">API docs (rustdoc + mdbook) · User guide + ADRs · Agent/Skill authoring guide</span>
+    <span class="status" style="background:#21262d;color:#8b949e;border:1px solid #30363d">⬜</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#56d364">S33</span>
+    <span class="sname">Packaging</span>
+    <span class="tasks">AUR PKGBUILD · Docker multi-stage (<100MB) · Nix flake + AppImage + .dmg</span>
+    <span class="status" style="background:#21262d;color:#8b949e;border:1px solid #30363d">⬜</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#56d364">S34</span>
+    <span class="sname">Final Polish</span>
+    <span class="tasks">Performance profiling + memory leaks · Accessibility audit · Animations + transitions</span>
+    <span class="status" style="background:#21262d;color:#8b949e;border:1px solid #30363d">⬜</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#56d364">S35</span>
+    <span class="sname">Release v0.1.0</span>
+    <span class="tasks">Tag v0.1.0 + GitHub Release · AUR + Docker Hub publish · Demo video + Reddit posts</span>
+    <span class="status" style="background:#21262d;color:#8b949e;border:1px solid #30363d">⬜</span>
+  </div>
+</div>
+
+<div class="phase">
+  <div class="phase-header" style="background:#3a1a1a">
+    <div class="left">
+      <span class="tag" style="background:#3a1a1a;color:#ff7b72;border:1px solid #ff7b72">Fase 7.5</span>
+      <span class="title" style="color:#ff7b72">Extensions + Lua + Persona + Marketplace</span>
+      <span class="weeks">Semanas 36-39</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span class="ms">M7.5: Extension system, Lua config, personality, marketplace, Zed integration</span>
+      <span style="color:#ff7b72;font-size:12px;font-weight:700">0/4</span>
+    </div>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#ff7b72">S36</span>
+    <span class="sname">Lua Config + Extension API</span>
+    <span class="tasks">mlua integration + sandbox · config.lua → GlobalConfig · Extension trait + WASM + Lua loaders</span>
+    <span class="status" style="background:#21262d;color:#8b949e;border:1px solid #30363d">⬜</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#ff7b72">S37</span>
+    <span class="sname">Sidebar + UI Registry + Matugen</span>
+    <span class="tasks">SidebarModule/PanelModule traits · Matugen theme watcher + hot-reload · 8 extension sidebar modules</span>
+    <span class="status" style="background:#21262d;color:#8b949e;border:1px solid #30363d">⬜</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#ff7b72">S38</span>
+    <span class="sname">Persona + Marketplace</span>
+    <span class="tasks">Persona struct + AgentRole · Avatar enum + AvatarManager · Marketplace multi-provider registry</span>
+    <span class="status" style="background:#21262d;color:#8b949e;border:1px solid #30363d">⬜</span>
+  </div>
+  <div class="week">
+    <span class="snum" style="color:#ff7b72">S39</span>
+    <span class="sname">Zed Integration + Polish</span>
+    <span class="tasks">Zed extension (Rust WASM) · Assistant panel + code context · Inline actions (Explain, Refactor, Test)</span>
+    <span class="status" style="background:#21262d;color:#8b949e;border:1px solid #30363d">⬜</span>
+  </div>
+</div>
+
+<div class="footer">
+  <strong>Progreso actual:</strong> Fase 0–3 completadas (S1–S15) · 373 tests · 0 warnings · 14,181 LOC · 34 crates<br>
+  <strong>Siguiente:</strong> Fase 4 — RAG Pipeline + Browser Engine (S16–S20)<br>
+  <strong>Repo:</strong> github.com/hbuddenberg/HyprCollab · Branch: dev · Rust 2024 Edition
+</div>
+
+</body></html>
