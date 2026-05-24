@@ -1,14 +1,11 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//! # hyprcollab-core
+//!
+//! Foundation crate with shared types, traits, and errors for the HyprCollab project.
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub mod errors;
+pub mod traits;
+pub mod types;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use errors::{CoreError, Result};
+pub use traits::*;
+pub use types::*;
