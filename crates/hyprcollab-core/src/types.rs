@@ -226,3 +226,70 @@ pub struct ModelInfo {
     pub supports_tools: bool,
     pub supports_vision: bool,
 }
+
+/// Structured SSE event types for the streaming chat API (S10).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SseEvent {
+    Token { content: String },
+    ToolCall { name: String, args: serde_json::Value, id: String },
+    ToolResult { id: String, output: String, duration_ms: u64 },
+    Thinking { content: String },
+    ApprovalRequest { tool: String, args: serde_json::Value, id: String },
+    Done { usage: TokenUsage },
+}
+
+#[cfg(test)]
+mod sse_event_tests {
+    use super::*;
+
+    #[test]
+    fn sse_event_token_round_trips() {
+        let evt = SseEvent::Token { content: "hello".into() };
+        let json = serde_json::to_string(&evt).unwrap();
+        let back: SseEvent = serde_json::from_str(&json).unwrap();
+        assert!(matches!(back, SseEvent::Token { .. }));
+    }
+
+    #[test]
+    fn sse_event_tool_call_round_trips() {
+        let evt = SseEvent::ToolCall {
+            name: "shell".into(),
+            args: serde_json::json!({"cmd": "ls"}),
+            id: "call_123".into(),
+        };
+        let json = serde_json::to_string(&evt).unwrap();
+        let back: SseEvent = serde_json::from_str(&json).unwrap();
+        assert!(matches!(back, SseEvent::ToolCall { .. }));
+    }
+
+    #[test]
+    fn sse_event_done_round_trips() {
+        let evt = SseEvent::Done {
+            usage: TokenUsage { prompt_tokens: 10, completion_tokens: 50, total_tokens: 60 },
+        };
+        let json = serde_json::to_string(&evt).unwrap();
+        let back: SseEvent = serde_json::from_str(&json).unwrap();
+        assert!(matches!(back, SseEvent::Done { .. }));
+    }
+
+    #[test]
+    fn sse_event_all_variants_serialize() {
+        let variants: Vec<SseEvent> = vec![
+            SseEvent::Token { content: "tok".into() },
+            SseEvent::ToolCall { name: "t".into(), args: serde_json::Value::Null, id: "i".into() },
+            SseEvent::ToolResult { id: "i".into(), output: "out".into(), duration_ms: 100 },
+            SseEvent::Thinking { content: "hmm".into() },
+            SseEvent::ApprovalRequest {
+                tool: "shell".into(),
+                args: serde_json::json!({"cmd": "rm -rf /"}),
+                id: "req_456".into(),
+            },
+            SseEvent::Done {
+                usage: TokenUsage { prompt_tokens: 1, completion_tokens: 2, total_tokens: 3 },
+            },
+        ];
+        for v in &variants {
+            assert!(serde_json::to_string(v).is_ok());
+        }
+    }
+}

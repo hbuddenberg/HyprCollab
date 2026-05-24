@@ -3,7 +3,28 @@ name = "hyprcollab"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "HyprCollab workspace-root integration-test harness"
+description = "HyprCollab AI collaboration platform"
+
+[[bin]]
+name = "hyprcollab"
+path = "src/main.rs"
+
+[dependencies]
+clap               = { workspace = true }
+tokio              = { workspace = true }
+tracing            = { workspace = true }
+tracing-subscriber = { workspace = true }
+serde              = { workspace = true }
+serde_yaml        = { workspace = true }
+anyhow            = { workspace = true }
+axum              = { workspace = true }
+hyprcollab-server             = { path = "crates/hyprcollab-server" }
+hyprcollab-artifacts          = { path = "crates/hyprcollab-artifacts" }
+hyprcollab-router             = { path = "crates/hyprcollab-router" }
+hyprcollab-memory             = { path = "crates/hyprcollab-memory" }
+hyprcollab-provider-openai    = { path = "crates/hyprcollab-provider-openai" }
+hyprcollab-provider-anthropic = { path = "crates/hyprcollab-provider-anthropic" }
+hyprcollab-tui                = { path = "platforms/hyprcollab-tui" }
 
 [dev-dependencies]
 hyprcollab-core     = { path = "crates/hyprcollab-core" }
@@ -66,6 +87,9 @@ repository = "https://github.com/hbuddenberg/HyprCollab"
 # Async
 tokio = { version = "1", features = ["full"] }
 futures = "0.3"
+
+# CLI
+clap = { version = "4", features = ["derive"] }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }

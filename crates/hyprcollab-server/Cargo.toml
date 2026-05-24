@@ -15,7 +15,12 @@ tracing = { workspace = true }
 futures = { workspace = true }
 tower = { workspace = true }
 thiserror = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
 hyprcollab-artifacts = { path = "../hyprcollab-artifacts" }
+hyprcollab-core    = { workspace = true }
+hyprcollab-router  = { path = "../hyprcollab-router" }
+hyprcollab-memory  = { path = "../hyprcollab-memory" }
 
 [dev-dependencies]
 tower = { workspace = true, features = ["util"] }

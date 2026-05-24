@@ -1,19 +1,30 @@
 use axum::{
     extract::State,
     http::Method,
-    response::{IntoResponse, Response, sse::Event, Sse},
+    response::{sse::Event, IntoResponse, Response, Sse},
     routing::{delete, get, post, put},
     Json, Router,
 };
-use tower_http::cors::{Any, CorsLayer};
+use futures::StreamExt as _;
+use hyprcollab_core::{
+    traits::LlmProvider as _,
+    types::{
+        ChatId, ChatRequest as CoreChatRequest, Message, MessageId, MessageRole, PersonaId,
+        SseEvent, TokenUsage,
+    },
+};
 use std::convert::Infallible;
-use futures::stream;
+use tower_http::cors::{Any, CorsLayer};
 
-use crate::state::AppState;
-use crate::error::AppError;
 use crate::artifacts::{
     create_artifact, delete_artifact, get_artifact, list_artifacts, update_artifact,
 };
+use crate::conversations::{
+    create_conversation, delete_conversation, get_conversation, list_conversations,
+};
+use crate::error::AppError;
+use crate::sse::sse_event_to_event;
+use crate::state::AppState;
 
 /// HTTP request payload for chat completions.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -85,6 +96,11 @@ pub fn create_app(state: AppState) -> Router {
         .route("/api/artifacts/{id}", get(get_artifact))
         .route("/api/artifacts/{id}", put(update_artifact))
         .route("/api/artifacts/{id}", delete(delete_artifact))
+        // Conversation endpoints
+        .route("/api/conversations", get(list_conversations))
+        .route("/api/conversations", post(create_conversation))
+        .route("/api/conversations/{id}", get(get_conversation))
+        .route("/api/conversations/{id}", delete(delete_conversation))
         .layer(cors)
         .with_state(state)
 }
@@ -97,7 +113,7 @@ async fn health_handler(State(state): State<AppState>) -> Json<HealthResponse> {
 }
 
 async fn chat_handler(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Json(payload): Json<ChatRequest>,
 ) -> Result<Response, AppError> {
     if payload.message.trim().is_empty() {
@@ -106,42 +122,75 @@ async fn chat_handler(
 
     let is_streaming = payload.stream.unwrap_or(false);
 
+    let core_req = CoreChatRequest {
+        model: payload.model.clone(),
+        messages: vec![Message {
+            id: MessageId::new(),
+            chat_id: ChatId::new(),
+            role: MessageRole::User,
+            content: payload.message.clone(),
+            tool_calls: vec![],
+            artifacts: vec![],
+            timestamp: chrono::Utc::now(),
+            metadata: serde_json::Value::Null,
+        }],
+        tools: vec![],
+        temperature: None,
+        max_tokens: None,
+        stream: is_streaming,
+        persona: payload
+            .persona_id
+            .as_deref()
+            .and_then(|s| uuid::Uuid::parse_str(s).ok())
+            .map(PersonaId::from),
+        agent_role: None,
+    };
+
     if is_streaming {
-        let response_text = format!("Response to: {}", payload.message);
-        let words: Vec<String> = response_text
-            .split_whitespace()
-            .map(|w| format!("{w} "))
-            .collect();
-
-        let model = payload.model.clone();
-        let persona_id = payload.persona_id.clone();
-
-        let mut events = Vec::new();
-        let len = words.len();
-
-        for (i, word) in words.into_iter().enumerate() {
-            let done = i == len - 1;
-            let chunk = ChatStreamChunk {
-                content: word,
-                done,
-                model: model.clone(),
-                persona_id: persona_id.clone(),
+        let stream = state.router.chat_stream(core_req).flat_map(|result| {
+            let events: Vec<Result<Event, Infallible>> = match result {
+                Ok(chunk) => {
+                    let mut evts = Vec::new();
+                    if !chunk.delta.is_empty() {
+                        evts.push(Ok(sse_event_to_event(SseEvent::Token { content: chunk.delta })));
+                    }
+                    for tc in &chunk.tool_calls {
+                        evts.push(Ok(sse_event_to_event(SseEvent::ToolCall {
+                            name: tc.name.clone(),
+                            args: tc.arguments.clone(),
+                            id: tc.id.clone(),
+                        })));
+                    }
+                    if chunk.finish_reason.is_some() {
+                        let usage = chunk.usage.unwrap_or(TokenUsage {
+                            prompt_tokens: 0,
+                            completion_tokens: 0,
+                            total_tokens: 0,
+                        });
+                        evts.push(Ok(sse_event_to_event(SseEvent::Done { usage })));
+                    }
+                    evts
+                }
+                Err(e) => vec![Ok(Event::default()
+                    .event("error")
+                    .data(serde_json::json!({"error": e.to_string()}).to_string()))],
             };
-            let event = Event::default()
-                .json_data(&chunk)
-                .map_err(|e| AppError::Internal(e.to_string()))?;
-            events.push(Ok::<Event, Infallible>(event));
-        }
+            futures::stream::iter(events)
+        });
 
-        let s = stream::iter(events);
-        Ok(Sse::new(s).into_response())
+        Ok(Sse::new(stream).into_response())
     } else {
-        let response = ChatResponse {
-            response: format!("Response to: {}", payload.message),
-            model: payload.model,
-            persona_id: payload.persona_id,
-        };
-        Ok(Json(response).into_response())
+        match state.router.chat_completion(core_req).await {
+            Ok(resp) => {
+                let response = ChatResponse {
+                    response: resp.message.content,
+                    model: resp.model,
+                    persona_id: payload.persona_id,
+                };
+                Ok(Json(response).into_response())
+            }
+            Err(e) => Err(AppError::Internal(e.to_string())),
+        }
     }
 }
 
@@ -172,4 +221,112 @@ async fn approve_handler(
     };
 
     Ok(Json(ApprovalResponse { approved, reason }))
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use axum::{
+        body::Body,
+        http::{self, Request, StatusCode},
+    };
+    use serde_json::json;
+    use tower::ServiceExt;
+
+    use super::*;
+
+    async fn test_state() -> AppState {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let base = dir.keep();
+        let store =
+            hyprcollab_artifacts::ArtifactStore::new(base.join("test.db"), base.join("arts"))
+                .await
+                .expect("store");
+        AppState::new(store)
+    }
+
+    fn json_request(method: &str, uri: &str, body: serde_json::Value) -> Request<Body> {
+        Request::builder()
+            .method(method)
+            .uri(uri)
+            .header(http::header::CONTENT_TYPE, "application/json")
+            .body(Body::from(serde_json::to_string(&body).unwrap()))
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn health_returns_ok() {
+        let state = test_state().await;
+        let app = create_app(state);
+
+        let req = Request::builder().uri("/api/health").body(Body::empty()).unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let val: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(val["status"].as_str(), Some("ok"));
+    }
+
+    #[tokio::test]
+    async fn chat_empty_message_returns_400() {
+        let state = test_state().await;
+        let app = create_app(state);
+
+        let body = json!({"message": "  ", "model": "openai/gpt-4o"});
+        let resp = app.oneshot(json_request("POST", "/api/chat", body)).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn chat_non_streaming_no_providers_returns_500() {
+        let state = test_state().await;
+        let app = create_app(state);
+
+        let body = json!({"message": "hello", "model": "openai/gpt-4o", "stream": false});
+        let resp = app.oneshot(json_request("POST", "/api/chat", body)).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[tokio::test]
+    async fn chat_streaming_returns_200_with_sse_error() {
+        let state = test_state().await;
+        let app = create_app(state);
+
+        let body = json!({"message": "hello", "model": "openai/gpt-4o", "stream": true});
+        let resp = app.oneshot(json_request("POST", "/api/chat", body)).await.unwrap();
+        // SSE always starts with 200; the error is in the body
+        assert_eq!(resp.status(), StatusCode::OK);
+        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body_str = std::str::from_utf8(&bytes).unwrap();
+        // With no providers, the stream emits an error event
+        assert!(body_str.contains("error"), "expected error event, got: {body_str}");
+    }
+
+    #[tokio::test]
+    async fn approve_handler_approves_safe_tool() {
+        let state = test_state().await;
+        let app = create_app(state);
+
+        let body = json!({"tool_name": "read_file", "arguments": "{}"});
+        let resp = app.oneshot(json_request("POST", "/api/tools/approve", body)).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let val: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(val["approved"].as_bool(), Some(true));
+    }
+
+    #[tokio::test]
+    async fn approve_handler_blocks_unsafe_tool() {
+        let state = test_state().await;
+        let app = create_app(state);
+
+        let body = json!({"tool_name": "unsafe_delete", "arguments": "{}"});
+        let resp = app.oneshot(json_request("POST", "/api/tools/approve", body)).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let val: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(val["approved"].as_bool(), Some(false));
+    }
 }
