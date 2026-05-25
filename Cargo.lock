@@ -2306,6 +2306,7 @@ dependencies = [
  "hyprcollab-memory",
  "hyprcollab-rag",
  "hyprcollab-router",
+ "hyprcollab-themes",
  "serde",
  "serde_json",
  "tempfile",
@@ -2326,6 +2327,17 @@ version = "0.1.0"
 [[package]]
 name = "hyprcollab-tauri"
 version = "0.1.0"
+
+[[package]]
+name = "hyprcollab-themes"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "thiserror 2.0.18",
+]
 
 [[package]]
 name = "hyprcollab-tools"

@@ -26,6 +26,10 @@ use crate::memory::{
     CreateFactRequest, DeleteFactResponse, FactResponse, ListFactsResponse, PruneFactsRequest,
     PruneFactsResponse, UpdateFactRequest,
 };
+use crate::themes::{
+    create_theme, delete_theme, get_theme, get_theme_css, list_themes, CreateThemeRequest,
+    DeleteThemeResponse, ListThemesResponse, ThemeColorsResponse, ThemeResponse,
+};
 use crate::browser::{
     browser_navigate, browser_screenshot, browser_search, browser_sessions, BrowserLink,
     BrowserNavigateRequest, BrowserNavigateResponse, BrowserScreenshotRequest,
@@ -130,6 +134,11 @@ pub struct ApprovalResponse {
         crate::memory::update_fact,
         crate::memory::delete_fact,
         crate::memory::prune_facts,
+        crate::themes::list_themes,
+        crate::themes::get_theme,
+        crate::themes::get_theme_css,
+        crate::themes::create_theme,
+        crate::themes::delete_theme,
     ),
     components(
         schemas(
@@ -179,6 +188,11 @@ pub struct ApprovalResponse {
             ListFactsResponse,
             DeleteFactResponse,
             PruneFactsResponse,
+            CreateThemeRequest,
+            ThemeResponse,
+            ThemeColorsResponse,
+            ListThemesResponse,
+            DeleteThemeResponse,
         )
     ),
     tags(
@@ -190,6 +204,7 @@ pub struct ApprovalResponse {
         (name = "Browser", description = "Browser automation and web scraping"),
         (name = "Image", description = "Image generation"),
         (name = "WorkingMemory", description = "Working memory — persistent facts with FTS5 search"),
+        (name = "Themes", description = "UI theme engine — built-in and custom themes"),
     ),
     info(
         title = "HyprCollab API",
@@ -241,6 +256,12 @@ pub fn create_app(state: AppState) -> Router {
         // Image generation endpoints
         .route("/api/image/generate", post(image_generate))
         .route("/api/image/providers", get(image_providers))
+        // Theme endpoints (css before {name} to avoid wildcard capture)
+        .route("/api/themes", get(list_themes))
+        .route("/api/themes", post(create_theme))
+        .route("/api/themes/{name}/css", get(get_theme_css))
+        .route("/api/themes/{name}", get(get_theme))
+        .route("/api/themes/{name}", delete(delete_theme))
         // Working memory endpoints (search + prune before {id} to avoid conflicts)
         .route("/api/memory/facts", get(list_facts))
         .route("/api/memory/facts", post(create_fact))

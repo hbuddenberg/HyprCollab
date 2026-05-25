@@ -8,6 +8,7 @@ pub mod memory;
 pub mod rag;
 pub mod sse;
 pub mod state;
+pub mod themes;
 
 pub use app::{
     create_app, ApprovalRequest, ApprovalResponse, ChatRequest, ChatResponse, ChatStreamChunk,

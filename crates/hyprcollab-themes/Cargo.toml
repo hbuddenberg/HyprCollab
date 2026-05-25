@@ -1,0 +1,15 @@
+[package]
+name = "hyprcollab-themes"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Theme engine — built-in and custom UI themes with CSS variable export"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

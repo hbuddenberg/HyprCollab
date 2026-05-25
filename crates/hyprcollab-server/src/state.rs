@@ -7,6 +7,7 @@ use hyprcollab_image::ImageRouter;
 use hyprcollab_memory::MemoryStore;
 use hyprcollab_rag::RagPipeline;
 use hyprcollab_router::LlmRouter;
+use hyprcollab_themes::ThemeEngine;
 
 /// Shared state for the HyprCollab server.
 #[derive(Clone)]
@@ -27,6 +28,8 @@ pub struct AppState {
     pub browser: Option<Arc<BrowserEngine>>,
     /// Optional image generation router (None when not configured).
     pub image_router: Option<Arc<ImageRouter>>,
+    /// Theme engine (built-in + custom themes).
+    pub themes: Arc<ThemeEngine>,
 }
 
 impl std::fmt::Debug for AppState {
@@ -62,6 +65,7 @@ impl AppState {
             rag: rag.map(Arc::new),
             browser: None,
             image_router: None,
+            themes: Arc::new(ThemeEngine::new()),
         }
     }
 

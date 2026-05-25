@@ -1,8 +1,9 @@
 //! Working memory — persistent facts with FTS5 full-text search.
 //!
-//! Implements the F5 S21 sprint item: a `facts` table with BM25-ranked
-//! full-text search via SQLite FTS5, plus confidence-based pruning.
+//! Implements the F5 S21 + S22 sprint items: a `facts` table with BM25-ranked
+//! full-text search via SQLite FTS5, hybrid search, age-aware pruning.
 
+use std::collections::HashSet;
 use std::fmt;
 use std::str::FromStr;
 
@@ -315,6 +316,109 @@ impl<'a> WorkingMemory<'a> {
 
         Ok(facts)
     }
+
+    /// Hybrid search combining FTS5 BM25 ranking with keyword-overlap scoring.
+    ///
+    /// Score = `0.7 * fts_score + 0.3 * keyword_overlap`, where `fts_score` is
+    /// the BM25 rank normalised to [0, 1] and `keyword_overlap` is the Jaccard
+    /// similarity of query words against fact content words.  Results are sorted
+    /// by descending score.
+    pub fn search_hybrid(&self, query: &str, limit: usize) -> Result<Vec<(Fact, f64)>> {
+        if query.trim().is_empty() {
+            return Ok(Vec::new());
+        }
+
+        // Pull a larger candidate set from FTS5 then re-rank.
+        let candidate_limit = (limit * 4).max(40);
+        let conn = self.store.lock_conn()?;
+        let cap = candidate_limit as i64;
+
+        let mut stmt = conn
+            .prepare(
+                "SELECT f.id, f.category, f.content, f.confidence, f.source,
+                        f.created_at, f.updated_at, f.access_count,
+                        facts_fts.rank
+                 FROM facts_fts
+                 INNER JOIN facts AS f ON f.rowid = facts_fts.rowid
+                 WHERE facts_fts MATCH ?1
+                 ORDER BY rank
+                 LIMIT ?2",
+            )
+            .map_err(|e| CoreError::Memory(format!("search_hybrid prepare: {e}")))?;
+
+        // Collect (fact, raw_rank) pairs — rank is negative BM25.
+        let raw: Vec<(Fact, f64)> = stmt
+            .query_map(rusqlite::params![query, cap], |row| {
+                let fact = fact_from_row(row)
+                    .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+                let rank: f64 = row.get(8)?;
+                Ok((fact, rank))
+            })
+            .map_err(|e| CoreError::Memory(format!("search_hybrid query: {e}")))?
+            .map(|r| r.map_err(|e| CoreError::Memory(format!("search_hybrid row: {e}"))))
+            .collect::<Result<Vec<_>>>()?;
+
+        if raw.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        // Normalise BM25 ranks to [0, 1] (ranks are ≤ 0; most-negative = best).
+        let min_rank = raw.iter().map(|(_, r)| *r).fold(f64::INFINITY, f64::min);
+        let max_rank = raw.iter().map(|(_, r)| *r).fold(f64::NEG_INFINITY, f64::max);
+        let rank_range = (max_rank - min_rank).abs().max(1e-9);
+
+        let query_words: HashSet<&str> = query.split_whitespace().collect();
+
+        let mut scored: Vec<(Fact, f64)> = raw
+            .into_iter()
+            .map(|(fact, rank)| {
+                let fts_score = (rank - min_rank) / rank_range; // 0 = worst, 1 = best
+                let keyword_score = keyword_overlap(&fact.content, &query_words);
+                let combined = 0.7 * fts_score + 0.3 * keyword_score;
+                (fact, combined)
+            })
+            .collect();
+
+        scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        scored.truncate(limit);
+        Ok(scored)
+    }
+
+    /// Delete facts that are both below `min_confidence` AND older than
+    /// `max_age_days` (measured against `created_at`).  When `max_age_days` is
+    /// `None` only the confidence filter applies (equivalent to `prune_facts`).
+    pub fn prune_with_age(&self, min_confidence: f64, max_age_days: Option<i64>) -> Result<usize> {
+        let conn = self.store.lock_conn()?;
+        // chrono stores dates as RFC 3339 (e.g. "2024-05-25T19:51:22+00:00").
+        // SQLite's julianday() cannot parse the timezone offset, so we extract
+        // just the YYYY-MM-DD prefix for day-precision age comparison.
+        let affected = if let Some(days) = max_age_days {
+            conn.execute(
+                "DELETE FROM facts
+                 WHERE confidence < ?1
+                   AND (julianday(date('now')) - julianday(substr(created_at, 1, 10))) >= ?2",
+                rusqlite::params![min_confidence, days],
+            )
+        } else {
+            conn.execute(
+                "DELETE FROM facts WHERE confidence < ?1",
+                rusqlite::params![min_confidence],
+            )
+        }
+        .map_err(|e| CoreError::Memory(format!("prune_with_age: {e}")))?;
+        Ok(affected)
+    }
+}
+
+// ── Private helpers ───────────────────────────────────────────────────────────
+
+fn keyword_overlap(content: &str, query_words: &HashSet<&str>) -> f64 {
+    if query_words.is_empty() {
+        return 0.0;
+    }
+    let content_words: HashSet<&str> = content.split_whitespace().collect();
+    let matches = query_words.intersection(&content_words).count();
+    matches as f64 / query_words.len() as f64
 }
 
 // ── Row helper ────────────────────────────────────────────────────────────────
@@ -625,5 +729,112 @@ mod tests {
         let wm = WorkingMemory::new(&store);
         let results = wm.search_facts("   ", 10).unwrap();
         assert!(results.is_empty());
+    }
+
+    // ── search_hybrid ─────────────────────────────────────────────────────
+
+    #[test]
+    fn hybrid_returns_empty_for_blank_query() {
+        let store = store();
+        let wm = WorkingMemory::new(&store);
+        wm.add_fact(FactCategory::Fact, "something", 0.9, None).unwrap();
+        assert!(wm.search_hybrid("", 10).unwrap().is_empty());
+        assert!(wm.search_hybrid("   ", 10).unwrap().is_empty());
+    }
+
+    #[test]
+    fn hybrid_returns_match_with_score() {
+        let store = store();
+        let wm = WorkingMemory::new(&store);
+
+        wm.add_fact(FactCategory::Preference, "user prefers dark theme", 0.9, None).unwrap();
+        wm.add_fact(FactCategory::Fact, "Rust 2024 edition project", 1.0, None).unwrap();
+        wm.add_fact(FactCategory::Pattern, "snake_case naming convention", 0.8, None).unwrap();
+
+        let results = wm.search_hybrid("dark", 10).unwrap();
+        assert!(!results.is_empty());
+        let (fact, score) = &results[0];
+        assert!(fact.content.contains("dark"));
+        assert!(*score >= 0.0 && *score <= 1.0);
+    }
+
+    #[test]
+    fn hybrid_scores_are_sorted_descending() {
+        let store = store();
+        let wm = WorkingMemory::new(&store);
+
+        for i in 0..5 {
+            wm.add_fact(FactCategory::Fact, format!("rust programming tip number {i}"), 0.8, None)
+                .unwrap();
+        }
+
+        let results = wm.search_hybrid("rust", 5).unwrap();
+        let scores: Vec<f64> = results.iter().map(|(_, s)| *s).collect();
+        for pair in scores.windows(2) {
+            assert!(pair[0] >= pair[1], "scores must be descending");
+        }
+    }
+
+    #[test]
+    fn hybrid_respects_limit() {
+        let store = store();
+        let wm = WorkingMemory::new(&store);
+
+        for i in 0..10 {
+            wm.add_fact(FactCategory::Fact, format!("fact about rust item {i}"), 0.9, None)
+                .unwrap();
+        }
+
+        let results = wm.search_hybrid("rust", 3).unwrap();
+        assert!(results.len() <= 3);
+    }
+
+    #[test]
+    fn hybrid_no_match_returns_empty() {
+        let store = store();
+        let wm = WorkingMemory::new(&store);
+        wm.add_fact(FactCategory::Fact, "Rust is fast", 0.9, None).unwrap();
+        assert!(wm.search_hybrid("python", 10).unwrap().is_empty());
+    }
+
+    // ── prune_with_age ────────────────────────────────────────────────────
+
+    #[test]
+    fn prune_with_age_no_age_filter_behaves_like_prune_facts() {
+        let store = store();
+        let wm = WorkingMemory::new(&store);
+
+        wm.add_fact(FactCategory::Fact, "keep", 0.9, None).unwrap();
+        wm.add_fact(FactCategory::Fact, "drop", 0.1, None).unwrap();
+
+        let pruned = wm.prune_with_age(0.5, None).unwrap();
+        assert_eq!(pruned, 1);
+        assert_eq!(wm.list_facts(None, None).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn prune_with_age_keeps_old_high_confidence_facts() {
+        let store = store();
+        let wm = WorkingMemory::new(&store);
+
+        // Both are old (0 days ago = current), but only the low-confidence one should drop.
+        wm.add_fact(FactCategory::Fact, "keep high confidence", 0.9, None).unwrap();
+        wm.add_fact(FactCategory::Fact, "drop low confidence", 0.1, None).unwrap();
+
+        // Age threshold of 0 days with confidence < 0.5 — the low one is old enough.
+        let pruned = wm.prune_with_age(0.5, Some(0)).unwrap();
+        assert_eq!(pruned, 1);
+    }
+
+    #[test]
+    fn prune_with_age_keeps_young_low_confidence_facts_when_age_too_high() {
+        let store = store();
+        let wm = WorkingMemory::new(&store);
+
+        // Freshly inserted — 0 days old, so age > 9999 days is false → not pruned.
+        wm.add_fact(FactCategory::Fact, "young low confidence", 0.1, None).unwrap();
+
+        let pruned = wm.prune_with_age(0.5, Some(9999)).unwrap();
+        assert_eq!(pruned, 0);
     }
 }
