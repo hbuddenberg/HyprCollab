@@ -2306,6 +2306,7 @@ dependencies = [
  "hyprcollab-memory",
  "hyprcollab-rag",
  "hyprcollab-router",
+ "hyprcollab-skills",
  "hyprcollab-themes",
  "serde",
  "serde_json",
@@ -2323,6 +2324,20 @@ dependencies = [
 [[package]]
 name = "hyprcollab-skills"
 version = "0.1.0"
+dependencies = [
+ "chrono",
+ "hyprcollab-core",
+ "hyprcollab-memory",
+ "regex",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tracing",
+ "uuid",
+]
 
 [[package]]
 name = "hyprcollab-tauri"

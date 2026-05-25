@@ -115,6 +115,7 @@ utoipa-scalar = { version = "0.3", features = ["axum"] }
 
 # Database
 rusqlite = { version = "0.38", features = ["bundled"] }
+regex = "1"
 deadpool-sqlite = { version = "0.13", features = ["rt_tokio_1"] }
 
 # Collections

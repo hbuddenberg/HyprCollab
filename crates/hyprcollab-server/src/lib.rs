@@ -8,6 +8,7 @@ pub mod memory;
 pub mod rag;
 pub mod sse;
 pub mod state;
+pub mod skills;
 pub mod themes;
 
 pub use app::{

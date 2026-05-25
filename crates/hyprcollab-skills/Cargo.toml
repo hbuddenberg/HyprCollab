@@ -3,6 +3,20 @@ name = "hyprcollab-skills"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Skills YAML engine with auto-learning"
+description = "Skills YAML engine with regex matcher and auto-learner"
 
 [dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+regex = { workspace = true }
+rusqlite = { workspace = true }
+hyprcollab-core = { path = "../hyprcollab-core" }
+hyprcollab-memory = { path = "../hyprcollab-memory" }
+
+[dev-dependencies]
+tempfile = { workspace = true }

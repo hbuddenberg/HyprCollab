@@ -7,6 +7,7 @@ use hyprcollab_image::ImageRouter;
 use hyprcollab_memory::MemoryStore;
 use hyprcollab_rag::RagPipeline;
 use hyprcollab_router::LlmRouter;
+use hyprcollab_skills::SkillStore;
 use hyprcollab_themes::ThemeEngine;
 
 /// Shared state for the HyprCollab server.
@@ -30,6 +31,8 @@ pub struct AppState {
     pub image_router: Option<Arc<ImageRouter>>,
     /// Theme engine (built-in + custom themes).
     pub themes: Arc<ThemeEngine>,
+    /// Skills store — YAML-loaded + SQLite-persisted skills.
+    pub skills: Arc<SkillStore>,
 }
 
 impl std::fmt::Debug for AppState {
@@ -56,16 +59,19 @@ impl AppState {
         memory: MemoryStore,
         rag: Option<RagPipeline>,
     ) -> Self {
+        let memory = Arc::new(memory);
+        let skills = Arc::new(SkillStore::new(memory.connection_arc()));
         Self {
             version: env!("CARGO_PKG_VERSION").to_string(),
             approvals: Arc::new(Mutex::new(Vec::new())),
             artifacts,
             router: Arc::new(router),
-            memory: Arc::new(memory),
+            memory,
             rag: rag.map(Arc::new),
             browser: None,
             image_router: None,
             themes: Arc::new(ThemeEngine::new()),
+            skills,
         }
     }
 

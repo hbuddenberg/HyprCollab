@@ -49,6 +49,11 @@ impl MemoryStore {
         Ok(Self { conn: Arc::new(Mutex::new(conn)) })
     }
 
+    /// Clone the underlying connection `Arc` for sharing with other store layers.
+    pub fn connection_arc(&self) -> std::sync::Arc<std::sync::Mutex<rusqlite::Connection>> {
+        std::sync::Arc::clone(&self.conn)
+    }
+
     pub(crate) fn lock_conn(&self) -> Result<std::sync::MutexGuard<'_, rusqlite::Connection>> {
         self.conn
             .lock()

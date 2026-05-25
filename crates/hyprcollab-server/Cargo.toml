@@ -25,6 +25,7 @@ hyprcollab-rag     = { path = "../hyprcollab-rag" }
 hyprcollab-browser = { path = "../hyprcollab-browser" }
 hyprcollab-image   = { path = "../hyprcollab-image" }
 hyprcollab-themes  = { path = "../hyprcollab-themes" }
+hyprcollab-skills  = { path = "../hyprcollab-skills" }
 base64             = { workspace = true }
 utoipa = { workspace = true }
 utoipa-scalar = { workspace = true }

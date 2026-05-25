@@ -26,6 +26,11 @@ use crate::memory::{
     CreateFactRequest, DeleteFactResponse, FactResponse, ListFactsResponse, PruneFactsRequest,
     PruneFactsResponse, UpdateFactRequest,
 };
+use crate::skills::{
+    create_skill, delete_skill, get_skill, learn_skills, list_skills, match_skills_handler,
+    update_skill, CreateSkillRequest, DeleteSkillResponse, LearnSkillsRequest, LearnSkillsResponse,
+    ListSkillsResponse, MatchSkillsRequest, MatchSkillsResponse, SkillResponse, UpdateSkillRequest,
+};
 use crate::themes::{
     create_theme, delete_theme, get_theme, get_theme_css, list_themes, CreateThemeRequest,
     DeleteThemeResponse, ListThemesResponse, ThemeColorsResponse, ThemeResponse,
@@ -139,6 +144,13 @@ pub struct ApprovalResponse {
         crate::themes::get_theme_css,
         crate::themes::create_theme,
         crate::themes::delete_theme,
+        crate::skills::list_skills,
+        crate::skills::create_skill,
+        crate::skills::match_skills_handler,
+        crate::skills::learn_skills,
+        crate::skills::get_skill,
+        crate::skills::update_skill,
+        crate::skills::delete_skill,
     ),
     components(
         schemas(
@@ -193,6 +205,15 @@ pub struct ApprovalResponse {
             ThemeColorsResponse,
             ListThemesResponse,
             DeleteThemeResponse,
+            SkillResponse,
+            ListSkillsResponse,
+            CreateSkillRequest,
+            UpdateSkillRequest,
+            DeleteSkillResponse,
+            MatchSkillsRequest,
+            MatchSkillsResponse,
+            LearnSkillsRequest,
+            LearnSkillsResponse,
         )
     ),
     tags(
@@ -205,6 +226,7 @@ pub struct ApprovalResponse {
         (name = "Image", description = "Image generation"),
         (name = "WorkingMemory", description = "Working memory — persistent facts with FTS5 search"),
         (name = "Themes", description = "UI theme engine — built-in and custom themes"),
+        (name = "Skills", description = "Skills engine — YAML loader, regex matcher, auto-learner"),
     ),
     info(
         title = "HyprCollab API",
@@ -262,6 +284,14 @@ pub fn create_app(state: AppState) -> Router {
         .route("/api/themes/{name}/css", get(get_theme_css))
         .route("/api/themes/{name}", get(get_theme))
         .route("/api/themes/{name}", delete(delete_theme))
+        // Skills endpoints (match + learn before {id} to avoid wildcard capture)
+        .route("/api/skills", get(list_skills))
+        .route("/api/skills", post(create_skill))
+        .route("/api/skills/match", post(match_skills_handler))
+        .route("/api/skills/learn", post(learn_skills))
+        .route("/api/skills/{id}", get(get_skill))
+        .route("/api/skills/{id}", put(update_skill))
+        .route("/api/skills/{id}", delete(delete_skill))
         // Working memory endpoints (search + prune before {id} to avoid conflicts)
         .route("/api/memory/facts", get(list_facts))
         .route("/api/memory/facts", post(create_fact))

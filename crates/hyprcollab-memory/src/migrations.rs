@@ -28,6 +28,7 @@ pub fn run(conn: &rusqlite::Connection) -> Result<()> {
     let migrations: &[(i32, &str, &str)] = &[
         (1, "001_initial", include_str!("../migrations/001_initial.sql")),
         (2, "002_working_memory", include_str!("../migrations/002_working_memory.sql")),
+        (3, "003_skills",        include_str!("../migrations/003_skills.sql")),
     ];
 
     for &(version, name, sql) in migrations {
@@ -83,6 +84,7 @@ mod tests {
         assert!(tables.contains(&"approval_rules".to_string()));
         assert!(tables.contains(&"registered_agents".to_string()));
         assert!(tables.contains(&"facts".to_string()));
+        assert!(tables.contains(&"skills".to_string()));
     }
 
     #[test]
@@ -96,6 +98,6 @@ mod tests {
                 row.get(0)
             })
             .unwrap();
-        assert_eq!(version, 2);
+        assert_eq!(version, 3);
     }
 }
