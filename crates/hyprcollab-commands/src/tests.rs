@@ -2,7 +2,10 @@
 
 use hyprcollab_core::traits::SlashCommand;
 use hyprcollab_core::types::{ApprovalMode, CommandContext};
-use crate::builtins::*;
+use crate::builtins::{
+    AgentCommand, ApprovalCommand, BrowseCommand, ConfigCommand, HelpCommand, ImageCommand,
+    RunCommand, ScrapeCommand, SkillCommand, TemperatureCommand,
+};
 use crate::registry::CommandRegistry;
 
 fn test_ctx() -> CommandContext {
@@ -306,6 +309,54 @@ mod config_cmd {
 
 // ── Registry integration test ────────────────────────────────────────
 
+mod image_cmd {
+    use super::*;
+    use serde_json::json;
+
+    #[tokio::test]
+    async fn generate_image() {
+        let cmd = ImageCommand;
+        let mut ctx = test_ctx();
+        let result = cmd
+            .execute(json!({"raw": "a sunset over mountains", "args": ["a", "sunset", "over", "mountains"]}), &mut ctx)
+            .await
+            .unwrap();
+        assert!(result.contains("a sunset over mountains"));
+    }
+
+    #[tokio::test]
+    async fn empty_prompt_err() {
+        let cmd = ImageCommand;
+        let mut ctx = test_ctx();
+        let result = cmd.execute(json!({"raw": "", "args": []}), &mut ctx).await;
+        assert!(result.is_err());
+    }
+}
+
+mod scrape_cmd {
+    use super::*;
+    use serde_json::json;
+
+    #[tokio::test]
+    async fn scrape_url() {
+        let cmd = ScrapeCommand;
+        let mut ctx = test_ctx();
+        let result = cmd
+            .execute(json!({"raw": "https://example.com", "args": ["https://example.com"]}), &mut ctx)
+            .await
+            .unwrap();
+        assert!(result.contains("https://example.com"));
+    }
+
+    #[tokio::test]
+    async fn empty_url_err() {
+        let cmd = ScrapeCommand;
+        let mut ctx = test_ctx();
+        let result = cmd.execute(json!({"raw": "", "args": []}), &mut ctx).await;
+        assert!(result.is_err());
+    }
+}
+
 mod registry_integration {
     use super::*;
     use crate::builtins::register_all;
@@ -314,7 +365,7 @@ mod registry_integration {
     async fn register_all_and_execute() {
         let mut reg = CommandRegistry::new();
         register_all(&mut reg);
-        assert_eq!(reg.len(), 10);
+        assert_eq!(reg.len(), 12);
 
         let mut ctx = test_ctx();
 

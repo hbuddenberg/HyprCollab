@@ -90,6 +90,10 @@ impl BrowserEngine {
         self.sessions.read().expect("sessions lock").len()
     }
 
+    pub fn session_ids(&self) -> Vec<String> {
+        self.sessions.read().expect("sessions lock").keys().cloned().collect()
+    }
+
     pub async fn navigate(&self, session_id: &str, url: &str) -> Result<PageSnapshot> {
         let parsed_url = Url::parse(url)?;
         debug!("navigate session={session_id} url={url}");

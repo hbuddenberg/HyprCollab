@@ -352,7 +352,7 @@ fn register_all_registers_ten_builtin_commands() {
     let mut registry = CommandRegistry::new();
     builtins::register_all(&mut registry);
 
-    assert_eq!(registry.len(), 10, "register_all should register exactly 10 commands");
+    assert_eq!(registry.len(), 12, "register_all should register exactly 12 commands");
 
     for name in ["help", "agent", "approval", "run", "skill", "config"] {
         assert!(registry.get(name).is_some(), "/{name} should be registered");

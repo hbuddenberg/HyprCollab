@@ -2296,10 +2296,13 @@ name = "hyprcollab-server"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "base64",
  "chrono",
  "futures",
  "hyprcollab-artifacts",
+ "hyprcollab-browser",
  "hyprcollab-core",
+ "hyprcollab-image",
  "hyprcollab-memory",
  "hyprcollab-rag",
  "hyprcollab-router",
@@ -2329,8 +2332,12 @@ name = "hyprcollab-tools"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "base64",
  "chrono",
+ "hyprcollab-browser",
  "hyprcollab-core",
+ "hyprcollab-image",
+ "hyprcollab-rag",
  "reqwest",
  "serde",
  "serde_json",

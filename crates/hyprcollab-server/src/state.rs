@@ -2,6 +2,8 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use hyprcollab_artifacts::ArtifactStore;
+use hyprcollab_browser::BrowserEngine;
+use hyprcollab_image::ImageRouter;
 use hyprcollab_memory::MemoryStore;
 use hyprcollab_rag::RagPipeline;
 use hyprcollab_router::LlmRouter;
@@ -21,6 +23,10 @@ pub struct AppState {
     pub memory: Arc<MemoryStore>,
     /// Optional RAG pipeline (None when not configured).
     pub rag: Option<Arc<RagPipeline>>,
+    /// Optional browser engine (None when not configured).
+    pub browser: Option<Arc<BrowserEngine>>,
+    /// Optional image generation router (None when not configured).
+    pub image_router: Option<Arc<ImageRouter>>,
 }
 
 impl std::fmt::Debug for AppState {
@@ -30,7 +36,7 @@ impl std::fmt::Debug for AppState {
 }
 
 impl AppState {
-    /// Convenience constructor for tests: empty router + in-memory SQLite, no RAG.
+    /// Convenience constructor for tests: empty router + in-memory SQLite, no optional services.
     pub fn new(artifacts: ArtifactStore) -> Self {
         Self::new_full(
             artifacts,
@@ -54,6 +60,20 @@ impl AppState {
             router: Arc::new(router),
             memory: Arc::new(memory),
             rag: rag.map(Arc::new),
+            browser: None,
+            image_router: None,
         }
+    }
+
+    /// Attach a browser engine to the state.
+    pub fn with_browser(mut self, engine: BrowserEngine) -> Self {
+        self.browser = Some(Arc::new(engine));
+        self
+    }
+
+    /// Attach an image router to the state.
+    pub fn with_image_router(mut self, router: ImageRouter) -> Self {
+        self.image_router = Some(Arc::new(router));
+        self
     }
 }
