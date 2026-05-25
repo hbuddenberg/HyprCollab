@@ -3,6 +3,22 @@ name = "hyprcollab-browser"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Playwright browser engine with scraping"
+description = "Browser automation: HTTP scraping + optional Playwright bridge"
 
 [dependencies]
+hyprcollab-core = { path = "../hyprcollab-core" }
+thiserror    = { workspace = true }
+serde        = { workspace = true }
+serde_json   = { workspace = true }
+reqwest      = { workspace = true, features = ["cookies"] }
+scraper      = "0.22"
+tokio        = { workspace = true }
+uuid         = { workspace = true }
+tracing      = { workspace = true }
+url          = "2"
+which        = "7"
+
+[dev-dependencies]
+tempfile = { workspace = true }
+mockito  = "1"
+tokio    = { workspace = true }

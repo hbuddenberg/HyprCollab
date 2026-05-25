@@ -1,14 +1,16 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+pub mod commands;
+pub mod engine;
+pub mod errors;
+pub mod page;
+pub mod session;
 
 #[cfg(test)]
-mod tests {
-    use super::*;
+mod tests;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use commands::{
+    all_commands, BrowserCommand, WebExtract, WebInteract, WebNavigate, WebScreenshot, WebSearch,
+};
+pub use engine::BrowserEngine;
+pub use errors::{BrowserError, Result};
+pub use page::{LinkInfo, PageSnapshot, SearchResult};
+pub use session::{BrowserConfig, BrowserSession, BrowserType, Cookie, Viewport};
