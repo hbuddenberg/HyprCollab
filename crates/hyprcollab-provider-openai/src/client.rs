@@ -246,6 +246,7 @@ mod tests {
                 artifacts: vec![],
                 timestamp: chrono::Utc::now(),
                 metadata: serde_json::Value::Null,
+                parent_id: None,
             }],
             tools: vec![],
             temperature: None,

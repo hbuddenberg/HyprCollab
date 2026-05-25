@@ -236,6 +236,7 @@ impl AnthropicResponse {
             artifacts: vec![],
             timestamp: chrono::Utc::now(),
             metadata: serde_json::Value::Null,
+            parent_id: None,
         };
 
         ChatResponse {
@@ -350,6 +351,7 @@ mod tests {
                     artifacts: vec![],
                     timestamp: chrono::Utc::now(),
                     metadata: serde_json::Value::Null,
+                    parent_id: None,
                 },
                 Message {
                     id: MessageId::new(),
@@ -360,6 +362,7 @@ mod tests {
                     artifacts: vec![],
                     timestamp: chrono::Utc::now(),
                     metadata: serde_json::Value::Null,
+                    parent_id: None,
                 },
             ],
             tools: vec![],
@@ -437,6 +440,7 @@ mod tests {
                     artifacts: vec![],
                     timestamp: chrono::Utc::now(),
                     metadata: serde_json::Value::Null,
+                    parent_id: None,
                 },
                 Message {
                     id: MessageId::new(),
@@ -447,6 +451,7 @@ mod tests {
                     artifacts: vec![],
                     timestamp: chrono::Utc::now(),
                     metadata: serde_json::Value::Null,
+                    parent_id: None,
                 },
             ],
             tools: vec![ToolDefinition {

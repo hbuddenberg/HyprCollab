@@ -91,6 +91,7 @@ impl MockProvider {
                 artifacts: Vec::new(),
                 timestamp: chrono::Utc::now(),
                 metadata: serde_json::Value::Null,
+                parent_id: None,
             },
             usage: TokenUsage {
                 prompt_tokens: 10,
@@ -119,6 +120,7 @@ impl MockProvider {
                 artifacts: Vec::new(),
                 timestamp: chrono::Utc::now(),
                 metadata: serde_json::Value::Null,
+                parent_id: None,
             },
             usage: TokenUsage {
                 prompt_tokens: 10,
@@ -282,6 +284,7 @@ async fn test_agent_loop_multi_tool_calls() {
             artifacts: Vec::new(),
             timestamp: chrono::Utc::now(),
             metadata: serde_json::Value::Null,
+            parent_id: None,
         },
         usage: TokenUsage {
             prompt_tokens: 10,

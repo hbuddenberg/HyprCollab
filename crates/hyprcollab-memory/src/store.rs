@@ -63,6 +63,7 @@ impl MemoryStore {
     // ── Chat CRUD ──────────────────────────────────────────────────────
 
     /// Insert a new chat record. Returns the same [`ChatId`] for convenience.
+    #[allow(clippy::too_many_arguments)]
     pub fn create_chat(
         &self,
         id: ChatId,
@@ -71,12 +72,13 @@ impl MemoryStore {
         persona_id: Option<PersonaId>,
         agent_role_id: Option<AgentRoleId>,
         model: &str,
+        pinned: bool,
     ) -> Result<ChatId> {
         let conn = self.lock_conn()?;
         let now = chrono::Utc::now().to_rfc3339();
         conn.execute(
-                "INSERT INTO chats (id, title, workspace_id, persona_id, agent_role_id, model, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                "INSERT INTO chats (id, title, workspace_id, persona_id, agent_role_id, model, created_at, updated_at, pinned)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
                 rusqlite::params![
                     id.to_string(),
                     title,
@@ -86,6 +88,7 @@ impl MemoryStore {
                     model,
                     now,
                     now,
+                    pinned as i64,
                 ],
             )
             .map_err(|e| CoreError::Memory(format!("create_chat failed: {e}")))?;
@@ -97,7 +100,7 @@ impl MemoryStore {
         let conn = self.lock_conn()?;
         let mut stmt = conn
             .prepare(
-                "SELECT id, title, workspace_id, persona_id, agent_role_id, model, created_at, updated_at
+                "SELECT id, title, workspace_id, persona_id, agent_role_id, model, created_at, updated_at, pinned
                  FROM chats WHERE id = ?1",
             )
             .map_err(|e| CoreError::Memory(format!("get_chat prepare: {e}")))?;
@@ -121,7 +124,7 @@ impl MemoryStore {
         let conn = self.lock_conn()?;
         let mut stmt = conn
             .prepare(
-                "SELECT id, title, workspace_id, persona_id, agent_role_id, model, created_at, updated_at
+                "SELECT id, title, workspace_id, persona_id, agent_role_id, model, created_at, updated_at, pinned
                  FROM chats ORDER BY updated_at DESC",
             )
             .map_err(|e| CoreError::Memory(format!("list_chats prepare: {e}")))?;
@@ -152,6 +155,42 @@ impl MemoryStore {
         Ok(affected > 0)
     }
 
+    /// Pin or unpin a chat. Returns `true` if the chat was found and updated.
+    pub fn pin_chat(&self, id: ChatId, pinned: bool) -> Result<bool> {
+        let conn = self.lock_conn()?;
+        let rows = conn
+            .execute(
+                "UPDATE chats SET pinned = ?1 WHERE id = ?2",
+                rusqlite::params![pinned as i64, id.to_string()],
+            )
+            .map_err(|e| CoreError::Memory(format!("pin_chat: {e}")))?;
+        Ok(rows > 0)
+    }
+
+    /// Return all pinned chats ordered by updated_at DESC.
+    pub fn list_pinned_chats(&self) -> Result<Vec<ChatRecord>> {
+        let conn = self.lock_conn()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, title, workspace_id, persona_id, agent_role_id, model, created_at, updated_at, pinned
+                 FROM chats WHERE pinned = 1 ORDER BY updated_at DESC",
+            )
+            .map_err(|e| CoreError::Memory(format!("list_pinned_chats prepare: {e}")))?;
+
+        let rows = stmt
+            .query_map([], |row| {
+                ChatRecord::from_row(row)
+                    .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))
+            })
+            .map_err(|e| CoreError::Memory(format!("list_pinned_chats query: {e}")))?;
+
+        let mut chats = Vec::new();
+        for row in rows {
+            chats.push(row.map_err(|e| CoreError::Memory(format!("list_pinned_chats row: {e}")))?);
+        }
+        Ok(chats)
+    }
+
     // ── Message CRUD ───────────────────────────────────────────────────
 
     /// Add a message to a chat.
@@ -174,8 +213,8 @@ impl MemoryStore {
 
         let conn = self.lock_conn()?;
         conn.execute(
-                "INSERT INTO messages (id, chat_id, role, content, tool_calls, artifacts, timestamp, metadata)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                "INSERT INTO messages (id, chat_id, role, content, tool_calls, artifacts, timestamp, metadata, parent_id)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
                 rusqlite::params![
                     msg.id.to_string(),
                     msg.chat_id.to_string(),
@@ -185,6 +224,7 @@ impl MemoryStore {
                     artifacts_json,
                     msg.timestamp.to_rfc3339(),
                     metadata_json,
+                    msg.parent_id.map(|p| p.to_string()),
                 ],
             )
             .map_err(|e| CoreError::Memory(format!("add_message failed: {e}")))?;
@@ -205,7 +245,7 @@ impl MemoryStore {
         let conn = self.lock_conn()?;
         let mut stmt = conn
             .prepare(
-                "SELECT id, chat_id, role, content, tool_calls, artifacts, timestamp, metadata
+                "SELECT id, chat_id, role, content, tool_calls, artifacts, timestamp, metadata, parent_id
                  FROM messages WHERE chat_id = ?1 ORDER BY timestamp ASC",
             )
             .map_err(|e| CoreError::Memory(format!("get_messages prepare: {e}")))?;
@@ -227,7 +267,7 @@ impl MemoryStore {
         let conn = self.lock_conn()?;
         let mut stmt = conn
             .prepare(
-                "SELECT id, chat_id, role, content, tool_calls, artifacts, timestamp, metadata
+                "SELECT id, chat_id, role, content, tool_calls, artifacts, timestamp, metadata, parent_id
                  FROM messages WHERE chat_id = ?1 ORDER BY timestamp DESC LIMIT ?2",
             )
             .map_err(|e| CoreError::Memory(format!("get_recent prepare: {e}")))?;
@@ -247,6 +287,92 @@ impl MemoryStore {
         // Reverse so they're in chronological order.
         messages.reverse();
         Ok(messages)
+    }
+
+    // ── Conversation Branching ─────────────────────────────────────────
+
+    /// Fork a chat at a given message: create a new chat with all messages up to and
+    /// including `parent_msg_id`, preserving content and roles.
+    ///
+    /// Returns the ID of the newly created chat.
+    pub fn fork_from_message(
+        &self,
+        original_chat_id: ChatId,
+        parent_msg_id: MessageId,
+    ) -> Result<ChatId> {
+        // Load original chat to clone title/model.
+        let original = self
+            .get_chat(original_chat_id)?
+            .ok_or_else(|| CoreError::Memory(format!("chat '{original_chat_id}' not found")))?;
+
+        // Get all messages in the original chat chronologically, up to the fork point.
+        let all_msgs = self.get_messages(original_chat_id)?;
+        let fork_pos = all_msgs.iter().position(|m| m.id == parent_msg_id).ok_or_else(|| {
+            CoreError::Memory(format!("message '{parent_msg_id}' not found in chat"))
+        })?;
+        let msgs_to_copy = &all_msgs[..=fork_pos];
+
+        // Create the new chat.
+        let new_chat_id = ChatId::new();
+        self.create_chat(
+            new_chat_id,
+            &format!("{} (fork)", original.title),
+            original.workspace_id,
+            original.persona_id,
+            original.agent_role_id,
+            &original.model,
+            false,
+        )?;
+
+        // Copy messages with fresh IDs into the new chat.
+        for orig_msg in msgs_to_copy {
+            let new_msg = Message {
+                id: MessageId::new(),
+                chat_id: new_chat_id,
+                role: orig_msg.role,
+                content: orig_msg.content.clone(),
+                tool_calls: orig_msg.tool_calls.clone(),
+                artifacts: orig_msg.artifacts.clone(),
+                timestamp: orig_msg.timestamp,
+                metadata: orig_msg.metadata.clone(),
+                parent_id: None,
+            };
+            self.add_message(&new_msg)?;
+        }
+
+        Ok(new_chat_id)
+    }
+
+    /// Return direct children of a message (messages whose parent_id == msg_id).
+    pub fn get_message_children(&self, msg_id: MessageId) -> Result<Vec<Message>> {
+        let conn = self.lock_conn()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, chat_id, role, content, tool_calls, artifacts, timestamp, metadata, parent_id
+                 FROM messages WHERE parent_id = ?1 ORDER BY timestamp ASC",
+            )
+            .map_err(|e| CoreError::Memory(format!("get_message_children prepare: {e}")))?;
+
+        let rows = stmt
+            .query_map(rusqlite::params![msg_id.to_string()], message_from_row)
+            .map_err(|e| CoreError::Memory(format!("get_message_children query: {e}")))?;
+
+        let mut messages = Vec::new();
+        for row in rows {
+            messages.push(
+                row.map_err(|e| CoreError::Memory(format!("get_message_children row: {e}")))?,
+            );
+        }
+        Ok(messages)
+    }
+
+    /// Build the full message tree for a chat.
+    ///
+    /// The tree's root nodes are messages with no parent (or a parent outside this chat).
+    /// Children are nested recursively.
+    pub fn get_message_tree(&self, chat_id: ChatId) -> Result<Vec<MessageTreeNode>> {
+        let all_msgs = self.get_messages(chat_id)?;
+        Ok(build_tree(&all_msgs, None))
     }
 
     // ── Chat Settings ──────────────────────────────────────────────────
@@ -302,6 +428,7 @@ pub struct ChatRecord {
     pub model: String,
     pub created_at: String,
     pub updated_at: String,
+    pub pinned: bool,
 }
 
 impl ChatRecord {
@@ -316,6 +443,7 @@ impl ChatRecord {
         let model: String = row.get(5).unwrap_or_default();
         let created_at: String = row.get(6).unwrap_or_default();
         let updated_at: String = row.get(7).unwrap_or_default();
+        let pinned_int: i64 = row.get(8).unwrap_or(0);
 
         Ok(Self {
             id: ChatId(
@@ -350,13 +478,23 @@ impl ChatRecord {
             model,
             created_at,
             updated_at,
+            pinned: pinned_int != 0,
         })
     }
+}
+
+/// A node in a message tree (for branching conversations).
+#[derive(Debug, Clone)]
+pub struct MessageTreeNode {
+    pub message: Message,
+    pub children: Vec<MessageTreeNode>,
 }
 
 // ── Row mapping helper for Message ─────────────────────────────────────
 
 /// Parse a SQLite row into a [`Message`]. Used as a `query_map` callback.
+///
+/// Column order: id, chat_id, role, content, tool_calls, artifacts, timestamp, metadata, parent_id
 fn message_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Message> {
     let id_str: String = row.get(0)?;
     let chat_id_str: String = row.get(1)?;
@@ -366,6 +504,7 @@ fn message_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Message> {
     let artifacts_json: Option<String> = row.get(5).unwrap_or(None);
     let timestamp_str: String = row.get(6)?;
     let metadata_json: Option<String> = row.get(7).unwrap_or(None);
+    let parent_id_str: Option<String> = row.get(8).unwrap_or(None);
 
     let role = match role_str.as_str() {
         "user" => MessageRole::User,
@@ -414,6 +553,19 @@ fn message_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Message> {
         })?
         .to_utc();
 
+    let parent_id = parent_id_str
+        .as_deref()
+        .map(|s| {
+            uuid::Uuid::parse_str(s).map(MessageId).map_err(|e| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    8,
+                    rusqlite::types::Type::Text,
+                    Box::from(e),
+                )
+            })
+        })
+        .transpose()?;
+
     Ok(Message {
         id: MessageId(uuid::Uuid::parse_str(&id_str).map_err(|e| {
             rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::from(e))
@@ -427,7 +579,20 @@ fn message_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Message> {
         artifacts,
         timestamp,
         metadata,
+        parent_id,
     })
+}
+
+// ── Tree builder ───────────────────────────────────────────────────────
+
+fn build_tree(all: &[Message], parent: Option<MessageId>) -> Vec<MessageTreeNode> {
+    all.iter()
+        .filter(|m| m.parent_id == parent)
+        .map(|m| MessageTreeNode {
+            message: m.clone(),
+            children: build_tree(all, Some(m.id)),
+        })
+        .collect()
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────
@@ -446,7 +611,17 @@ mod tests {
             artifacts: Vec::new(),
             timestamp: chrono::Utc::now(),
             metadata: serde_json::Value::Null,
+            parent_id: None,
         }
+    }
+
+    fn make_message_with_parent(
+        chat_id: ChatId,
+        role: MessageRole,
+        content: &str,
+        parent: MessageId,
+    ) -> Message {
+        Message { parent_id: Some(parent), ..make_message(chat_id, role, content) }
     }
 
     #[test]
@@ -460,13 +635,14 @@ mod tests {
         let store = MemoryStore::open_in_memory().unwrap();
         let id = ChatId::new();
         store
-            .create_chat(id, "Test Chat", None, None, None, "gpt-4")
+            .create_chat(id, "Test Chat", None, None, None, "gpt-4", false)
             .unwrap();
 
         let chat = store.get_chat(id).unwrap().expect("chat should exist");
         assert_eq!(chat.id, id);
         assert_eq!(chat.title, "Test Chat");
         assert_eq!(chat.model, "gpt-4");
+        assert!(!chat.pinned);
     }
 
     #[test]
@@ -475,10 +651,10 @@ mod tests {
         let id1 = ChatId::new();
         let id2 = ChatId::new();
         store
-            .create_chat(id1, "Chat 1", None, None, None, "gpt-4")
+            .create_chat(id1, "Chat 1", None, None, None, "gpt-4", false)
             .unwrap();
         store
-            .create_chat(id2, "Chat 2", None, None, None, "claude-3")
+            .create_chat(id2, "Chat 2", None, None, None, "claude-3", false)
             .unwrap();
 
         let chats = store.list_chats().unwrap();
@@ -490,7 +666,7 @@ mod tests {
         let store = MemoryStore::open_in_memory().unwrap();
         let id = ChatId::new();
         store
-            .create_chat(id, "Bye", None, None, None, "gpt-4")
+            .create_chat(id, "Bye", None, None, None, "gpt-4", false)
             .unwrap();
 
         assert!(store.delete_chat(id).unwrap());
@@ -502,7 +678,7 @@ mod tests {
         let store = MemoryStore::open_in_memory().unwrap();
         let chat_id = ChatId::new();
         store
-            .create_chat(chat_id, "Msg Test", None, None, None, "gpt-4")
+            .create_chat(chat_id, "Msg Test", None, None, None, "gpt-4", false)
             .unwrap();
 
         let msg1 = make_message(chat_id, MessageRole::User, "Hello");
@@ -521,7 +697,7 @@ mod tests {
         let store = MemoryStore::open_in_memory().unwrap();
         let chat_id = ChatId::new();
         store
-            .create_chat(chat_id, "Recent", None, None, None, "gpt-4")
+            .create_chat(chat_id, "Recent", None, None, None, "gpt-4", false)
             .unwrap();
 
         for i in 0..5 {
@@ -541,7 +717,7 @@ mod tests {
         let store = MemoryStore::open_in_memory().unwrap();
         let chat_id = ChatId::new();
         store
-            .create_chat(chat_id, "Settings", None, None, None, "gpt-4")
+            .create_chat(chat_id, "Settings", None, None, None, "gpt-4", false)
             .unwrap();
 
         // Initially absent.
@@ -567,7 +743,7 @@ mod tests {
         let store = MemoryStore::open_in_memory().unwrap();
         let chat_id = ChatId::new();
         store
-            .create_chat(chat_id, "Tools", None, None, None, "gpt-4")
+            .create_chat(chat_id, "Tools", None, None, None, "gpt-4", false)
             .unwrap();
 
         let msg = Message {
@@ -589,6 +765,7 @@ mod tests {
             }],
             timestamp: chrono::Utc::now(),
             metadata: serde_json::json!({"token_usage": 42}),
+            parent_id: None,
         };
 
         store.add_message(&msg).unwrap();
@@ -599,5 +776,173 @@ mod tests {
         assert_eq!(fetched[0].artifacts.len(), 1);
         assert_eq!(fetched[0].artifacts[0].title, "main.py");
         assert_eq!(fetched[0].metadata["token_usage"], 42);
+    }
+
+    // ── Pinned chats ───────────────────────────────────────────────────
+
+    #[test]
+    fn pin_chat_pins_and_unpins() {
+        let store = MemoryStore::open_in_memory().unwrap();
+        let id = ChatId::new();
+        store.create_chat(id, "Pinnable", None, None, None, "gpt-4", false).unwrap();
+
+        assert!(store.pin_chat(id, true).unwrap());
+        let chat = store.get_chat(id).unwrap().unwrap();
+        assert!(chat.pinned);
+
+        assert!(store.pin_chat(id, false).unwrap());
+        let chat = store.get_chat(id).unwrap().unwrap();
+        assert!(!chat.pinned);
+    }
+
+    #[test]
+    fn pin_unknown_chat_returns_false() {
+        let store = MemoryStore::open_in_memory().unwrap();
+        assert!(!store.pin_chat(ChatId::new(), true).unwrap());
+    }
+
+    #[test]
+    fn create_chat_pinned_true() {
+        let store = MemoryStore::open_in_memory().unwrap();
+        let id = ChatId::new();
+        store.create_chat(id, "Already Pinned", None, None, None, "gpt-4", true).unwrap();
+        let chat = store.get_chat(id).unwrap().unwrap();
+        assert!(chat.pinned);
+    }
+
+    #[test]
+    fn list_pinned_chats_filters_correctly() {
+        let store = MemoryStore::open_in_memory().unwrap();
+        let id_a = ChatId::new();
+        let id_b = ChatId::new();
+        let id_c = ChatId::new();
+        store.create_chat(id_a, "Pinned A", None, None, None, "gpt-4", true).unwrap();
+        store.create_chat(id_b, "Not pinned", None, None, None, "gpt-4", false).unwrap();
+        store.create_chat(id_c, "Pinned C", None, None, None, "gpt-4", true).unwrap();
+
+        let pinned = store.list_pinned_chats().unwrap();
+        assert_eq!(pinned.len(), 2);
+        assert!(pinned.iter().all(|c| c.pinned));
+    }
+
+    // ── Branching ─────────────────────────────────────────────────────
+
+    #[test]
+    fn parent_id_roundtrips() {
+        let store = MemoryStore::open_in_memory().unwrap();
+        let chat_id = ChatId::new();
+        store.create_chat(chat_id, "Branch", None, None, None, "gpt-4", false).unwrap();
+
+        let root = make_message(chat_id, MessageRole::User, "root");
+        let child = make_message_with_parent(chat_id, MessageRole::Assistant, "child", root.id);
+        store.add_message(&root).unwrap();
+        store.add_message(&child).unwrap();
+
+        let msgs = store.get_messages(chat_id).unwrap();
+        assert_eq!(msgs[0].parent_id, None);
+        assert_eq!(msgs[1].parent_id, Some(root.id));
+    }
+
+    #[test]
+    fn get_message_children_returns_direct_children() {
+        let store = MemoryStore::open_in_memory().unwrap();
+        let chat_id = ChatId::new();
+        store.create_chat(chat_id, "Children", None, None, None, "gpt-4", false).unwrap();
+
+        let root = make_message(chat_id, MessageRole::User, "root");
+        let c1 = make_message_with_parent(chat_id, MessageRole::Assistant, "c1", root.id);
+        let c2 = make_message_with_parent(chat_id, MessageRole::User, "c2", root.id);
+        let gc = make_message_with_parent(chat_id, MessageRole::Assistant, "grandchild", c1.id);
+        for m in [&root, &c1, &c2, &gc] {
+            store.add_message(m).unwrap();
+        }
+
+        let children = store.get_message_children(root.id).unwrap();
+        assert_eq!(children.len(), 2);
+
+        // grandchild is a child of c1, not root
+        let grandchildren = store.get_message_children(c1.id).unwrap();
+        assert_eq!(grandchildren.len(), 1);
+        assert_eq!(grandchildren[0].content, "grandchild");
+    }
+
+    #[test]
+    fn get_message_tree_builds_correct_structure() {
+        let store = MemoryStore::open_in_memory().unwrap();
+        let chat_id = ChatId::new();
+        store.create_chat(chat_id, "Tree", None, None, None, "gpt-4", false).unwrap();
+
+        let root = make_message(chat_id, MessageRole::User, "root");
+        let child = make_message_with_parent(chat_id, MessageRole::Assistant, "child", root.id);
+        let grandchild =
+            make_message_with_parent(chat_id, MessageRole::User, "grandchild", child.id);
+        for m in [&root, &child, &grandchild] {
+            store.add_message(m).unwrap();
+        }
+
+        let tree = store.get_message_tree(chat_id).unwrap();
+        assert_eq!(tree.len(), 1); // one root
+        assert_eq!(tree[0].message.content, "root");
+        assert_eq!(tree[0].children.len(), 1);
+        assert_eq!(tree[0].children[0].message.content, "child");
+        assert_eq!(tree[0].children[0].children.len(), 1);
+        assert_eq!(tree[0].children[0].children[0].message.content, "grandchild");
+    }
+
+    #[test]
+    fn fork_from_message_creates_new_chat() {
+        let store = MemoryStore::open_in_memory().unwrap();
+        let chat_id = ChatId::new();
+        store.create_chat(chat_id, "Original", None, None, None, "gpt-4", false).unwrap();
+
+        let m1 = make_message(chat_id, MessageRole::User, "hello");
+        let m2 = make_message(chat_id, MessageRole::Assistant, "world");
+        let m3 = make_message(chat_id, MessageRole::User, "extra");
+        for m in [&m1, &m2, &m3] {
+            store.add_message(m).unwrap();
+        }
+
+        // Fork at m2 — the new chat should have m1 and m2 only.
+        let fork_id = store.fork_from_message(chat_id, m2.id).unwrap();
+        assert_ne!(fork_id, chat_id);
+
+        let fork_msgs = store.get_messages(fork_id).unwrap();
+        assert_eq!(fork_msgs.len(), 2);
+        assert_eq!(fork_msgs[0].content, "hello");
+        assert_eq!(fork_msgs[1].content, "world");
+    }
+
+    #[test]
+    fn fork_preserves_content() {
+        let store = MemoryStore::open_in_memory().unwrap();
+        let chat_id = ChatId::new();
+        store.create_chat(chat_id, "Source", None, None, None, "claude-3", false).unwrap();
+
+        let msg = make_message(chat_id, MessageRole::User, "important context");
+        store.add_message(&msg).unwrap();
+
+        let fork_id = store.fork_from_message(chat_id, msg.id).unwrap();
+        let fork_msgs = store.get_messages(fork_id).unwrap();
+        assert_eq!(fork_msgs[0].content, "important context");
+        assert_eq!(fork_msgs[0].role, MessageRole::User);
+    }
+
+    #[test]
+    fn fork_invalid_message_returns_error() {
+        let store = MemoryStore::open_in_memory().unwrap();
+        let chat_id = ChatId::new();
+        store.create_chat(chat_id, "Chat", None, None, None, "gpt-4", false).unwrap();
+
+        let result = store.fork_from_message(chat_id, MessageId::new());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn empty_chat_tree_returns_empty() {
+        let store = MemoryStore::open_in_memory().unwrap();
+        let chat_id = ChatId::new();
+        store.create_chat(chat_id, "Empty", None, None, None, "gpt-4", false).unwrap();
+        let tree = store.get_message_tree(chat_id).unwrap();
+        assert!(tree.is_empty());
     }
 }

@@ -172,7 +172,7 @@ pub async fn create_conversation(
 
     state
         .memory
-        .create_chat(id, title, None, None, None, model)
+        .create_chat(id, title, None, None, None, model, false)
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
     Ok((StatusCode::CREATED, Json(CreateConversationResponse { id: id.to_string() })))
@@ -292,7 +292,7 @@ mod tests {
         let id = hyprcollab_core::types::ChatId::new();
         state
             .memory
-            .create_chat(id, "My Chat", None, None, None, "gpt-4")
+            .create_chat(id, "My Chat", None, None, None, "gpt-4", false)
             .unwrap();
 
         let app = create_app(state);
@@ -333,7 +333,7 @@ mod tests {
         let state = test_state().await;
 
         let id = hyprcollab_core::types::ChatId::new();
-        state.memory.create_chat(id, "Round-trip", None, None, None, "claude-3").unwrap();
+        state.memory.create_chat(id, "Round-trip", None, None, None, "claude-3", false).unwrap();
 
         let app = create_app(state);
         let resp = app
@@ -353,7 +353,7 @@ mod tests {
         let state = test_state().await;
 
         let id = hyprcollab_core::types::ChatId::new();
-        state.memory.create_chat(id, "Bye", None, None, None, "gpt-4").unwrap();
+        state.memory.create_chat(id, "Bye", None, None, None, "gpt-4", false).unwrap();
 
         let app = create_app(state);
         let resp = app
@@ -387,7 +387,7 @@ mod tests {
         let state = test_state().await;
 
         let chat_id = hyprcollab_core::types::ChatId::new();
-        state.memory.create_chat(chat_id, "With Messages", None, None, None, "gpt-4").unwrap();
+        state.memory.create_chat(chat_id, "With Messages", None, None, None, "gpt-4", false).unwrap();
 
         let msg = hyprcollab_core::types::Message {
             id: hyprcollab_core::types::MessageId::new(),
@@ -398,6 +398,7 @@ mod tests {
             artifacts: vec![],
             timestamp: chrono::Utc::now(),
             metadata: serde_json::Value::Null,
+            parent_id: None,
         };
         state.memory.add_message(&msg).unwrap();
 

@@ -97,6 +97,7 @@ impl AgentSession {
                 artifacts: Vec::new(),
                 timestamp: chrono::Utc::now(),
                 metadata: serde_json::Value::Null,
+                parent_id: None,
             });
         }
 
@@ -113,6 +114,7 @@ impl AgentSession {
             artifacts: Vec::new(),
             timestamp: chrono::Utc::now(),
             metadata: serde_json::Value::Null,
+            parent_id: None,
         };
         messages.push(user_msg);
 

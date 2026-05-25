@@ -73,6 +73,7 @@ fn message_construction() {
         artifacts: vec![],
         timestamp: chrono::Utc::now(),
         metadata: serde_json::Value::Null,
+        parent_id: None,
     };
     assert_eq!(msg.role, MessageRole::User);
     assert_eq!(msg.content, "Hello HyprCollab!");
@@ -95,6 +96,7 @@ fn message_with_tool_calls() {
         artifacts: vec![],
         timestamp: chrono::Utc::now(),
         metadata: serde_json::Value::Null,
+        parent_id: None,
     };
     assert_eq!(msg.tool_calls.len(), 1);
     assert_eq!(msg.tool_calls[0].name, "web_scrape");

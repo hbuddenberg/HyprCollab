@@ -88,6 +88,7 @@ pub async fn run_agent_loop(
                                 "is_error": true,
                                 "approval_blocked": true,
                             }),
+                            parent_id: None,
                         };
                         messages.push(tool_msg);
                         continue;
@@ -135,6 +136,7 @@ pub async fn run_agent_loop(
                             "tool_call_id": tc.id,
                             "is_error": is_error,
                         }),
+                        parent_id: None,
                     };
                     messages.push(tool_msg);
                 }

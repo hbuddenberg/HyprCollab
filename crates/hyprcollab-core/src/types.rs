@@ -151,6 +151,9 @@ pub struct Message {
     pub timestamp: chrono::DateTime<chrono::Utc>,
     #[serde(default)]
     pub metadata: serde_json::Value,
+    /// Parent message ID for conversation branching (None = root message).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_id: Option<MessageId>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

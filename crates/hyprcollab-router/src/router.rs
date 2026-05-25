@@ -222,6 +222,7 @@ mod tests {
                     artifacts: vec![],
                     timestamp: chrono::Utc::now(),
                     metadata: serde_json::Value::Null,
+                    parent_id: None,
                 },
                 usage: TokenUsage {
                     prompt_tokens: 10,
@@ -289,6 +290,7 @@ mod tests {
                 artifacts: vec![],
                 timestamp: chrono::Utc::now(),
                 metadata: serde_json::Value::Null,
+                parent_id: None,
             }],
             tools: vec![],
             temperature: None,

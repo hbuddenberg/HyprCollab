@@ -25,6 +25,7 @@ fn user_message(content: &str) -> Message {
         artifacts: vec![],
         timestamp: chrono::Utc::now(),
         metadata: serde_json::Value::Null,
+        parent_id: None,
     }
 }
 
@@ -69,6 +70,7 @@ impl MockProvider {
                 artifacts: vec![],
                 timestamp: chrono::Utc::now(),
                 metadata: serde_json::Value::Null,
+                parent_id: None,
             },
             usage: TokenUsage { prompt_tokens: 5, completion_tokens: 10, total_tokens: 15 },
             model: "mock/model".to_string(),
@@ -93,6 +95,7 @@ impl MockProvider {
                 artifacts: vec![],
                 timestamp: chrono::Utc::now(),
                 metadata: serde_json::Value::Null,
+                parent_id: None,
             },
             usage: TokenUsage { prompt_tokens: 5, completion_tokens: 5, total_tokens: 10 },
             model: "mock/model".to_string(),

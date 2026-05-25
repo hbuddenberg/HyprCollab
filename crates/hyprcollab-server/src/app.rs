@@ -44,6 +44,13 @@ use crate::browser::{
 use crate::conversations::{
     create_conversation, delete_conversation, get_conversation, list_conversations,
 };
+use crate::extras::{
+    add_bookmark, delete_bookmark, fork_conversation, get_message_tree, list_bookmarks,
+    pin_conversation, search_conversations, AddBookmarkRequest, BookmarkResponse,
+    ConversationSearchResult, DeleteBookmarkResponse, ForkRequest, ForkResponse,
+    ListBookmarksResponse, MessageItem, MessageTreeResponse, PinRequest, PinResponse,
+    SearchResponse, TreeNode,
+};
 use crate::error::AppError;
 use crate::image_gen::{
     image_generate, image_providers, GeneratedImageItem, ImageGenerateRequest,
@@ -151,6 +158,13 @@ pub struct ApprovalResponse {
         crate::skills::get_skill,
         crate::skills::update_skill,
         crate::skills::delete_skill,
+        crate::extras::fork_conversation,
+        crate::extras::get_message_tree,
+        crate::extras::list_bookmarks,
+        crate::extras::add_bookmark,
+        crate::extras::delete_bookmark,
+        crate::extras::pin_conversation,
+        crate::extras::search_conversations,
     ),
     components(
         schemas(
@@ -214,6 +228,19 @@ pub struct ApprovalResponse {
             MatchSkillsResponse,
             LearnSkillsRequest,
             LearnSkillsResponse,
+            MessageItem,
+            TreeNode,
+            MessageTreeResponse,
+            ForkRequest,
+            ForkResponse,
+            BookmarkResponse,
+            ListBookmarksResponse,
+            AddBookmarkRequest,
+            DeleteBookmarkResponse,
+            PinRequest,
+            PinResponse,
+            ConversationSearchResult,
+            SearchResponse,
         )
     ),
     tags(
@@ -260,11 +287,18 @@ pub fn create_app(state: AppState) -> Router {
         .route("/api/artifacts/{id}", get(get_artifact))
         .route("/api/artifacts/{id}", put(update_artifact))
         .route("/api/artifacts/{id}", delete(delete_artifact))
-        // Conversation endpoints
+        // Conversation endpoints (search + static sub-paths before wildcards)
+        .route("/api/conversations/search", get(search_conversations))
         .route("/api/conversations", get(list_conversations))
         .route("/api/conversations", post(create_conversation))
+        .route("/api/conversations/{id}/fork", post(fork_conversation))
+        .route("/api/conversations/{id}/tree", get(get_message_tree))
+        .route("/api/conversations/{id}/bookmarks", get(list_bookmarks))
+        .route("/api/conversations/{id}/bookmarks", post(add_bookmark))
+        .route("/api/conversations/{id}/pin", put(pin_conversation))
         .route("/api/conversations/{id}", get(get_conversation))
         .route("/api/conversations/{id}", delete(delete_conversation))
+        .route("/api/bookmarks/{id}", delete(delete_bookmark))
         // RAG endpoints
         .route("/api/rag/upload", post(rag_upload))
         .route("/api/rag/query", post(rag_query))
@@ -355,6 +389,7 @@ pub async fn chat_handler(
             artifacts: vec![],
             timestamp: chrono::Utc::now(),
             metadata: serde_json::Value::Null,
+            parent_id: None,
         }],
         tools: vec![],
         temperature: None,

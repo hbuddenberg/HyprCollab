@@ -210,6 +210,7 @@ impl OpenAiResponse {
             artifacts: vec![],
             timestamp: chrono::Utc::now(),
             metadata: serde_json::Value::Null,
+            parent_id: None,
         };
 
         ChatResponse {
@@ -436,6 +437,7 @@ mod tests {
                 artifacts: vec![],
                 timestamp: chrono::Utc::now(),
                 metadata: serde_json::Value::Null,
+                parent_id: None,
             }],
             tools: vec![ToolDefinition {
                 name: "calculator".to_string(),

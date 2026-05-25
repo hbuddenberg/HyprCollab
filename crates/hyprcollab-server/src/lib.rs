@@ -3,6 +3,7 @@ pub mod artifacts;
 pub mod browser;
 pub mod conversations;
 pub mod error;
+pub mod extras;
 pub mod image_gen;
 pub mod memory;
 pub mod rag;
