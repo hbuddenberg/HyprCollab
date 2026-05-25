@@ -131,7 +131,7 @@ pub struct Artifact {
     pub language: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct TokenUsage {
     pub prompt_tokens: u32,
     pub completion_tokens: u32,
@@ -228,13 +228,13 @@ pub struct ModelInfo {
 }
 
 /// Structured SSE event types for the streaming chat API (S10).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub enum SseEvent {
     Token { content: String },
-    ToolCall { name: String, args: serde_json::Value, id: String },
+    ToolCall { name: String, #[schema(value_type = Object)] args: serde_json::Value, id: String },
     ToolResult { id: String, output: String, duration_ms: u64 },
     Thinking { content: String },
-    ApprovalRequest { tool: String, args: serde_json::Value, id: String },
+    ApprovalRequest { tool: String, #[schema(value_type = Object)] args: serde_json::Value, id: String },
     Done { usage: TokenUsage },
 }
 

@@ -13,33 +13,33 @@ use crate::state::AppState;
 
 // ── Request / Response types ─────────────────────────────────────────
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct CreateArtifactRequest {
     pub chat_id: String,
     pub artifact: Artifact,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct CreateArtifactResponse {
     pub id: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
 pub struct ListArtifactsQuery {
     pub chat_id: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct ListArtifactsResponse {
     pub artifacts: Vec<ArtifactMeta>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct UpdateArtifactRequest {
     pub artifact: Artifact,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct DeleteArtifactResponse {
     pub deleted: bool,
 }
@@ -47,6 +47,17 @@ pub struct DeleteArtifactResponse {
 // ── Handlers ─────────────────────────────────────────────────────────
 
 /// `POST /api/artifacts` — create a new artifact.
+#[utoipa::path(
+    post,
+    path = "/api/artifacts",
+    request_body = CreateArtifactRequest,
+    responses(
+        (status = 201, description = "Artifact created", body = CreateArtifactResponse),
+        (status = 400, description = "Missing or empty chat_id"),
+        (status = 500, description = "Storage error"),
+    ),
+    tag = "Artifacts"
+)]
 pub async fn create_artifact(
     State(state): State<AppState>,
     Json(payload): Json<CreateArtifactRequest>,
@@ -68,6 +79,17 @@ pub async fn create_artifact(
 }
 
 /// `GET /api/artifacts?chat_id=<id>` — list artifacts for a chat.
+#[utoipa::path(
+    get,
+    path = "/api/artifacts",
+    params(ListArtifactsQuery),
+    responses(
+        (status = 200, description = "Artifact list", body = ListArtifactsResponse),
+        (status = 400, description = "Missing chat_id"),
+        (status = 500, description = "Storage error"),
+    ),
+    tag = "Artifacts"
+)]
 pub async fn list_artifacts(
     State(state): State<AppState>,
     Query(params): Query<ListArtifactsQuery>,
@@ -86,6 +108,19 @@ pub async fn list_artifacts(
 }
 
 /// `GET /api/artifacts/:id` — get a single artifact's full content.
+#[utoipa::path(
+    get,
+    path = "/api/artifacts/{id}",
+    params(
+        ("id" = String, Path, description = "Artifact ID"),
+    ),
+    responses(
+        (status = 200, description = "Artifact content", body = hyprcollab_artifacts::Artifact),
+        (status = 404, description = "Not found"),
+        (status = 500, description = "Storage error"),
+    ),
+    tag = "Artifacts"
+)]
 pub async fn get_artifact(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -102,6 +137,20 @@ pub async fn get_artifact(
 }
 
 /// `PUT /api/artifacts/:id` — replace an artifact's content.
+#[utoipa::path(
+    put,
+    path = "/api/artifacts/{id}",
+    params(
+        ("id" = String, Path, description = "Artifact ID"),
+    ),
+    request_body = UpdateArtifactRequest,
+    responses(
+        (status = 204, description = "Updated successfully"),
+        (status = 404, description = "Not found"),
+        (status = 500, description = "Storage error"),
+    ),
+    tag = "Artifacts"
+)]
 pub async fn update_artifact(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -123,6 +172,18 @@ pub async fn update_artifact(
 }
 
 /// `DELETE /api/artifacts/:id` — delete an artifact.
+#[utoipa::path(
+    delete,
+    path = "/api/artifacts/{id}",
+    params(
+        ("id" = String, Path, description = "Artifact ID"),
+    ),
+    responses(
+        (status = 200, description = "Deletion result", body = DeleteArtifactResponse),
+        (status = 500, description = "Storage error"),
+    ),
+    tag = "Artifacts"
+)]
 pub async fn delete_artifact(
     State(state): State<AppState>,
     Path(id): Path<String>,

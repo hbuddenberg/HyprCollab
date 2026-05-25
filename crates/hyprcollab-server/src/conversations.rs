@@ -21,18 +21,18 @@ fn parse_chat_id(s: &str) -> Result<ChatId, AppError> {
 
 // ── Request / Response types ──────────────────────────────────────────────────
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct CreateConversationRequest {
     pub title: Option<String>,
     pub model: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct CreateConversationResponse {
     pub id: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct ConversationSummary {
     pub id: String,
     pub title: String,
@@ -41,12 +41,12 @@ pub struct ConversationSummary {
     pub last_message_at: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct ListConversationsResponse {
     pub conversations: Vec<ConversationSummary>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct MessageSummary {
     pub id: String,
     pub role: String,
@@ -54,7 +54,7 @@ pub struct MessageSummary {
     pub timestamp: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct ConversationDetail {
     pub id: String,
     pub title: String,
@@ -63,7 +63,7 @@ pub struct ConversationDetail {
     pub messages: Vec<MessageSummary>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct DeleteConversationResponse {
     pub deleted: bool,
 }
@@ -71,6 +71,15 @@ pub struct DeleteConversationResponse {
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
 /// `GET /api/conversations` — list all conversations.
+#[utoipa::path(
+    get,
+    path = "/api/conversations",
+    responses(
+        (status = 200, description = "All conversations", body = ListConversationsResponse),
+        (status = 500, description = "Storage error"),
+    ),
+    tag = "Conversations"
+)]
 pub async fn list_conversations(
     State(state): State<AppState>,
 ) -> Result<Json<ListConversationsResponse>, AppError> {
@@ -94,6 +103,20 @@ pub async fn list_conversations(
 }
 
 /// `GET /api/conversations/{id}` — get one conversation with its messages.
+#[utoipa::path(
+    get,
+    path = "/api/conversations/{id}",
+    params(
+        ("id" = String, Path, description = "Conversation UUID"),
+    ),
+    responses(
+        (status = 200, description = "Conversation with messages", body = ConversationDetail),
+        (status = 400, description = "Invalid UUID"),
+        (status = 404, description = "Not found"),
+        (status = 500, description = "Storage error"),
+    ),
+    tag = "Conversations"
+)]
 pub async fn get_conversation(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -129,6 +152,16 @@ pub async fn get_conversation(
 }
 
 /// `POST /api/conversations` — create a new conversation.
+#[utoipa::path(
+    post,
+    path = "/api/conversations",
+    request_body = CreateConversationRequest,
+    responses(
+        (status = 201, description = "Conversation created", body = CreateConversationResponse),
+        (status = 500, description = "Storage error"),
+    ),
+    tag = "Conversations"
+)]
 pub async fn create_conversation(
     State(state): State<AppState>,
     Json(payload): Json<CreateConversationRequest>,
@@ -146,6 +179,19 @@ pub async fn create_conversation(
 }
 
 /// `DELETE /api/conversations/{id}` — delete a conversation and its messages.
+#[utoipa::path(
+    delete,
+    path = "/api/conversations/{id}",
+    params(
+        ("id" = String, Path, description = "Conversation UUID"),
+    ),
+    responses(
+        (status = 200, description = "Deletion result", body = DeleteConversationResponse),
+        (status = 400, description = "Invalid UUID"),
+        (status = 500, description = "Storage error"),
+    ),
+    tag = "Conversations"
+)]
 pub async fn delete_conversation(
     State(state): State<AppState>,
     Path(id): Path<String>,

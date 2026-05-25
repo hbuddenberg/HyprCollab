@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 /// Opaque identifier for a stored artifact.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct ArtifactId(pub String);
 
 impl ArtifactId {
@@ -29,7 +29,7 @@ impl std::fmt::Display for ArtifactId {
 ///
 /// Stored as JSON in SQLite; text content is additionally written to the
 /// filesystem at `~/.local/share/hyprcollab/artifacts/{id}.{ext}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Artifact {
     Code {
@@ -139,7 +139,7 @@ impl Artifact {
 }
 
 /// Lightweight metadata row returned by list operations.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct ArtifactMeta {
     pub id: ArtifactId,
     pub chat_id: String,

@@ -17,6 +17,7 @@ thiserror = { workspace = true }
 async-trait = "0.1"
 tracing = { workspace = true }
 deadpool-sqlite = { workspace = true }
+utoipa = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
