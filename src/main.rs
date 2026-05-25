@@ -108,7 +108,7 @@ async fn serve(port: u16, db_override: Option<PathBuf>) -> Result<()> {
 
     let router = build_router(&config);
 
-    let state = hyprcollab_server::AppState::new_full(artifacts, router, memory);
+    let state = hyprcollab_server::AppState::new_full(artifacts, router, memory, None);
     let app = hyprcollab_server::create_app(state);
 
     let addr = format!("0.0.0.0:{port}");

@@ -3,6 +3,7 @@ use tokio::sync::Mutex;
 
 use hyprcollab_artifacts::ArtifactStore;
 use hyprcollab_memory::MemoryStore;
+use hyprcollab_rag::RagPipeline;
 use hyprcollab_router::LlmRouter;
 
 /// Shared state for the HyprCollab server.
@@ -18,6 +19,8 @@ pub struct AppState {
     pub router: Arc<LlmRouter>,
     /// SQLite-backed conversation and message store.
     pub memory: Arc<MemoryStore>,
+    /// Optional RAG pipeline (None when not configured).
+    pub rag: Option<Arc<RagPipeline>>,
 }
 
 impl std::fmt::Debug for AppState {
@@ -27,23 +30,30 @@ impl std::fmt::Debug for AppState {
 }
 
 impl AppState {
-    /// Convenience constructor for tests: empty router + in-memory SQLite.
+    /// Convenience constructor for tests: empty router + in-memory SQLite, no RAG.
     pub fn new(artifacts: ArtifactStore) -> Self {
         Self::new_full(
             artifacts,
             LlmRouter::new(),
             MemoryStore::open_in_memory().expect("in-memory SQLite"),
+            None,
         )
     }
 
     /// Full constructor used by the CLI binary.
-    pub fn new_full(artifacts: ArtifactStore, router: LlmRouter, memory: MemoryStore) -> Self {
+    pub fn new_full(
+        artifacts: ArtifactStore,
+        router: LlmRouter,
+        memory: MemoryStore,
+        rag: Option<RagPipeline>,
+    ) -> Self {
         Self {
             version: env!("CARGO_PKG_VERSION").to_string(),
             approvals: Arc::new(Mutex::new(Vec::new())),
             artifacts,
             router: Arc::new(router),
             memory: Arc::new(memory),
+            rag: rag.map(Arc::new),
         }
     }
 }

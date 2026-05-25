@@ -21,6 +21,7 @@ hyprcollab-artifacts = { path = "../hyprcollab-artifacts" }
 hyprcollab-core    = { workspace = true }
 hyprcollab-router  = { path = "../hyprcollab-router" }
 hyprcollab-memory  = { path = "../hyprcollab-memory" }
+hyprcollab-rag     = { path = "../hyprcollab-rag" }
 utoipa = { workspace = true }
 utoipa-scalar = { workspace = true }
 

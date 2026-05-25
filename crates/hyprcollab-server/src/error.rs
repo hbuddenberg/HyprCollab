@@ -19,6 +19,10 @@ pub enum AppError {
     /// 404 Not Found
     #[error("Resource not found: {0}")]
     NotFound(String),
+
+    /// 503 Service Unavailable
+    #[error("Service unavailable: {0}")]
+    ServiceUnavailable(String),
 }
 
 impl IntoResponse for AppError {
@@ -27,6 +31,7 @@ impl IntoResponse for AppError {
             AppError::Internal(_) => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
             AppError::BadRequest(_) => (StatusCode::BAD_REQUEST, self.to_string()),
             AppError::NotFound(_) => (StatusCode::NOT_FOUND, self.to_string()),
+            AppError::ServiceUnavailable(_) => (StatusCode::SERVICE_UNAVAILABLE, self.to_string()),
         };
 
         let body = Json(json!({

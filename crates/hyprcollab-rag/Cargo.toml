@@ -16,6 +16,13 @@ html5ever     = "0.39"
 lopdf         = "0.40"
 csv           = "1"
 mime_guess    = "2"
+uuid          = { workspace = true }
+async-trait   = { workspace = true }
+reqwest       = { workspace = true }
+tokio         = { workspace = true }
+rusqlite      = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+mockito  = "1"
+tokio    = { workspace = true }

@@ -25,6 +25,11 @@ use crate::conversations::{
     create_conversation, delete_conversation, get_conversation, list_conversations,
 };
 use crate::error::AppError;
+use crate::rag::{
+    rag_delete_document, rag_list_documents, rag_query, rag_upload, RagDeleteResponse,
+    RagDocument, RagDocumentsResponse, RagIngestResponse, RagQueryRequest, RagQueryResponse,
+    RagSearchResult,
+};
 use crate::sse::sse_event_to_event;
 use crate::state::AppState;
 
@@ -93,6 +98,10 @@ pub struct ApprovalResponse {
         crate::conversations::list_conversations,
         crate::conversations::get_conversation,
         crate::conversations::delete_conversation,
+        crate::rag::rag_upload,
+        crate::rag::rag_query,
+        crate::rag::rag_list_documents,
+        crate::rag::rag_delete_document,
     ),
     components(
         schemas(
@@ -114,6 +123,13 @@ pub struct ApprovalResponse {
             crate::conversations::MessageSummary,
             crate::conversations::ConversationDetail,
             crate::conversations::DeleteConversationResponse,
+            RagIngestResponse,
+            RagQueryRequest,
+            RagQueryResponse,
+            RagSearchResult,
+            RagDocument,
+            RagDocumentsResponse,
+            RagDeleteResponse,
         )
     ),
     tags(
@@ -121,6 +137,7 @@ pub struct ApprovalResponse {
         (name = "Chat", description = "Chat completion endpoints"),
         (name = "Artifacts", description = "Artifact management"),
         (name = "Conversations", description = "Conversation CRUD"),
+        (name = "RAG", description = "Retrieval-Augmented Generation"),
     ),
     info(
         title = "HyprCollab API",
@@ -159,6 +176,11 @@ pub fn create_app(state: AppState) -> Router {
         .route("/api/conversations", post(create_conversation))
         .route("/api/conversations/{id}", get(get_conversation))
         .route("/api/conversations/{id}", delete(delete_conversation))
+        // RAG endpoints
+        .route("/api/rag/upload", post(rag_upload))
+        .route("/api/rag/query", post(rag_query))
+        .route("/api/rag/documents", get(rag_list_documents))
+        .route("/api/rag/documents/{id}", delete(rag_delete_document))
         // OpenAPI docs UI
         .merge(Scalar::with_url("/docs", ApiDoc::openapi()))
         .layer(cors)

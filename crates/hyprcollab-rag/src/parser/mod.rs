@@ -41,6 +41,25 @@ pub trait DocumentParser: Send + Sync {
     fn parse(&self, input: &[u8], filename: Option<&str>) -> Result<ParsedDocument>;
 }
 
+/// Registry that dispatches to the correct parser by file extension.
+pub struct ParserRegistry;
+
+impl Default for ParserRegistry {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl ParserRegistry {
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn parse(&self, input: &[u8], filename: Option<&str>) -> crate::Result<ParsedDocument> {
+        parse(input, filename)
+    }
+}
+
 /// Dispatch to the right parser based on file extension.
 pub fn parse(input: &[u8], filename: Option<&str>) -> Result<ParsedDocument> {
     let ext = filename

@@ -7,7 +7,7 @@ use serde_json::Value;
 
 use hyprcollab_artifacts::ArtifactStore;
 use hyprcollab_server::{
-    create_app, AppState, ChatRequest, ChatResponse,
+    create_app, AppState, ChatRequest,
     ApprovalRequest, ApprovalResponse, HealthResponse,
 };
 

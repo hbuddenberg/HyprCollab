@@ -2,6 +2,7 @@ pub mod app;
 pub mod artifacts;
 pub mod conversations;
 pub mod error;
+pub mod rag;
 pub mod sse;
 pub mod state;
 
