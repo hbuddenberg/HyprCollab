@@ -4,6 +4,7 @@ pub mod browser;
 pub mod conversations;
 pub mod error;
 pub mod image_gen;
+pub mod memory;
 pub mod rag;
 pub mod sse;
 pub mod state;

@@ -25,11 +25,10 @@ pub fn run(conn: &rusqlite::Connection) -> Result<()> {
         )
         .unwrap_or(0);
 
-    let migrations: &[(i32, &str, &str)] = &[(
-        1,
-        "001_initial",
-        include_str!("../migrations/001_initial.sql"),
-    )];
+    let migrations: &[(i32, &str, &str)] = &[
+        (1, "001_initial", include_str!("../migrations/001_initial.sql")),
+        (2, "002_working_memory", include_str!("../migrations/002_working_memory.sql")),
+    ];
 
     for &(version, name, sql) in migrations {
         if version > current {
@@ -83,6 +82,7 @@ mod tests {
         assert!(tables.contains(&"folder_configs".to_string()));
         assert!(tables.contains(&"approval_rules".to_string()));
         assert!(tables.contains(&"registered_agents".to_string()));
+        assert!(tables.contains(&"facts".to_string()));
     }
 
     #[test]
@@ -96,6 +96,6 @@ mod tests {
                 row.get(0)
             })
             .unwrap();
-        assert_eq!(version, 1);
+        assert_eq!(version, 2);
     }
 }

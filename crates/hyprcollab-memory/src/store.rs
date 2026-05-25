@@ -49,7 +49,7 @@ impl MemoryStore {
         Ok(Self { conn: Arc::new(Mutex::new(conn)) })
     }
 
-    fn lock_conn(&self) -> Result<std::sync::MutexGuard<'_, rusqlite::Connection>> {
+    pub(crate) fn lock_conn(&self) -> Result<std::sync::MutexGuard<'_, rusqlite::Connection>> {
         self.conn
             .lock()
             .map_err(|_| CoreError::Memory("database mutex poisoned".to_string()))

@@ -21,6 +21,11 @@ use utoipa_scalar::{Scalar, Servable as _};
 use crate::artifacts::{
     create_artifact, delete_artifact, get_artifact, list_artifacts, update_artifact,
 };
+use crate::memory::{
+    create_fact, delete_fact, get_fact, list_facts, prune_facts, search_facts, update_fact,
+    CreateFactRequest, DeleteFactResponse, FactResponse, ListFactsResponse, PruneFactsRequest,
+    PruneFactsResponse, UpdateFactRequest,
+};
 use crate::browser::{
     browser_navigate, browser_screenshot, browser_search, browser_sessions, BrowserLink,
     BrowserNavigateRequest, BrowserNavigateResponse, BrowserScreenshotRequest,
@@ -118,6 +123,13 @@ pub struct ApprovalResponse {
         crate::browser::browser_screenshot,
         crate::image_gen::image_generate,
         crate::image_gen::image_providers,
+        crate::memory::list_facts,
+        crate::memory::create_fact,
+        crate::memory::search_facts,
+        crate::memory::get_fact,
+        crate::memory::update_fact,
+        crate::memory::delete_fact,
+        crate::memory::prune_facts,
     ),
     components(
         schemas(
@@ -160,6 +172,13 @@ pub struct ApprovalResponse {
             GeneratedImageItem,
             ImageProviderEntry,
             ImageProvidersResponse,
+            CreateFactRequest,
+            UpdateFactRequest,
+            PruneFactsRequest,
+            FactResponse,
+            ListFactsResponse,
+            DeleteFactResponse,
+            PruneFactsResponse,
         )
     ),
     tags(
@@ -170,6 +189,7 @@ pub struct ApprovalResponse {
         (name = "RAG", description = "Retrieval-Augmented Generation"),
         (name = "Browser", description = "Browser automation and web scraping"),
         (name = "Image", description = "Image generation"),
+        (name = "WorkingMemory", description = "Working memory — persistent facts with FTS5 search"),
     ),
     info(
         title = "HyprCollab API",
@@ -221,6 +241,14 @@ pub fn create_app(state: AppState) -> Router {
         // Image generation endpoints
         .route("/api/image/generate", post(image_generate))
         .route("/api/image/providers", get(image_providers))
+        // Working memory endpoints (search + prune before {id} to avoid conflicts)
+        .route("/api/memory/facts", get(list_facts))
+        .route("/api/memory/facts", post(create_fact))
+        .route("/api/memory/facts/search", get(search_facts))
+        .route("/api/memory/facts/prune", post(prune_facts))
+        .route("/api/memory/facts/{id}", get(get_fact))
+        .route("/api/memory/facts/{id}", put(update_fact))
+        .route("/api/memory/facts/{id}", delete(delete_fact))
         // OpenAPI docs UI
         .merge(Scalar::with_url("/docs", ApiDoc::openapi()))
         .layer(cors)
