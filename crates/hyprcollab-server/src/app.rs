@@ -21,10 +21,20 @@ use utoipa_scalar::{Scalar, Servable as _};
 use crate::artifacts::{
     create_artifact, delete_artifact, get_artifact, list_artifacts, update_artifact,
 };
+use crate::browser::{
+    browser_navigate, browser_screenshot, browser_search, browser_sessions, BrowserLink,
+    BrowserNavigateRequest, BrowserNavigateResponse, BrowserScreenshotRequest,
+    BrowserScreenshotResponse, BrowserSearchRequest, BrowserSearchResponse, BrowserSessionEntry,
+    BrowserSessionsResponse,
+};
 use crate::conversations::{
     create_conversation, delete_conversation, get_conversation, list_conversations,
 };
 use crate::error::AppError;
+use crate::image_gen::{
+    image_generate, image_providers, GeneratedImageItem, ImageGenerateRequest,
+    ImageGenerateResponse, ImageProviderEntry, ImageProvidersResponse,
+};
 use crate::rag::{
     rag_delete_document, rag_list_documents, rag_query, rag_upload, RagDeleteResponse,
     RagDocument, RagDocumentsResponse, RagIngestResponse, RagQueryRequest, RagQueryResponse,
@@ -102,6 +112,12 @@ pub struct ApprovalResponse {
         crate::rag::rag_query,
         crate::rag::rag_list_documents,
         crate::rag::rag_delete_document,
+        crate::browser::browser_navigate,
+        crate::browser::browser_search,
+        crate::browser::browser_sessions,
+        crate::browser::browser_screenshot,
+        crate::image_gen::image_generate,
+        crate::image_gen::image_providers,
     ),
     components(
         schemas(
@@ -130,6 +146,20 @@ pub struct ApprovalResponse {
             RagDocument,
             RagDocumentsResponse,
             RagDeleteResponse,
+            BrowserNavigateRequest,
+            BrowserNavigateResponse,
+            BrowserLink,
+            BrowserSearchRequest,
+            BrowserSearchResponse,
+            BrowserSessionEntry,
+            BrowserSessionsResponse,
+            BrowserScreenshotRequest,
+            BrowserScreenshotResponse,
+            ImageGenerateRequest,
+            ImageGenerateResponse,
+            GeneratedImageItem,
+            ImageProviderEntry,
+            ImageProvidersResponse,
         )
     ),
     tags(
@@ -138,6 +168,8 @@ pub struct ApprovalResponse {
         (name = "Artifacts", description = "Artifact management"),
         (name = "Conversations", description = "Conversation CRUD"),
         (name = "RAG", description = "Retrieval-Augmented Generation"),
+        (name = "Browser", description = "Browser automation and web scraping"),
+        (name = "Image", description = "Image generation"),
     ),
     info(
         title = "HyprCollab API",
@@ -181,6 +213,14 @@ pub fn create_app(state: AppState) -> Router {
         .route("/api/rag/query", post(rag_query))
         .route("/api/rag/documents", get(rag_list_documents))
         .route("/api/rag/documents/{id}", delete(rag_delete_document))
+        // Browser endpoints
+        .route("/api/browser/navigate", post(browser_navigate))
+        .route("/api/browser/search", post(browser_search))
+        .route("/api/browser/sessions", get(browser_sessions))
+        .route("/api/browser/screenshot", post(browser_screenshot))
+        // Image generation endpoints
+        .route("/api/image/generate", post(image_generate))
+        .route("/api/image/providers", get(image_providers))
         // OpenAPI docs UI
         .merge(Scalar::with_url("/docs", ApiDoc::openapi()))
         .layer(cors)

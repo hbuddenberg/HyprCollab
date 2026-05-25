@@ -10,6 +10,8 @@ mod design;
 mod review;
 mod help;
 mod config_cmd;
+mod image_cmd;
+mod scrape;
 
 pub use agent::AgentCommand;
 pub use skill::SkillCommand;
@@ -21,6 +23,8 @@ pub use design::DesignCommand;
 pub use review::ReviewCommand;
 pub use help::HelpCommand;
 pub use config_cmd::ConfigCommand;
+pub use image_cmd::ImageCommand;
+pub use scrape::ScrapeCommand;
 
 use crate::registry::CommandRegistry;
 
@@ -36,4 +40,6 @@ pub fn register_all(registry: &mut CommandRegistry) {
     registry.register(Box::new(ReviewCommand));
     registry.register(Box::new(HelpCommand));
     registry.register(Box::new(ConfigCommand));
+    registry.register(Box::new(ImageCommand));
+    registry.register(Box::new(ScrapeCommand));
 }
