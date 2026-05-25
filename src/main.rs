@@ -125,10 +125,11 @@ fn build_router(config: &Config) -> hyprcollab_router::LlmRouter {
     let mut router = LlmRouter::new();
 
     if let Some(key) = &config.openai_api_key {
-        router.register(
-            "openai",
-            Box::new(hyprcollab_provider_openai::OpenAiClient::new(key)),
-        );
+        let mut client = hyprcollab_provider_openai::OpenAiClient::new(key);
+        if let Ok(base_url) = std::env::var("OPENAI_BASE_URL") {
+            client = client.with_base_url(&base_url);
+        }
+        router.register("openai", Box::new(client));
         if config.default_provider.as_deref().unwrap_or("openai") == "openai" {
             router.set_default("openai");
         }
