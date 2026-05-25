@@ -100,7 +100,7 @@ impl MemoryStore {
         let conn = self.lock_conn()?;
         let mut stmt = conn
             .prepare(
-                "SELECT id, title, workspace_id, persona_id, agent_role_id, model, created_at, updated_at, pinned
+                "SELECT id, title, workspace_id, persona_id, agent_role_id, model, created_at, updated_at, pinned, last_read_message_id
                  FROM chats WHERE id = ?1",
             )
             .map_err(|e| CoreError::Memory(format!("get_chat prepare: {e}")))?;
@@ -124,7 +124,7 @@ impl MemoryStore {
         let conn = self.lock_conn()?;
         let mut stmt = conn
             .prepare(
-                "SELECT id, title, workspace_id, persona_id, agent_role_id, model, created_at, updated_at, pinned
+                "SELECT id, title, workspace_id, persona_id, agent_role_id, model, created_at, updated_at, pinned, last_read_message_id
                  FROM chats ORDER BY updated_at DESC",
             )
             .map_err(|e| CoreError::Memory(format!("list_chats prepare: {e}")))?;
@@ -172,7 +172,7 @@ impl MemoryStore {
         let conn = self.lock_conn()?;
         let mut stmt = conn
             .prepare(
-                "SELECT id, title, workspace_id, persona_id, agent_role_id, model, created_at, updated_at, pinned
+                "SELECT id, title, workspace_id, persona_id, agent_role_id, model, created_at, updated_at, pinned, last_read_message_id
                  FROM chats WHERE pinned = 1 ORDER BY updated_at DESC",
             )
             .map_err(|e| CoreError::Memory(format!("list_pinned_chats prepare: {e}")))?;
@@ -189,6 +189,53 @@ impl MemoryStore {
             chats.push(row.map_err(|e| CoreError::Memory(format!("list_pinned_chats row: {e}")))?);
         }
         Ok(chats)
+    }
+
+    // ── Session persistence ────────────────────────────────────────────────
+
+    /// Mark a chat as read up to `message_id`. Returns `true` if the chat was found.
+    pub fn mark_chat_read(&self, chat_id: ChatId, message_id: MessageId) -> Result<bool> {
+        let conn = self.lock_conn()?;
+        let rows = conn
+            .execute(
+                "UPDATE chats SET last_read_message_id = ?1 WHERE id = ?2",
+                rusqlite::params![message_id.to_string(), chat_id.to_string()],
+            )
+            .map_err(|e| CoreError::Memory(format!("mark_chat_read: {e}")))?;
+        Ok(rows > 0)
+    }
+
+    /// Get a chat together with the count of messages newer than `last_read_message_id`.
+    /// Returns `None` if the chat does not exist.
+    pub fn get_chat_with_unread(
+        &self,
+        chat_id: ChatId,
+    ) -> Result<Option<(ChatRecord, usize)>> {
+        let chat = match self.get_chat(chat_id)? {
+            Some(c) => c,
+            None => return Ok(None),
+        };
+
+        let conn = self.lock_conn()?;
+        let unread: i64 = if let Some(last_read_id) = chat.last_read_message_id {
+            conn.query_row(
+                "SELECT COUNT(*) FROM messages
+                 WHERE chat_id = ?1
+                   AND timestamp > (SELECT timestamp FROM messages WHERE id = ?2)",
+                rusqlite::params![chat_id.to_string(), last_read_id.to_string()],
+                |row| row.get(0),
+            )
+            .unwrap_or(0)
+        } else {
+            conn.query_row(
+                "SELECT COUNT(*) FROM messages WHERE chat_id = ?1",
+                rusqlite::params![chat_id.to_string()],
+                |row| row.get(0),
+            )
+            .unwrap_or(0)
+        };
+
+        Ok(Some((chat, unread as usize)))
     }
 
     // ── Message CRUD ───────────────────────────────────────────────────
@@ -429,6 +476,7 @@ pub struct ChatRecord {
     pub created_at: String,
     pub updated_at: String,
     pub pinned: bool,
+    pub last_read_message_id: Option<MessageId>,
 }
 
 impl ChatRecord {
@@ -444,6 +492,7 @@ impl ChatRecord {
         let created_at: String = row.get(6).unwrap_or_default();
         let updated_at: String = row.get(7).unwrap_or_default();
         let pinned_int: i64 = row.get(8).unwrap_or(0);
+        let last_read_str: Option<String> = row.get(9).unwrap_or(None);
 
         Ok(Self {
             id: ChatId(
@@ -479,6 +528,16 @@ impl ChatRecord {
             created_at,
             updated_at,
             pinned: pinned_int != 0,
+            last_read_message_id: last_read_str
+                .as_deref()
+                .map(|s| {
+                    uuid::Uuid::parse_str(s)
+                        .map(MessageId)
+                        .map_err(|e| {
+                            CoreError::Memory(format!("invalid last_read_message_id '{s}': {e}"))
+                        })
+                })
+                .transpose()?,
         })
     }
 }
@@ -823,6 +882,63 @@ mod tests {
         let pinned = store.list_pinned_chats().unwrap();
         assert_eq!(pinned.len(), 2);
         assert!(pinned.iter().all(|c| c.pinned));
+    }
+
+    // ── Session persistence ────────────────────────────────────────────
+
+    #[test]
+    fn mark_chat_read_sets_last_read_message_id() {
+        let store = MemoryStore::open_in_memory().unwrap();
+        let chat_id = ChatId::new();
+        store.create_chat(chat_id, "Read Test", None, None, None, "gpt-4", false).unwrap();
+
+        let msg = make_message(chat_id, MessageRole::User, "hello");
+        store.add_message(&msg).unwrap();
+
+        assert!(store.mark_chat_read(chat_id, msg.id).unwrap());
+        let chat = store.get_chat(chat_id).unwrap().unwrap();
+        assert_eq!(chat.last_read_message_id, Some(msg.id));
+    }
+
+    #[test]
+    fn mark_chat_read_unknown_returns_false() {
+        let store = MemoryStore::open_in_memory().unwrap();
+        assert!(!store.mark_chat_read(ChatId::new(), MessageId::new()).unwrap());
+    }
+
+    #[test]
+    fn get_chat_with_unread_all_unread() {
+        let store = MemoryStore::open_in_memory().unwrap();
+        let chat_id = ChatId::new();
+        store.create_chat(chat_id, "Unread", None, None, None, "gpt-4", false).unwrap();
+
+        for i in 0..3 {
+            store.add_message(&make_message(chat_id, MessageRole::User, &format!("msg {i}"))).unwrap();
+        }
+
+        let (_, unread) = store.get_chat_with_unread(chat_id).unwrap().unwrap();
+        assert_eq!(unread, 3);
+    }
+
+    #[test]
+    fn get_chat_with_unread_after_mark_read() {
+        let store = MemoryStore::open_in_memory().unwrap();
+        let chat_id = ChatId::new();
+        store.create_chat(chat_id, "Partial", None, None, None, "gpt-4", false).unwrap();
+
+        let m1 = make_message(chat_id, MessageRole::User, "first");
+        store.add_message(&m1).unwrap();
+        // Small sleep to ensure distinct timestamps
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        let m2 = make_message(chat_id, MessageRole::Assistant, "second");
+        store.add_message(&m2).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        let m3 = make_message(chat_id, MessageRole::User, "third");
+        store.add_message(&m3).unwrap();
+
+        store.mark_chat_read(chat_id, m1.id).unwrap();
+        let (_, unread) = store.get_chat_with_unread(chat_id).unwrap().unwrap();
+        assert_eq!(unread, 2);
     }
 
     // ── Branching ─────────────────────────────────────────────────────

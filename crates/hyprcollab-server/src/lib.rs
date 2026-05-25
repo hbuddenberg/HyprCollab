@@ -4,6 +4,7 @@ pub mod browser;
 pub mod conversations;
 pub mod error;
 pub mod extras;
+pub mod extras2;
 pub mod image_gen;
 pub mod memory;
 pub mod rag;
@@ -13,8 +14,8 @@ pub mod skills;
 pub mod themes;
 
 pub use app::{
-    create_app, ApprovalRequest, ApprovalResponse, ChatRequest, ChatResponse, ChatStreamChunk,
-    HealthResponse,
+    create_app, create_app_with_docs, ApprovalRequest, ApprovalResponse, ChatRequest, ChatResponse,
+    ChatStreamChunk, HealthResponse,
 };
 pub use error::AppError;
 pub use state::AppState;

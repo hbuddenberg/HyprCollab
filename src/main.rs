@@ -109,7 +109,7 @@ async fn serve(port: u16, db_override: Option<PathBuf>) -> Result<()> {
     let router = build_router(&config);
 
     let state = hyprcollab_server::AppState::new_full(artifacts, router, memory, None);
-    let app = hyprcollab_server::create_app(state);
+    let app = hyprcollab_server::create_app_with_docs(state);
 
     let addr = format!("0.0.0.0:{port}");
     tracing::info!("hyprcollab server listening on {addr}");

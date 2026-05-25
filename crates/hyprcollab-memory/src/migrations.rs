@@ -32,6 +32,9 @@ pub fn run(conn: &rusqlite::Connection) -> Result<()> {
         (4, "004_branching",      include_str!("../migrations/004_branching.sql")),
         (5, "005_bookmarks",      include_str!("../migrations/005_bookmarks.sql")),
         (6, "006_search",         include_str!("../migrations/006_search.sql")),
+        (7, "007_token_usage",    include_str!("../migrations/007_token_usage.sql")),
+        (8, "008_templates",      include_str!("../migrations/008_templates.sql")),
+        (9, "009_session",        include_str!("../migrations/009_session.sql")),
     ];
 
     for &(version, name, sql) in migrations {
@@ -89,6 +92,8 @@ mod tests {
         assert!(tables.contains(&"facts".to_string()));
         assert!(tables.contains(&"skills".to_string()));
         assert!(tables.contains(&"bookmarks".to_string()));
+        assert!(tables.contains(&"token_usage".to_string()));
+        assert!(tables.contains(&"prompt_templates".to_string()));
     }
 
     #[test]
@@ -102,6 +107,6 @@ mod tests {
                 row.get(0)
             })
             .unwrap();
-        assert_eq!(version, 6);
+        assert_eq!(version, 9);
     }
 }
