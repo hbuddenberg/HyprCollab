@@ -3,6 +3,22 @@ name = "hyprcollab-image"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Multi-backend image generation"
+description = "Multi-backend image generation: DALL-E, Flux, ComfyUI, A1111"
 
 [dependencies]
+hyprcollab-core = { path = "../hyprcollab-core" }
+thiserror   = { workspace = true }
+serde       = { workspace = true }
+serde_json  = { workspace = true }
+reqwest     = { workspace = true }
+tokio       = { workspace = true }
+chrono      = { workspace = true }
+base64      = { workspace = true }
+uuid        = { workspace = true }
+tracing     = { workspace = true }
+async-trait = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+mockito  = "1"
+tokio    = { workspace = true }
