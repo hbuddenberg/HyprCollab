@@ -1248,7 +1248,8 @@ hyprcollab/
 │   ├── hyprcollab-memory/          # SQLite memory engine
 │   ├── hyprcollab-rag/             # RAG pipeline
 │   ├── hyprcollab-artifacts/       # Artifact types + render
-│   ├── hyprcollab-acp/             # ACP connector system
+│   ├── hyprcollab-terminal-render/ # Chat → ANSI renderer (markdown→ANSI, artifacts, tool calls)
+│   ├── hyprcollab-acp/             # ACP connector system (CC/Codex/AGY)
 │   ├── hyprcollab-skills/          # Skills YAML engine
 │   ├── hyprcollab-tools/           # Tool implementations
 │   ├── hyprcollab-mcp/             # MCP client
@@ -1270,7 +1271,7 @@ hyprcollab/
 │   ├── hyprcollab-provider-ollama/
 │   └── hyprcollab-provider-openrouter/
 ├── platforms/
-│   ├── hyprcollab-tauri/           # Tauri 2.0 desktop app
+│   ├── hyprcollab-tauri/           # Tauri 2.0 desktop app (xterm.js + PTY + portable-pty)
 │   ├── hyprcollab-tui/             # ratatui terminal UI
 │   └── hyprcollab-pwa/             # PWA manifest + service worker
 ├── extensions/                     # Built-in extensions (core features as extensions)

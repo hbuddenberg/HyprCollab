@@ -317,47 +317,56 @@ M3, M4, M5 son **paralelizables** después de M2.
 
 ---
 
-## Fase 6 — Desktop (Tauri) + ACP + Mobile (Semanas 26-29)
+## Fase 6 — Desktop (Tauri) + Web Terminal-Like + ACP + Mobile (Semanas 26-29)
 
-### Semana 26: Tauri Desktop App
+> **Filosofía:** Web + Desktop se sienten como una terminal real.
+> Ver [FASE6-PLAN.md](./FASE6-PLAN.md) para arquitectura detallada.
 
-- [ ] `hyprcollab-tauri`: Tauri 2.0 setup (Linux + macOS)
-- [ ] PlatformAdapter impl para Tauri
-- [ ] System tray icon
-- [ ] Global shortcuts (configurables)
-- [ ] Native notifications
-- [ ] Auto-update mechanism
-- [ ] Window state persistence
+### Semana 26: Tauri 2.0 Setup + PTY Bridge
 
-### Semana 27: ACP Connector
+- [ ] `hyprcollab-tauri`: Tauri 2.0 scaffold (src-tauri/ + src/ frontend)
+- [ ] PTY bridge: portable-pty 0.9 → spawn shell real (bash/zsh/fish)
+- [ ] IPC Commands: pty_create, pty_write, pty_resize, pty_kill
+- [ ] IPC Events: pty-output → streaming bidireccional
+- [ ] xterm.js v6.0 + addon-webgl (GPU 60fps) + addon-fit + addon-image
+- [ ] Terminal theme: bg #0d1117, fg #e6edf3, cursor #58a6ff, JetBrainsMono NF
+- [ ] System tray icon + global shortcuts + window state persistence
+- [ ] Native notifications + auto-update (Tauri plugins)
+- [ ] Tests: 15+ PTY (create, write, read, resize, kill, multi-session)
 
-- [ ] `hyprcollab-acp/connector`: trait AcpConnector
-- [ ] `hyprcollab-acp/claude_code`: `claude -p --output-format stream-json`
-- [ ] `hyprcollab-acp/codex`: `codex --acp --stdio`
-- [ ] `hyprcollab-acp/agy`: `agy -p --output-format stream-json`
-- [ ] Process spawning + PTY handling
-- [ ] Output stream parsing (JSON lines)
+### Semana 27: Chat Terminal Renderer + ACP Connector
 
-### Semana 28: ACP Visualization + Mobile
+- [ ] `hyprcollab-terminal-render`: Chat → ANSI renderer
+- [ ] User messages: `▌ You 14:30` con accent color
+- [ ] Assistant messages: `▌ Persona` con purple, markdown→ANSI parsing
+- [ ] Tool calls: bloques colapsables cyan (╭─ name ─)
+- [ ] Artifacts inline: código con syntax highlight, imágenes via kitty protocol
+- [ ] `hyprcollab-acp/connector`: trait AcpConnector (spawn, send, read, terminate)
+- [ ] Implementaciones: ClaudeCodeConnector, CodexConnector, AgYConnector
+- [ ] ACP events: Token, ToolCallStart, ToolCallEnd, Error, Done
+- [ ] Tests: 20+ (ANSI rendering, markdown→ANSI, artifact, ACP mock)
 
-- [ ] Frontend: ACP Monitor panel
-- [ ] Token stream display (terminal-style)
-- [ ] Tool call cards (diff files, run commands)
-- [ ] Session list + status
-- [ ] `hyprcollab-pwa`: PWA manifest + service worker
-- [ ] Touch-optimized UI components
-- [ ] Responsive design para tablets
+### Semana 28: Sidebar Dioxus + Chat Integration + ACP Monitor
 
-### Semana 29: Voice + Multi-model Compare
+- [ ] Sidebar Dioxus: 3 tabs (💬 Chats, 📁 Projects, 🎭 Personas)
+- [ ] Chat input: Dioxus overlay (textarea + slash command autocomplete)
+- [ ] Chat end-to-end: input → Axum backend → LLM → SSE → ChatRenderer → ANSI → xterm.write()
+- [ ] ACP Monitor panel: lista sesiones, mini-xterm streams, tool call cards
+- [ ] File drag & drop, image attach (kitty protocol preview)
+- [ ] Tests: 15+ (sidebar, input handling, ACP sessions)
 
-- [ ] `hyprcollab-voice`: Whisper.cpp bindgen + cpal audio capture
-- [ ] Push-to-talk UI component
-- [ ] TTS: edge-tts integration
-- [ ] Multi-model compare: ParallelProvider → N modelos lado a lado
-- [ ] Diff view: comparar respuestas
-- [ ] Export PDF/PNG (con Playwright render)
+### Semana 29: Voice + Multi-model Compare + PWA + Polish
 
-**Milestone 6:** Desktop app Tauri. ACP visualization. PWA mobile. Voice mode.
+- [ ] `hyprcollab-voice`: Whisper.cpp bindgen (whisper-rs) + cpal audio capture
+- [ ] Push-to-talk (Space → grabar → transcribe → send)
+- [ ] TTS: edge-tts integration → audio response playback
+- [ ] Multi-model compare: ParallelProvider → split pane (tmux-style)
+- [ ] Diff view: respuestas lado a lado con colores distintos
+- [ ] `hyprcollab-pwa`: PWA manifest + service worker + touch UI
+- [ ] Polish: cursor blink, fade-in, smooth scroll, tab management
+- [ ] Tests: 10+ (voice mock, parallel provider, PWA validation)
+
+**Milestone 6:** Desktop app Tauri con PTY real. Chat como ANSI terminal. ACP visualization. PWA mobile. Voice mode.
 
 ---
 
