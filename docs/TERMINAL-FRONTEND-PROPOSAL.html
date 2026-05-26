@@ -1,0 +1,2324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HyprCollab — Terminal Frontend Proposal</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="Interactive frontend design proposal for HyprCollab - A terminal-first agentic AI chat platform built for developers, architects, and designers.">
+  <meta name="theme-color" content="#0d1117">
+  
+  <!-- JetBrains Mono Font Fallback -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  
+  <style>
+    /* ===== MODERN CSS DESIGN SYSTEM & RESET ===== */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    /* Theme CSS Variables */
+    :root {
+      /* Default: Terminal Dark (GitHub Dark) */
+      --bg-primary: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-tertiary: #1c2128;
+      --border: #30363d;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --text-muted: #484f58;
+      
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --yellow: #d29922;
+      --red: #f85149;
+      --purple: #bc8cff;
+      --cyan: #39d2c0;
+      --orange: #f0883e;
+      
+      --font: 'JetBrains Mono', monospace;
+      --sidebar-width: 240px;
+      --acp-width: 320px;
+    }
+
+    /* Catppuccin Mocha */
+    body.theme-catppuccin {
+      --bg-primary: #1e1e2e;
+      --bg-secondary: #181825;
+      --bg-tertiary: #11111b;
+      --border: #313244;
+      --text-primary: #cdd6f4;
+      --text-secondary: #a6adc8;
+      --text-muted: #585b70;
+      
+      --accent: #89b4fa;
+      --green: #a6e3a1;
+      --yellow: #f9e2af;
+      --red: #f38ba8;
+      --purple: #cba6f7;
+      --cyan: #89dceb;
+      --orange: #fab387;
+    }
+
+    /* Nord Theme */
+    body.theme-nord {
+      --bg-primary: #2e3440;
+      --bg-secondary: #3b4252;
+      --bg-tertiary: #242933;
+      --border: #4c566a;
+      --text-primary: #eceff4;
+      --text-secondary: #d8dee9;
+      --text-muted: #434c5e;
+      
+      --accent: #88c0d0;
+      --green: #a3be8c;
+      --yellow: #ebcb8b;
+      --red: #bf616a;
+      --purple: #b48ead;
+      --cyan: #8fbcbb;
+      --orange: #d08770;
+    }
+
+    /* Dracula Theme */
+    body.theme-dracula {
+      --bg-primary: #282a36;
+      --bg-secondary: #1e1f29;
+      --bg-tertiary: #191a21;
+      --border: #44475a;
+      --text-primary: #f8f8f2;
+      --text-secondary: #6272a4;
+      --text-muted: #44475a;
+      
+      --accent: #ff79c6;
+      --green: #50fa7b;
+      --yellow: #f1fa8c;
+      --red: #ff5555;
+      --purple: #bd93f9;
+      --cyan: #8be9fd;
+      --orange: #ffb86c;
+    }
+
+    /* Tokyo Night Theme */
+    body.theme-tokyonight {
+      --bg-primary: #1a1b26;
+      --bg-secondary: #1f2335;
+      --bg-tertiary: #16161e;
+      --border: #383e5a;
+      --text-primary: #a9b1d6;
+      --text-secondary: #787c99;
+      --text-muted: #444b6a;
+      
+      --accent: #7aa2f7;
+      --green: #9ece6a;
+      --yellow: #e0af68;
+      --red: #f7768e;
+      --purple: #bb9af7;
+      --cyan: #7dcfff;
+      --orange: #ff9e64;
+    }
+
+    body {
+      font-family: var(--font);
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: 13px;
+      line-height: 1.2;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ===== CRT SCANLINE & FLICKER OVERLAY ===== */
+    .crt-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%), 
+                  linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+      background-size: 100% 3px, 3px 100%;
+      z-index: 99999;
+      pointer-events: none;
+      opacity: 0.8;
+      animation: crt-flicker 0.15s infinite;
+    }
+    
+    .crt-overlay.disabled {
+      display: none;
+    }
+
+    @keyframes crt-flicker {
+      0% { opacity: 0.78; }
+      50% { opacity: 0.82; }
+      100% { opacity: 0.78; }
+    }
+
+    /* ===== MAIN APPLICATION CONTAINER ===== */
+    .app-container {
+      display: flex;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ===== SIDEBAR PANEL (LEFT) ===== */
+    .sidebar {
+      width: var(--sidebar-width);
+      min-width: 180px;
+      max-width: 400px;
+      background-color: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      flex-shrink: 0;
+    }
+
+    /* Header Logo */
+    .sidebar-header {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .sidebar-logo {
+      font-weight: 700;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      letter-spacing: -0.5px;
+    }
+
+    .sidebar-logo span {
+      background-color: var(--accent);
+      color: var(--bg-primary);
+      padding: 1px 4px;
+      border-radius: 2px;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .new-chat-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 2px;
+      transition: all 0.15s;
+    }
+
+    .new-chat-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background-color: rgba(88, 166, 255, 0.05);
+    }
+
+    /* Search Container */
+    .sidebar-search-box {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-search-input {
+      width: 100%;
+      background-color: var(--bg-primary);
+      border: 1px solid var(--border);
+      padding: 6px 10px;
+      color: var(--text-primary);
+      font-family: var(--font);
+      font-size: 12px;
+      outline: none;
+    }
+
+    .sidebar-search-input:focus {
+      border-color: var(--accent);
+    }
+
+    /* Tab Buttons */
+    .sidebar-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background-color: var(--bg-tertiary);
+    }
+
+    .sidebar-tab {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-family: var(--font);
+      font-size: 11px;
+      padding: 8px 4px;
+      cursor: pointer;
+      text-align: center;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+
+    .sidebar-tab:hover {
+      color: var(--text-primary);
+      background-color: var(--bg-secondary);
+    }
+
+    .sidebar-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      background-color: var(--bg-secondary);
+    }
+
+    /* Sidebar Content Scroll Area */
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .sidebar-list {
+      list-style: none;
+    }
+
+    .sidebar-item {
+      padding: 8px 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-left: 3px solid transparent;
+      transition: all 0.1s;
+    }
+
+    .sidebar-item:hover {
+      background-color: var(--bg-tertiary);
+    }
+
+    .sidebar-item.active {
+      background-color: var(--bg-tertiary);
+      border-left-color: var(--accent);
+      color: var(--text-primary);
+    }
+
+    .sidebar-item-icon {
+      flex-shrink: 0;
+    }
+
+    .sidebar-item-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+
+    .sidebar-item-badge {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    /* Sidebar Footer Utilities */
+    .sidebar-footer {
+      padding: 10px 14px;
+      border-top: 1px solid var(--border);
+      background-color: var(--bg-secondary);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .footer-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .footer-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .theme-select {
+      background-color: var(--bg-primary);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      font-family: var(--font);
+      font-size: 11px;
+      padding: 2px 4px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .toggle-switch-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+
+    .toggle-switch {
+      width: 24px;
+      height: 12px;
+      background-color: var(--border);
+      position: relative;
+      border-radius: 6px;
+      transition: background-color 0.2s;
+    }
+
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background-color: var(--text-primary);
+      border-radius: 50%;
+      top: 1px;
+      left: 1px;
+      transition: transform 0.2s;
+    }
+
+    .toggle-switch-container.active .toggle-switch {
+      background-color: var(--green);
+    }
+
+    .toggle-switch-container.active .toggle-switch::after {
+      transform: translateX(12px);
+    }
+
+    /* ===== RESIZE HANDLES ===== */
+    .resize-handle {
+      width: 4px;
+      cursor: col-resize;
+      background-color: var(--border);
+      transition: background-color 0.15s;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    .resize-handle:hover, .resize-handle.active {
+      background-color: var(--accent);
+    }
+
+    /* ===== MAIN CONTENT CHAT REGION ===== */
+    .main-chat-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background-color: var(--bg-primary);
+      height: 100%;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Chat Title Header */
+    .chat-header {
+      height: 38px;
+      border-bottom: 1px solid var(--border);
+      background-color: var(--bg-secondary);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .chat-header-title {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .chat-header-meta {
+      font-size: 11px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* xterm.js Simulated Canvas (The Chat area) */
+    .chat-canvas {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 13px;
+      line-height: 1.2;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+      will-change: transform;
+    }
+
+    /* Terminal Lines and Elements */
+    .ansi-line {
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .ansi-line.bold {
+      font-weight: bold;
+    }
+
+    /* Code Block styling inside canvas (TERMINAL-REAL) */
+    .terminal-code-block {
+      background-color: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      margin: 8px 0;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .code-block-header {
+      color: var(--text-secondary);
+      font-size: 11px;
+      border-bottom: 1px dashed var(--border);
+      padding-bottom: 4px;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .code-block-content {
+      white-space: pre;
+      overflow-x: auto;
+      color: var(--text-primary);
+    }
+
+    /* Syntax Highlighting Colors */
+    .kw { color: var(--purple); font-weight: bold; }
+    .fn { color: var(--accent); }
+    .str { color: var(--green); }
+    .cmt { color: var(--text-secondary); font-style: italic; }
+    .ty { color: var(--cyan); }
+    .num { color: var(--orange); }
+
+    /* Box Drawing elements for Tool Calls */
+    .tool-box {
+      font-family: var(--font);
+      margin: 8px 0;
+      color: var(--cyan);
+    }
+    .tool-box.error {
+      color: var(--red);
+    }
+    .tool-box-header {
+      white-space: pre;
+    }
+    .tool-box-content {
+      background-color: rgba(57, 210, 192, 0.03);
+      padding: 0 12px;
+      white-space: pre-wrap;
+      color: var(--text-primary);
+      border-left: 1px solid var(--cyan);
+      border-right: 1px solid var(--cyan);
+    }
+    .tool-box.error .tool-box-content {
+      background-color: rgba(248, 81, 73, 0.03);
+      border-left-color: var(--red);
+      border-right-color: var(--red);
+    }
+    .tool-box-footer {
+      white-space: pre;
+    }
+
+    /* Artifact Inline cards */
+    .artifact-card {
+      border: 1px solid var(--yellow);
+      background-color: var(--bg-tertiary);
+      margin: 8px 0;
+      max-width: 500px;
+    }
+
+    .artifact-header {
+      padding: 6px 12px;
+      background-color: rgba(210, 153, 34, 0.1);
+      border-bottom: 1px solid var(--yellow);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .artifact-title {
+      font-weight: bold;
+      color: var(--yellow);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .artifact-body {
+      padding: 10px 12px;
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+
+    .artifact-actions {
+      padding: 6px 12px;
+      border-top: 1px dashed var(--border);
+      display: flex;
+      gap: 8px;
+    }
+
+    .artifact-btn {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      font-family: var(--font);
+      font-size: 11px;
+      padding: 2px 8px;
+      cursor: pointer;
+    }
+
+    .artifact-btn:hover {
+      border-color: var(--yellow);
+      color: var(--yellow);
+    }
+
+    /* Blinking Block Cursor */
+    .block-cursor {
+      display: inline-block;
+      width: 8px;
+      height: 14px;
+      background-color: var(--text-primary);
+      vertical-align: middle;
+      margin-left: 2px;
+      animation: cursor-blink 0.8s infinite;
+    }
+
+    @keyframes cursor-blink {
+      0%, 49% { opacity: 1; }
+      50%, 100% { opacity: 0; }
+    }
+
+    /* ===== POWERLINE TMUX-STYLE STATUS BAR ===== */
+    .status-bar {
+      height: 22px;
+      background-color: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .status-left, .status-right {
+      display: flex;
+      align-items: center;
+      height: 100%;
+    }
+
+    .status-segment {
+      padding: 0 10px;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      font-weight: 500;
+    }
+
+    .status-wedge {
+      height: 100%;
+      width: 8px;
+      flex-shrink: 0;
+    }
+
+    .status-center {
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-divider {
+      color: var(--border);
+    }
+
+    .status-green-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      background-color: var(--green);
+      border-radius: 50%;
+      margin-right: 6px;
+      box-shadow: 0 0 4px var(--green);
+    }
+
+    /* Buttons inside Status */
+    .status-toggle-btn {
+      background: transparent;
+      border: none;
+      color: inherit;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: inherit;
+      font-weight: inherit;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+    }
+
+    /* ===== INPUT BAR & AUTOCOMPLETE ===== */
+    .input-bar-container {
+      background-color: var(--bg-secondary);
+      padding: 10px 16px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    /* Autocomplete Suggestions Menu */
+    .autocomplete-menu {
+      position: absolute;
+      bottom: calc(100% - 2px);
+      left: 16px;
+      right: 16px;
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--accent);
+      z-index: 100;
+      list-style: none;
+      display: none;
+      flex-direction: column;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+
+    .autocomplete-item {
+      padding: 8px 12px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--font);
+      font-size: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .autocomplete-item:last-child {
+      border-bottom: none;
+    }
+
+    .autocomplete-item:hover, .autocomplete-item.selected {
+      background-color: var(--bg-tertiary);
+      color: var(--accent);
+    }
+
+    .autocomplete-desc {
+      color: var(--text-secondary);
+      font-size: 11px;
+    }
+
+    /* Text Entry Row */
+    .input-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      background-color: var(--bg-primary);
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      width: 100%;
+    }
+
+    .input-row:focus-within {
+      border-color: var(--accent);
+    }
+
+    .input-prompt {
+      color: var(--accent);
+      font-weight: bold;
+      margin-bottom: 2px;
+    }
+
+    .chat-textarea {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      font-family: var(--font);
+      font-size: 13px;
+      line-height: 1.2;
+      resize: none;
+      outline: none;
+      height: 18px;
+      max-height: 120px;
+    }
+
+    .input-btn-group {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .input-action-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-family: var(--font);
+      font-size: 14px;
+      padding: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .input-action-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .input-action-btn.send-btn {
+      color: var(--accent);
+    }
+
+    .input-action-btn.send-btn:hover {
+      color: var(--green);
+    }
+
+    .input-shortcuts-tip {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      text-align: right;
+    }
+
+    /* ===== ACP MONITOR PANEL (RIGHT SIDE, COLLAPSIBLE) ===== */
+    .acp-panel {
+      width: var(--acp-width);
+      min-width: 200px;
+      max-width: 500px;
+      background-color: var(--bg-secondary);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      flex-shrink: 0;
+      transition: width 0.2s cubic-bezier(0.1, 0.9, 0.2, 1);
+    }
+
+    .acp-panel.collapsed {
+      width: 0px !important;
+      min-width: 0px !important;
+      border-left: none;
+      overflow: hidden;
+    }
+
+    .acp-header {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: var(--bg-tertiary);
+    }
+
+    .acp-title {
+      font-weight: 700;
+      color: var(--orange);
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .acp-close-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .acp-close-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .acp-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ACP Active Session Box */
+    .acp-session {
+      border: 1px solid var(--border);
+      background-color: var(--bg-primary);
+    }
+
+    .acp-session-header {
+      padding: 6px 10px;
+      background-color: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+    }
+
+    .acp-session-title {
+      font-weight: bold;
+      color: var(--text-primary);
+    }
+
+    .acp-session-status {
+      color: var(--green);
+    }
+
+    /* Mini Console Terminal Output */
+    .acp-mini-terminal {
+      background-color: #05070a;
+      padding: 8px;
+      font-family: var(--font);
+      font-size: 11px;
+      line-height: 1.3;
+      height: 120px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      color: #a9b1d6;
+    }
+
+    /* Interactive ACP Tools Logs */
+    .acp-tools-section {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 8px;
+      padding: 0 8px 8px;
+    }
+
+    .acp-tool-log-card {
+      border: 1px solid var(--border);
+      background-color: var(--bg-tertiary);
+    }
+
+    .acp-tool-log-header {
+      padding: 4px 8px;
+      font-size: 11px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: var(--bg-secondary);
+    }
+
+    .acp-tool-log-header:hover {
+      color: var(--accent);
+    }
+
+    .acp-tool-log-body {
+      padding: 6px 8px;
+      font-size: 11px;
+      border-top: 1px dashed var(--border);
+      white-space: pre;
+      overflow-x: auto;
+      background-color: #05070a;
+      color: var(--text-primary);
+      display: none;
+    }
+
+    .acp-tool-log-body.expanded {
+      display: block;
+    }
+
+    /* ===== FULL-SCREEN-LIKE TERMINAL CODE VIEWER / NANO EDITOR ===== */
+    .nano-editor-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #05070a;
+      z-index: 1000;
+      display: none;
+      flex-direction: column;
+      border: 1px solid var(--accent);
+    }
+
+    .nano-header {
+      background-color: var(--accent);
+      color: var(--bg-primary);
+      font-weight: bold;
+      padding: 4px 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .nano-title {
+      font-size: 11px;
+    }
+
+    .nano-close {
+      background: transparent;
+      border: none;
+      color: var(--bg-primary);
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .nano-content {
+      flex: 1;
+      overflow: auto;
+      padding: 12px;
+      font-family: var(--font);
+      font-size: 12px;
+      line-height: 1.4;
+      white-space: pre;
+      color: #a9b1d6;
+    }
+
+    .nano-footer {
+      background-color: var(--bg-tertiary);
+      border-top: 1px solid var(--border);
+      padding: 4px 10px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      font-size: 10px;
+      color: var(--text-secondary);
+    }
+
+    .nano-shortcut {
+      white-space: nowrap;
+    }
+
+    .nano-shortcut span {
+      color: var(--accent);
+      font-weight: bold;
+      margin-right: 4px;
+    }
+
+    /* ===== RESPONSIVE DESIGN ===== */
+    @media (max-width: 768px) {
+      .sidebar {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        z-index: 500;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+      }
+      .sidebar.open {
+        transform: translateX(0);
+      }
+      .acp-panel {
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        z-index: 500;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+      }
+      .acp-panel.open {
+        transform: translateX(0);
+        width: 280px !important;
+      }
+      .resize-handle {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body class="theme-default">
+
+  <!-- CRT Screen Shader Overlay -->
+  <div class="crt-overlay" id="crtOverlay"></div>
+
+  <div class="app-container">
+
+    <!-- ==================== SIDEBAR PANEL ==================== -->
+    <div class="sidebar" id="sidebar">
+      <!-- Sidebar Header -->
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <span>HYPR</span> Collab
+        </div>
+        <button class="new-chat-btn" id="newChatBtn">Reset</button>
+      </div>
+
+      <!-- Search Box -->
+      <div class="sidebar-search-box">
+        <input type="text" class="sidebar-search-input" id="sidebarSearch" placeholder="Search items...">
+      </div>
+
+      <!-- Tabs Navigation -->
+      <div class="sidebar-tabs">
+        <button class="sidebar-tab active" data-tab="chats">💬 Chats</button>
+        <button class="sidebar-tab" data-tab="projects">📁 Projects</button>
+        <button class="sidebar-tab" data-tab="personas">🎭 Personas</button>
+      </div>
+
+      <!-- Sidebar Content List -->
+      <div class="sidebar-content">
+        <ul class="sidebar-list" id="sidebarList">
+          <!-- Populated by JavaScript -->
+        </ul>
+      </div>
+
+      <!-- Sidebar Footer -->
+      <div class="sidebar-footer">
+        <div class="footer-row">
+          <span class="footer-label">Theme:</span>
+          <select class="theme-select" id="themeSelect">
+            <option value="default">Terminal Dark</option>
+            <option value="catppuccin">Catppuccin Mocha</option>
+            <option value="nord">Nord</option>
+            <option value="dracula">Dracula</option>
+            <option value="tokyonight">Tokyo Night</option>
+          </select>
+        </div>
+        <div class="footer-row">
+          <div class="toggle-switch-container active" id="crtToggle">
+            <div class="toggle-switch"></div>
+            <span>CRT Scanlines</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Drag handle for sidebar -->
+    <div class="resize-handle" id="sidebarResize"></div>
+
+    <!-- ==================== MAIN CHAT INTERFACE ==================== -->
+    <div class="main-chat-container">
+      
+      <!-- Top Header Bar -->
+      <div class="chat-header">
+        <div class="chat-header-title" id="chatTitle">Rust JSON Parsing</div>
+        <div class="chat-header-meta" id="chatMeta">
+          <span>Active Persona:</span>
+          <span style="color: var(--purple);" id="activePersonaBadge">🤖 Dev</span>
+        </div>
+      </div>
+
+      <!-- Simulated Terminal Screen Area -->
+      <div class="chat-canvas" id="chatCanvas">
+        <!-- Messages are rendered dynamically by JS -->
+      </div>
+
+      <!-- Powerline Status Bar -->
+      <div class="status-bar">
+        <div class="status-left">
+          <!-- Segment 1: Persona -->
+          <div class="status-segment" id="statusPersonaSeg" style="background-color: var(--purple); color: var(--bg-primary);">
+            <span>🤖 Dev</span>
+          </div>
+          <svg class="status-wedge" id="wedge1" style="color: var(--purple); fill: currentColor; background-color: var(--bg-tertiary);" width="8" height="22" viewBox="0 0 8 22" preserveAspectRatio="none"><polygon points="0,0 8,11 0,22"></polygon></svg>
+          
+          <!-- Segment 2: Model -->
+          <div class="status-segment" id="statusModelSeg" style="background-color: var(--bg-tertiary); color: var(--text-primary);">
+            <span class="status-green-dot"></span><span id="statusBarModel">gpt-4o</span>
+          </div>
+          <svg class="status-wedge" id="wedge2" style="color: var(--bg-tertiary); fill: currentColor; background-color: var(--bg-secondary);" width="8" height="22" viewBox="0 0 8 22" preserveAspectRatio="none"><polygon points="0,0 8,11 0,22"></polygon></svg>
+          
+          <!-- Segment 3: Mode -->
+          <div class="status-segment" id="statusModeSeg" style="background-color: var(--bg-secondary); color: var(--text-secondary);">
+            <span id="statusBarMode">CHAT</span>
+          </div>
+          <svg class="status-wedge" id="wedge3" style="color: var(--bg-secondary); fill: currentColor; background-color: transparent;" width="8" height="22" viewBox="0 0 8 22" preserveAspectRatio="none"><polygon points="0,0 8,11 0,22"></polygon></svg>
+        </div>
+
+        <div class="status-center">
+          <span id="statusBarLatency">1.2s</span>
+          <span class="status-divider">|</span>
+          <span id="statusBarTokens">1,250 tokens</span>
+        </div>
+
+        <div class="status-right">
+          <svg class="status-wedge" id="wedge4" style="color: var(--bg-tertiary); fill: currentColor; background-color: transparent;" width="8" height="22" viewBox="0 0 8 22" preserveAspectRatio="none"><polygon points="8,0 0,11 8,22"></polygon></svg>
+          <div class="status-segment" style="background-color: var(--bg-tertiary); color: var(--text-primary);">
+            <span id="liveClock">21:01</span>
+          </div>
+          
+          <svg class="status-wedge" id="wedge5" style="color: var(--orange); fill: currentColor; background-color: var(--bg-tertiary);" width="8" height="22" viewBox="0 0 8 22" preserveAspectRatio="none"><polygon points="8,0 0,11 8,22"></polygon></svg>
+          <button class="status-segment status-toggle-btn" id="acpToggleBtn" style="background-color: var(--orange); color: var(--bg-primary);">
+            <span>ACP MONITOR (ON)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Input Bar Region -->
+      <div class="input-bar-container">
+        <!-- Command Autocomplete Panel -->
+        <ul class="autocomplete-menu" id="autocompleteMenu">
+          <li class="autocomplete-item" data-cmd="/agent">
+            <span>/agent <span style="color: var(--text-secondary);">&lt;name&gt;</span></span>
+            <span class="autocomplete-desc">Switch active persona (dev, luna, sage)</span>
+          </li>
+          <li class="autocomplete-item" data-cmd="/model">
+            <span>/model <span style="color: var(--text-secondary);">&lt;name&gt;</span></span>
+            <span class="autocomplete-desc">Change model (gpt-4o, claude-3-opus, gemini-1.5-pro)</span>
+          </li>
+          <li class="autocomplete-item" data-cmd="/image">
+            <span>/image <span style="color: var(--text-secondary);">&lt;prompt&gt;</span></span>
+            <span class="autocomplete-desc">Simulate generating an image artifact</span>
+          </li>
+          <li class="autocomplete-item" data-cmd="/skill">
+            <span>/skill <span style="color: var(--text-secondary);">&lt;name&gt;</span></span>
+            <span class="autocomplete-desc">Toggle skill module (file_read, shell_command)</span>
+          </li>
+          <li class="autocomplete-item" data-cmd="/help">
+            <span>/help</span>
+            <span class="autocomplete-desc">Show terminal command list</span>
+          </li>
+        </ul>
+
+        <!-- Input Area Row -->
+        <div class="input-row">
+          <span class="input-prompt">&gt;</span>
+          <textarea class="chat-textarea" id="chatInput" placeholder="Type message or '/' for commands..." rows="1"></textarea>
+          
+          <div class="input-btn-group">
+            <!-- File Attachment Button -->
+            <button class="input-action-btn" id="attachFileBtn" title="Attach file (Ctrl+O)">
+              📎
+            </button>
+            <!-- Send Button -->
+            <button class="input-action-btn send-btn" id="sendBtn" title="Send message (Ctrl+Enter)">
+              ▶
+            </button>
+          </div>
+        </div>
+
+        <div class="footer-row">
+          <span class="input-shortcuts-tip">Ctrl+Enter to Send | Ctrl+/ for Commands</span>
+        </div>
+      </div>
+
+      <!-- Full-screen Terminal Editor Overlay (Nano simulator) -->
+      <div class="nano-editor-overlay" id="nanoEditor">
+        <div class="nano-header">
+          <div class="nano-title" id="nanoFileTitle">GNU nano 8.0 — /home/hbuddenberg/.config/waybar/config</div>
+          <button class="nano-close" id="nanoCloseBtn">X</button>
+        </div>
+        <div class="nano-content" id="nanoContent">
+          <!-- Code filled in dynamically -->
+        </div>
+        <div class="nano-footer">
+          <div class="nano-shortcut"><span>^G</span> Get Help</div>
+          <div class="nano-shortcut"><span>^O</span> Write Out</div>
+          <div class="nano-shortcut"><span>^W</span> Where Is</div>
+          <div class="nano-shortcut"><span>^R</span> Read File</div>
+          <div class="nano-shortcut"><span>^Y</span> Prev Page</div>
+          <div class="nano-shortcut"><span>^V</span> Next Page</div>
+          <div class="nano-shortcut"><span>^K</span> Cut Text</div>
+          <div class="nano-shortcut"><span>^X</span> Exit</div>
+        </div>
+      </div>
+      
+    </div>
+
+    <!-- Drag handle for ACP Monitor -->
+    <div class="resize-handle" id="acpResize"></div>
+
+    <!-- ==================== ACP MONITOR PANEL (RIGHT SIDE) ==================== -->
+    <div class="acp-panel" id="acpPanel">
+      <div class="acp-header">
+        <div class="acp-title">
+          📡 ACP MONITOR v1.0
+        </div>
+        <button class="acp-close-btn" id="acpCloseBtn">⟲</button>
+      </div>
+
+      <div class="acp-scroll">
+        
+        <!-- Session 1: Claude Code -->
+        <div class="acp-session">
+          <div class="acp-session-header">
+            <span class="acp-session-title">● claudecode.session</span>
+            <span class="acp-session-status">ACTIVE</span>
+          </div>
+          <div class="acp-mini-terminal" id="claudecodeTerminal">
+            $ git status
+            On branch main
+            Your branch is up to date with 'origin/main'.
+            
+            Changes not staged for commit:
+              modified:   src/main.rs
+              
+            $ cargo check
+            Checking hyprcollab v0.1.0 (/home/hbuddenberg/developments/hyprcollab-agy)
+            Finished dev [unoptimized + debuginfo] target(s) in 0.42s
+          </div>
+          <div class="acp-tools-section">
+            <div class="acp-tool-log-card">
+              <div class="acp-tool-log-header" data-target="logCargoTest">
+                <span>[+] run_command: cargo test</span>
+                <span>0.8s</span>
+              </div>
+              <div class="acp-tool-log-body" id="logCargoTest">
+running 32 tests
+test config::tests::test_parse ... ok
+test auth::tests::test_login ... ok
+test api::tests::test_endpoints ... ok
+test server::tests::test_handshake ... ok
+test RUST_TEST_COMPLETED ... ok
+
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Session 2: Codex -->
+        <div class="acp-session">
+          <div class="acp-session-header">
+            <span class="acp-session-title">● codex.session</span>
+            <span class="acp-session-status" style="color: var(--text-secondary);">IDLE</span>
+          </div>
+          <div class="acp-mini-terminal" id="codexTerminal">
+            $ npm run lint
+             linting completed. 0 warnings, 0 errors.
+            $
+          </div>
+          <div class="acp-tools-section">
+            <div class="acp-tool-log-card">
+              <div class="acp-tool-log-header" data-target="logWriteConfig">
+                <span>[+] write_file: src/config.rs</span>
+                <span>0.2s</span>
+              </div>
+              <div class="acp-tool-log-body" id="logWriteConfig">
+Writing file: /home/hbuddenberg/developments/hyprcollab-agy/src/config.rs
+Writing 2,450 bytes. File updated successfully.
+SHA256: d83a8f9c1b4a5d8e7f6c5b4a3a2a1a0f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b
+              </div>
+            </div>
+          </div>
+        </div>
+        
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==================== INTERACTIVE JAVASCRIPT ==================== -->
+  <script>
+    // ===== DATA DEFINITIONS =====
+    const personas = {
+      dev: {
+        id: 'dev',
+        name: '🤖 Dev',
+        model: 'gpt-4o',
+        color: 'var(--purple)',
+        accentBg: '#bc8cff',
+        role: 'Rust Backend Specialist',
+        desc: 'Concise, highly technical, communicates in code snippets and compiler error diagnostics.'
+      },
+      luna: {
+        id: 'luna',
+        name: '🎨 Luna',
+        model: 'claude-3-opus',
+        color: 'var(--green)',
+        accentBg: '#3fb950',
+        role: 'UI/UX Designer',
+        desc: 'Creative designer. Loves aesthetic terminal designs, typography, usability guidelines, and emojis.'
+      },
+      sage: {
+        id: 'sage',
+        name: '📝 Sage',
+        model: 'gemini-1.5-pro',
+        color: 'var(--yellow)',
+        accentBg: '#d29922',
+        role: 'Code Reviewer',
+        desc: 'Extremely thorough reviewer. Evaluates performance, edge-case security, safety, and correctness.'
+      }
+    };
+
+    const mockChats = {
+      'rust-json': {
+        id: 'rust-json',
+        title: 'Rust JSON Parsing',
+        persona: 'dev',
+        messages: [
+          {
+            sender: 'user',
+            time: '14:30',
+            text: '\x1b[38;2;88;166;255m▌ You\x1b[0m 14:30\nhow do I parse JSON in Rust?'
+          },
+          {
+            sender: 'assistant',
+            time: '14:30',
+            text: '\x1b[38;2;188;140;255m▌ Dev\x1b[0m 14:30\nTo parse JSON in Rust, use the \x1b[38;2;240;136;62mserde_json\x1b[0m crate. First, add these dependencies to your \x1b[38;2;57;210;192mCargo.toml\x1b[0m:\n\n```toml\n[dependencies]\nserde = { version = "1.0", features = ["derive"] }\nserde_json = "1.0"\n```\n\nThen, define your data structure and derive \x1b[38;2;240;136;62mDeserialize\x1b[0m. Here is a complete example of parsing a JSON string:'
+          },
+          {
+            sender: 'tool',
+            toolName: 'file_read',
+            toolInfo: 'src/main.rs (read 14 lines)',
+            toolContent: [
+              'use serde::Deserialize;',
+              '',
+              '#[derive(Deserialize, Debug)]',
+              'struct User {',
+              '    name: String,',
+              '    email: String,',
+              '}',
+              '',
+              'fn main() -> Result<(), serde_json::Error> {',
+              '    let json = r#"{"name": "Alice", "email": "alice@gmail.com"}"#;',
+              '    let u: User = serde_json::from_str(json)?;',
+              '    println!("Parsed user: {:?}", u);',
+              '    Ok(())',
+              '}'
+            ]
+          },
+          {
+            sender: 'user',
+            time: '14:32',
+            text: '\x1b[38;2;88;166;255m▌ You\x1b[0m 14:32\nand what about error handling?'
+          },
+          {
+            sender: 'assistant',
+            time: '14:32',
+            text: '\x1b[38;2;188;140;255m▌ Dev\x1b[0m 14:32\nIf JSON parsing fails, \x1b[38;2;240;136;62mserde_json::from_str\x1b[0m returns a \x1b[38;2;248;81;73mserde_json::Error\x1b[0m. You can handle it using a pattern match or propagate it with the \x1b[38;2;240;136;62m?\x1b[0m operator as shown in the \x1b[38;2;57;210;192mmain\x1b[0m function above.\n\nTo inspect failure cases in detail:\n\n```rust\nmatch serde_json::from_str::<User>(invalid_json) {\n    Ok(user) => println!("Success: {:?}", user),\n    Err(err) => {\n        eprintln!("Failed to parse JSON: {}", err);\n        eprintln!("Syntax error at line {}, col {}", err.line(), err.column());\n    }\n}\n```'
+          }
+        ]
+      },
+      'hyprland-config': {
+        id: 'hyprland-config',
+        title: 'Hyprland Config',
+        persona: 'sage',
+        messages: [
+          {
+            sender: 'user',
+            time: '15:10',
+            text: '\x1b[38;2;88;166;255m▌ You\x1b[0m 15:10\nmy waybar isn\'t showing on workspace 2'
+          },
+          {
+            sender: 'assistant',
+            time: '15:10',
+            text: '\x1b[38;2;210;153;34m▌ Sage\x1b[0m 15:10\nThis issue usually occurs if you have workspace-specific rules in your \x1b[38;2;57;210;192mhyprland.conf\x1b[0m or if waybar is configured to render on specific monitors only. Let\'s inspect your current active monitors and display layouts first.'
+          },
+          {
+            sender: 'tool',
+            toolName: 'shell_command',
+            toolInfo: 'hyprctl monitors',
+            toolContent: [
+              'Monitor DP-1 (ID 0):',
+              '  3840x2160@144.00Hz at 0x0',
+              '  active workspace: 1 (DP-1)',
+              '  reserved: 0 40 0 0',
+              '  scale: 1.00',
+              '  transform: 0'
+            ]
+          },
+          {
+            sender: 'assistant',
+            time: '15:11',
+            text: '\x1b[38;2;210;153;34m▌ Sage\x1b[0m 15:11\nI see you have a single monitor setup on DP-1. Let\'s check your waybar config. I will generate a complete waybar configuration that binds waybar to all workspaces on your monitor.'
+          },
+          {
+            sender: 'artifact',
+            artTitle: 'waybar-config-patch.json',
+            artPath: '~/.config/waybar/config',
+            artDesc: 'Optimized workspace config for waybar with multi-workspace support.',
+            artContent: '{\n    "layer": "top",\n    "position": "top",\n    "height": 30,\n    "modules-left": ["hyprland/workspaces", "hyprland/submap"],\n    "modules-center": ["hyprland/window"],\n    "modules-right": ["pulseaudio", "network", "cpu", "memory", "clock"],\n    "hyprland/workspaces": {\n        "disable-scroll": true,\n        "all-outputs": true,\n        "active-only": false,\n        "on-click": "activate"\n    }\n}'
+          }
+        ]
+      },
+      'api-integration': {
+        id: 'api-integration',
+        title: 'API Integration',
+        persona: 'dev',
+        messages: [
+          {
+            sender: 'user',
+            time: '16:02',
+            text: '\x1b[38;2;88;166;255m▌ You\x1b[0m 16:02\nintegrate the z.ai API'
+          }
+        ]
+      }
+    };
+
+    // State Variables
+    let currentTab = 'chats';
+    let activeChatId = 'rust-json';
+    let activePersona = 'dev';
+    let currentTheme = 'default';
+    let hasStreamedApi = false;
+
+    // Resizing variables
+    let isResizingSidebar = false;
+    let isResizingAcp = false;
+
+    // ===== UI ELEMENT REFERENCES =====
+    const sidebarList = document.getElementById('sidebarList');
+    const sidebarSearch = document.getElementById('sidebarSearch');
+    const chatTitle = document.getElementById('chatTitle');
+    const chatMeta = document.getElementById('chatMeta');
+    const activePersonaBadge = document.getElementById('activePersonaBadge');
+    const chatCanvas = document.getElementById('chatCanvas');
+    const chatInput = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const attachFileBtn = document.getElementById('attachFileBtn');
+    const autocompleteMenu = document.getElementById('autocompleteMenu');
+    
+    // Status segments
+    const statusPersonaSeg = document.getElementById('statusPersonaSeg');
+    const statusModelSeg = document.getElementById('statusModelSeg');
+    const statusBarModel = document.getElementById('statusBarModel');
+    const statusBarMode = document.getElementById('statusBarMode');
+    const statusBarLatency = document.getElementById('statusBarLatency');
+    const statusBarTokens = document.getElementById('statusBarTokens');
+    const liveClock = document.getElementById('liveClock');
+    const acpToggleBtn = document.getElementById('acpToggleBtn');
+    const crtToggle = document.getElementById('crtToggle');
+    const crtOverlay = document.getElementById('crtOverlay');
+
+    // Panels
+    const sidebar = document.getElementById('sidebar');
+    const acpPanel = document.getElementById('acpPanel');
+    const sidebarResize = document.getElementById('sidebarResize');
+    const acpResize = document.getElementById('acpResize');
+
+    // Nano Overlay Editor
+    const nanoEditor = document.getElementById('nanoEditor');
+    const nanoFileTitle = document.getElementById('nanoFileTitle');
+    const nanoContent = document.getElementById('nanoContent');
+    const nanoCloseBtn = document.getElementById('nanoCloseBtn');
+
+    // Theme selector
+    const themeSelect = document.getElementById('themeSelect');
+    const newChatBtn = document.getElementById('newChatBtn');
+
+    // ===== CONTROLLER FUNCTIONS =====
+
+    // Initialize Page
+    function init() {
+      // Setup Live Clock
+      updateClock();
+      setInterval(updateClock, 1000);
+
+      // Load initial chat
+      loadChat(activeChatId);
+
+      // Render Sidebar items
+      renderSidebar();
+
+      // Setup Listeners
+      setupListeners();
+      
+      // Auto resize textarea height
+      chatInput.addEventListener('input', autoResizeTextarea);
+    }
+
+    function updateClock() {
+      const now = new Date();
+      const hrs = String(now.getHours()).padStart(2, '0');
+      const mins = String(now.getMinutes()).padStart(2, '0');
+      liveClock.textContent = `${hrs}:${mins}`;
+    }
+
+    // ANSI Color Code Parser
+    function ansiToHtml(text) {
+      // Escape HTML tags to protect integrity
+      let html = text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+      // Custom RGB Color Codes: \x1b[38;2;R;G;Bm -> <span style="color: rgb(R,G,B)">
+      html = html.replace(/\u001b\[38;2;(\d+);(\d+);(\d+)m/g, (match, r, g, b) => {
+        return `<span style="color: rgb(${r}, ${g}, ${b});">`;
+      });
+
+      // Reset code: \x1b[0m -> </span>
+      html = html.replace(/\u001b\[0m/g, '</span>');
+
+      return html;
+    }
+
+    // Simple code highlighting
+    function highlightCode(code, lang) {
+      if (!lang) return code;
+      let html = code
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+      if (lang === 'rust') {
+        html = html.replace(/\b(fn|let|struct|impl|use|pub|enum|match|if|else|return|mut|type|Result|Option)\b/g, '<span class="kw">$1</span>');
+        html = html.replace(/\b(String|str|Value|u32|i32|usize|Self)\b/g, '<span class="ty">$1</span>');
+        html = html.replace(/\b([a-zA-Z_][a-zA-Z0-9_]*)(?=\()/g, '<span class="fn">$1</span>');
+        html = html.replace(/("(?:[^"\\]|\\.)*")/g, '<span class="str">$1</span>');
+        html = html.replace(/(\/\/.*)/g, '<span class="cmt">$1</span>');
+      } else if (lang === 'toml') {
+        html = html.replace(/(\[.*\])/g, '<span class="kw">$1</span>');
+        html = html.replace(/\b([a-zA-Z_][a-zA-Z0-9_-]*)(?=\s*=)/g, '<span class="fn">$1</span>');
+        html = html.replace(/("(?:[^"\\]|\\.)*")/g, '<span class="str">$1</span>');
+      } else if (lang === 'json') {
+        html = html.replace(/("(?:[^"\\]|\\.)*")(?=\s*:)/g, '<span class="kw">$1</span>');
+        html = html.replace(/(:\s*)("(?:[^"\\]|\\.)*")/g, '$1<span class="str">$2</span>');
+        html = html.replace(/\b(true|false|null|\d+)\b/g, '<span class="ty">$1</span>');
+      }
+      return html;
+    }
+
+    // Auto adjust text area height
+    function autoResizeTextarea() {
+      chatInput.style.height = '18px';
+      chatInput.style.height = (chatInput.scrollHeight - 6) + 'px';
+    }
+
+    // Render messages to chat canvas
+    function loadChat(chatId) {
+      activeChatId = chatId;
+      const chat = mockChats[chatId];
+      activePersona = chat.persona;
+      
+      // Update header info
+      chatTitle.textContent = chat.title;
+      activePersonaBadge.textContent = personas[activePersona].name;
+      activePersonaBadge.style.color = personas[activePersona].color;
+
+      // Update status bar segment colors
+      statusPersonaSeg.style.backgroundColor = personas[activePersona].color;
+      statusPersonaSeg.innerHTML = `<span>${personas[activePersona].name}</span>`;
+      statusBarModel.textContent = personas[activePersona].model;
+
+      // Render wedges colors to match status bar
+      document.getElementById('wedge1').style.color = personas[activePersona].color;
+
+      chatCanvas.innerHTML = '';
+      
+      chat.messages.forEach(msg => {
+        appendMessageToCanvas(msg);
+      });
+
+      // Special trigger for Streaming Animation in Chat 3
+      if (chatId === 'api-integration' && !hasStreamedApi) {
+        hasStreamedApi = true;
+        triggerApiStreaming();
+      }
+
+      chatCanvas.scrollTop = chatCanvas.scrollHeight;
+    }
+
+    function appendMessageToCanvas(msg) {
+      if (msg.sender === 'user' || msg.sender === 'assistant') {
+        // Parse codes
+        let parsed = ansiToHtml(msg.text);
+        
+        // Handle code blocks
+        const parts = parsed.split('```');
+        let formatted = '';
+        
+        for (let i = 0; i < parts.length; i++) {
+          if (i % 2 === 0) {
+            formatted += parts[i];
+          } else {
+            // Inside code block
+            const lines = parts[i].split('\n');
+            const lang = lines[0].trim();
+            const code = lines.slice(1).join('\n');
+            
+            formatted += `
+              <div class="terminal-code-block">
+                <div class="code-block-header">
+                  <span>Code (${lang})</span>
+                  <span>Press ESC to collapse</span>
+                </div>
+                <div class="code-block-content">${highlightCode(code, lang)}</div>
+              </div>
+            `;
+          }
+        }
+
+        const div = document.createElement('div');
+        div.className = 'ansi-line';
+        div.innerHTML = formatted;
+        chatCanvas.appendChild(div);
+      } else if (msg.sender === 'tool') {
+        const div = document.createElement('div');
+        div.className = 'tool-box';
+        
+        let contents = '';
+        if (msg.toolContent) {
+          contents = msg.toolContent.map(line => {
+            return `│ ${line.padEnd(68)} │`;
+          }).join('\n');
+        }
+
+        div.innerHTML = `
+          <div class="tool-box-header">╭─ <span>${msg.toolName}</span> ────────────────────────────────────────────────────────────╮</div>
+          <div class="tool-box-content">${msg.toolInfo}\n${contents}</div>
+          <div class="tool-box-footer">╰────────────────────────────────────────────────────────────────────────────╯</div>
+        `;
+        chatCanvas.appendChild(div);
+      } else if (msg.sender === 'artifact') {
+        const div = document.createElement('div');
+        div.className = 'artifact-card';
+        div.innerHTML = `
+          <div class="artifact-header">
+            <div class="artifact-title">📁 ${msg.artTitle}</div>
+            <span style="font-size: 10px; color: var(--yellow);">ARTIFACT</span>
+          </div>
+          <div class="artifact-body">
+            <strong>Path:</strong> <code>${msg.artPath}</code><br>
+            <strong>Description:</strong> ${msg.artDesc}
+          </div>
+          <div class="artifact-actions">
+            <button class="artifact-btn" onclick="openNanoEditor('${msg.artTitle}', \`${msg.artContent.replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`)">Preview File</button>
+            <button class="artifact-btn" onclick="simulateApplyPatch()">Apply Patch</button>
+          </div>
+        `;
+        chatCanvas.appendChild(div);
+      }
+    }
+
+    // Opens Nano Simulation UI
+    function openNanoEditor(filename, content) {
+      nanoFileTitle.textContent = `GNU nano 8.0 — ${filename}`;
+      nanoContent.textContent = content;
+      nanoEditor.style.display = 'flex';
+    }
+
+    function simulateApplyPatch() {
+      // Append logs to status bar & print in terminal
+      printTerminalSystemMessage("Applying patch: ~/.config/waybar/config updated.");
+      
+      // Update Codex output logs
+      const codexTerm = document.getElementById('codexTerminal');
+      codexTerm.innerHTML += `\n$ patch ~/.config/waybar/config\npatching file config\n$ waybar &\n[1] 14592 - Process running.`;
+      codexTerm.scrollTop = codexTerm.scrollHeight;
+    }
+
+    function printTerminalSystemMessage(text) {
+      const div = document.createElement('div');
+      div.className = 'ansi-line';
+      div.innerHTML = ansiToHtml(`\x1b[38;2;57;210;192m▌ system\x1b[0m: ${text}`);
+      chatCanvas.appendChild(div);
+      chatCanvas.scrollTop = chatCanvas.scrollHeight;
+    }
+
+    // SIDEBAR RENDERING SYSTEM
+    function renderSidebar() {
+      sidebarList.innerHTML = '';
+      
+      const query = sidebarSearch.value.toLowerCase();
+
+      if (currentTab === 'chats') {
+        Object.keys(mockChats).forEach(id => {
+          const chat = mockChats[id];
+          if (chat.title.toLowerCase().includes(query)) {
+            const li = document.createElement('li');
+            li.className = `sidebar-item ${activeChatId === id ? 'active' : ''}`;
+            li.innerHTML = `
+              <span class="sidebar-item-icon">💬</span>
+              <span class="sidebar-item-text">${chat.title}</span>
+              <span class="sidebar-item-badge">${id === 'api-integration' ? 'Active' : 'Arch'}</span>
+            `;
+            li.addEventListener('click', () => loadChat(id));
+            sidebarList.appendChild(li);
+          }
+        });
+      } else if (currentTab === 'projects') {
+        const projects = [
+          { name: 'hyprcollab', files: '753 tests' },
+          { name: 'rig-rs', files: '14 files' },
+          { name: 'dioxus-terminal', files: 'v0.6 WASM' }
+        ];
+        projects.forEach(p => {
+          if (p.name.toLowerCase().includes(query)) {
+            const li = document.createElement('li');
+            li.className = 'sidebar-item';
+            li.innerHTML = `
+              <span class="sidebar-item-icon">📁</span>
+              <span class="sidebar-item-text">${p.name}</span>
+              <span class="sidebar-item-badge">${p.files}</span>
+            `;
+            li.addEventListener('click', () => {
+              printTerminalSystemMessage(`Switched contextual folder references to project: ${p.name}`);
+            });
+            sidebarList.appendChild(li);
+          }
+        });
+      } else if (currentTab === 'personas') {
+        Object.keys(personas).forEach(key => {
+          const p = personas[key];
+          if (p.name.toLowerCase().includes(query) || p.role.toLowerCase().includes(query)) {
+            const li = document.createElement('li');
+            li.className = `sidebar-item ${activePersona === key ? 'active' : ''}`;
+            li.innerHTML = `
+              <span class="sidebar-item-icon">🎭</span>
+              <span class="sidebar-item-text">${p.name} (${p.role})</span>
+              <span class="sidebar-item-badge">${p.model}</span>
+            `;
+            li.addEventListener('click', () => {
+              activePersona = key;
+              statusPersonaSeg.style.backgroundColor = p.color;
+              statusPersonaSeg.innerHTML = `<span>${p.name}</span>`;
+              statusBarModel.textContent = p.model;
+              document.getElementById('wedge1').style.color = p.color;
+              printTerminalSystemMessage(`Switched active agent persona to: ${p.name} (${p.role})`);
+              renderSidebar();
+            });
+            sidebarList.appendChild(li);
+          }
+        });
+      }
+    }
+
+    // ACP TOOLS COLLAPSIBLE ACCORDION
+    document.querySelectorAll('.acp-tool-log-header').forEach(header => {
+      header.addEventListener('click', () => {
+        const targetId = header.getAttribute('data-target');
+        const body = document.getElementById(targetId);
+        if (body.classList.contains('expanded')) {
+          body.classList.remove('expanded');
+          header.querySelector('span').textContent = header.querySelector('span').textContent.replace('[-]', '[+]');
+        } else {
+          body.classList.add('expanded');
+          header.querySelector('span').textContent = header.querySelector('span').textContent.replace('[+]', '[-]');
+        }
+      });
+    });
+
+    // STREAMING SIMULATOR FOR ACTIVE CHAT (API INTEGRATION)
+    function triggerApiStreaming() {
+      // Set status to streaming
+      statusBarMode.textContent = 'STREAMING';
+      statusBarMode.style.color = 'var(--yellow)';
+      statusBarLatency.textContent = '0.0s';
+      statusBarTokens.textContent = '0 tokens';
+
+      // Create message element
+      const div = document.createElement('div');
+      div.className = 'ansi-line';
+      chatCanvas.appendChild(div);
+
+      const prefix = `\x1b[38;2;188;140;255m▌ Dev\x1b[0m 16:02\n`;
+      div.innerHTML = ansiToHtml(prefix);
+
+      const responseString = `To integrate the z.ai API, we will build a modular client in Rust.
+First, add z.ai SDK references or construct custom HTTP headers.
+Here is the client skeleton:
+
+\`\`\`rust
+pub struct ZaiClient {
+    api_key: String,
+    base_url: String,
+}
+
+impl ZaiClient {
+    pub fn new(key: &str) -> Self {
+        Self {
+            api_key: key.to_string(),
+            base_url: "https://api.z.ai/v1".to_string(),
+        }
+    }
+}
+\`\`\`
+
+Let's test loading credentials from environmental variables.`;
+
+      let charIndex = 0;
+      let tokenCount = 0;
+      let timer = null;
+
+      // Streaming simulation
+      function streamChar() {
+        if (charIndex < responseString.length) {
+          // Stream a chunk of chars to make it look smooth and speed matching latency
+          const nextChunk = responseString.substr(charIndex, Math.floor(Math.random() * 3) + 1);
+          charIndex += nextChunk.length;
+          
+          let partialText = prefix + responseString.substr(0, charIndex);
+          
+          // Re-render partial ANSI and code blocks
+          let html = ansiToHtml(partialText);
+          const parts = html.split('```');
+          let formatted = '';
+          
+          for (let i = 0; i < parts.length; i++) {
+            if (i % 2 === 0) {
+              formatted += parts[i];
+            } else {
+              const lines = parts[i].split('\n');
+              const lang = lines[0].trim();
+              const code = lines.slice(1).join('\n');
+              
+              formatted += `
+                <div class="terminal-code-block">
+                  <div class="code-block-header">
+                    <span>Code (${lang})</span>
+                    <span>Press ESC to collapse</span>
+                  </div>
+                  <div class="code-block-content">${highlightCode(code, lang)}</div>
+                </div>
+              `;
+            }
+          }
+
+          // Append blinking block cursor to streaming output
+          div.innerHTML = formatted + `<span class="block-cursor"></span>`;
+          chatCanvas.scrollTop = chatCanvas.scrollHeight;
+
+          // Update tokens and latency in real time
+          tokenCount = Math.floor(charIndex / 4);
+          statusBarTokens.textContent = `${tokenCount} tokens`;
+          statusBarLatency.textContent = `${(charIndex * 0.008).toFixed(1)}s`;
+
+          setTimeout(streamChar, 15);
+        } else {
+          // Finished streaming
+          div.innerHTML = div.innerHTML.replace('<span class="block-cursor"></span>', '');
+          statusBarMode.textContent = 'CHAT';
+          statusBarMode.style.color = 'inherit';
+          
+          // Print system tool calls that simulate background execution
+          setTimeout(() => {
+            const toolMsg = {
+              sender: 'tool',
+              toolName: 'shell_command',
+              toolInfo: 'cargo check',
+              toolContent: [
+                'Checking z-ai-integration v0.1.0',
+                'Finished dev [unoptimized + debuginfo] target(s) in 1.1s'
+              ]
+            };
+            appendMessageToCanvas(toolMsg);
+            chatCanvas.scrollTop = chatCanvas.scrollHeight;
+            
+            // Add tool run to ACP console output
+            const ccTerm = document.getElementById('claudecodeTerminal');
+            ccTerm.innerHTML += `\n$ cargo check\nChecking z-ai-integration v0.1.0\nFinished dev [unoptimized + debuginfo] target(s) in 1.1s\n`;
+            ccTerm.scrollTop = ccTerm.scrollHeight;
+          }, 600);
+        }
+      }
+
+      setTimeout(streamChar, 400);
+    }
+
+    // USER TYPING SIMULATOR
+    function handleSendMessage() {
+      const text = chatInput.value.trim();
+      if (!text) return;
+
+      // 1. Add user message
+      const time = new Date().toTimeString().substr(0, 5);
+      const userAnsi = `\x1b[38;2;88;166;255m▌ You\x1b[0m ${time}\n${text}`;
+      
+      const userMsg = {
+        sender: 'user',
+        time: time,
+        text: userAnsi
+      };
+      
+      // Store in memory to allow toggling back
+      mockChats[activeChatId].messages.push(userMsg);
+      appendMessageToCanvas(userMsg);
+
+      // Clear input
+      chatInput.value = '';
+      autoResizeTextarea();
+
+      // Check if command
+      if (text.startsWith('/')) {
+        handleSlashCommand(text);
+        return;
+      }
+
+      // 2. Stream Assistant Response base on persona
+      statusBarMode.textContent = 'STREAMING';
+      statusBarMode.style.color = 'var(--yellow)';
+      
+      const persona = personas[activePersona];
+      
+      // Setup responses depending on persona
+      let responseText = '';
+      if (activePersona === 'dev') {
+        responseText = `Let's inspect the code base for this issue. We should run a shell tool to trace the logs.
+\`\`\`rust
+fn inspect_context() {
+    println!("Analyzing active environment variables...");
+}
+\`\`\`
+The command output looks stable. No memory leaks detected.`;
+      } else if (activePersona === 'luna') {
+        responseText = `Oh wow! 🎨 This is a fantastic design suggestion. I recommend matching a sleek, glassmorphic layout.
+Here are the CSS tokens to adjust:
+\`\`\`css
+.panel-blur {
+    backdrop-filter: blur(12px);
+    background: rgba(22, 27, 34, 0.7);
+    border: 1px solid rgba(48, 54, 61, 0.4);
+}
+\`\`\`
+Let me know if you want to test another color theme! ✨`;
+      } else {
+        responseText = `Code Review Analysis:
+1. Error Propagation: Ensure all file read systems use proper Result wrappers rather than panic handlers.
+2. Safety: The current buffer sizes are statically allocated. This poses an overflow vulnerability.
+Let's modify the struct:
+\`\`\`rust
+pub struct SafeBuffer {
+    inner: Vec<u8>,
+    capacity: usize,
+}
+\`\`\`
+I suggest running Cargo Clippy first to confirm correctness.`;
+      }
+
+      // Stream it
+      setTimeout(() => {
+        const div = document.createElement('div');
+        div.className = 'ansi-line';
+        chatCanvas.appendChild(div);
+
+        const prefix = `\x1b[38;2;${persona.accentBg === '#bc8cff' ? '188;140;255' : persona.accentBg === '#3fb950' ? '63;185;80' : '210;153;34'}m▌ ${persona.name.split(' ')[1]}\x1b[0m ${time}\n`;
+        div.innerHTML = ansiToHtml(prefix);
+
+        let charIndex = 0;
+        
+        function streamUserChar() {
+          if (charIndex < responseText.length) {
+            charIndex += Math.floor(Math.random() * 3) + 1;
+            if (charIndex > responseText.length) charIndex = responseText.length;
+            
+            let partialText = prefix + responseText.substr(0, charIndex);
+            
+            let html = ansiToHtml(partialText);
+            const parts = html.split('```');
+            let formatted = '';
+            
+            for (let i = 0; i < parts.length; i++) {
+              if (i % 2 === 0) {
+                formatted += parts[i];
+              } else {
+                const lines = parts[i].split('\n');
+                const lang = lines[0].trim();
+                const code = lines.slice(1).join('\n');
+                
+                formatted += `
+                  <div class="terminal-code-block">
+                    <div class="code-block-header">
+                      <span>Code (${lang})</span>
+                    </div>
+                    <div class="code-block-content">${highlightCode(code, lang)}</div>
+                  </div>
+                `;
+              }
+            }
+
+            div.innerHTML = formatted + `<span class="block-cursor"></span>`;
+            chatCanvas.scrollTop = chatCanvas.scrollHeight;
+            
+            // Increment tokens
+            statusBarTokens.textContent = `${Math.floor(charIndex / 4)} tokens`;
+
+            setTimeout(streamUserChar, 10);
+          } else {
+            div.innerHTML = div.innerHTML.replace('<span class="block-cursor"></span>', '');
+            statusBarMode.textContent = 'CHAT';
+            statusBarMode.style.color = 'inherit';
+            
+            // Add to messages memory
+            mockChats[activeChatId].messages.push({
+              sender: 'assistant',
+              time: time,
+              text: prefix + responseText
+            });
+          }
+        }
+
+        streamUserChar();
+      }, 300);
+    }
+
+    // SLASH COMMAND HANDLER
+    function handleSlashCommand(cmdText) {
+      const args = cmdText.split(' ');
+      const baseCmd = args[0].toLowerCase();
+      
+      let reply = '';
+      if (baseCmd === '/help') {
+        reply = `  Available Slash Commands:
+    /agent <name>       Switch active persona (dev, luna, sage)
+    /model <model>      Change LLM model
+    /image <prompt>     Simulate image asset generation
+    /skill <name>       Toggle workspace skills
+    /help               List commands in this emulator`;
+      } else if (baseCmd === '/agent') {
+        const target = args[1] ? args[1].toLowerCase() : '';
+        if (personas[target]) {
+          activePersona = target;
+          const p = personas[target];
+          statusPersonaSeg.style.backgroundColor = p.color;
+          statusPersonaSeg.innerHTML = `<span>${p.name}</span>`;
+          statusBarModel.textContent = p.model;
+          document.getElementById('wedge1').style.color = p.color;
+          reply = `Persona changed to: ${p.name} (${p.role})`;
+          renderSidebar();
+        } else {
+          reply = `Error: Persona '${args[1] || ''}' not found. Available: dev, luna, sage.`;
+        }
+      } else if (baseCmd === '/model') {
+        if (args[1]) {
+          personas[activePersona].model = args[1];
+          statusBarModel.textContent = args[1];
+          reply = `Model updated to: ${args[1]}`;
+        } else {
+          reply = `Error: Please specify model name.`;
+        }
+      } else if (baseCmd === '/image') {
+        const promptText = args.slice(1).join(' ');
+        if (!promptText) {
+          reply = `Error: Please specify an image prompt.`;
+        } else {
+          reply = `Generating image mockup for prompt: "${promptText}"...`;
+          
+          setTimeout(() => {
+            const div = document.createElement('div');
+            div.className = 'artifact-card';
+            div.style.borderColor = 'var(--accent)';
+            div.innerHTML = `
+              <div class="artifact-header" style="background-color: rgba(88, 166, 255, 0.1); border-bottom-color: var(--accent);">
+                <div class="artifact-title" style="color: var(--accent);">🖼️ generated_image</div>
+                <span style="font-size: 10px; color: var(--accent);">ASSET</span>
+              </div>
+              <div class="artifact-body" style="text-align: center;">
+                <strong>Prompt:</strong> ${promptText}<br><br>
+                <div style="background: linear-gradient(135deg, var(--bg-tertiary) 0%, #1c2536 100%); height: 180px; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--border);">
+                  <span style="color: var(--text-secondary); font-style: italic;">[Mockup Image: Vector layout of "${promptText}"]</span>
+                </div>
+              </div>
+            `;
+            chatCanvas.appendChild(div);
+            chatCanvas.scrollTop = chatCanvas.scrollHeight;
+          }, 800);
+        }
+      } else {
+        reply = `Unknown command: ${baseCmd}. Type /help for assistance.`;
+      }
+
+      printTerminalSystemMessage(reply);
+    }
+
+    // ===== REGISTER DRAG-TO-RESIZE SYSTEM =====
+    function setupResize() {
+      // Sidebar Resizing
+      sidebarResize.addEventListener('mousedown', (e) => {
+        isResizingSidebar = true;
+        document.body.style.cursor = 'col-resize';
+      });
+
+      // ACP Panel Resizing
+      acpResize.addEventListener('mousedown', (e) => {
+        isResizingAcp = true;
+        document.body.style.cursor = 'col-resize';
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (isResizingSidebar) {
+          let newWidth = e.clientX;
+          if (newWidth > 180 && newWidth < 400) {
+            document.documentElement.style.setProperty('--sidebar-width', `${newWidth}px`);
+          }
+        }
+        
+        if (isResizingAcp) {
+          let newWidth = window.innerWidth - e.clientX;
+          if (newWidth > 200 && newWidth < 500) {
+            document.documentElement.style.setProperty('--acp-width', `${newWidth}px`);
+          }
+        }
+      });
+
+      document.addEventListener('mouseup', () => {
+        isResizingSidebar = false;
+        isResizingAcp = false;
+        document.body.style.cursor = 'default';
+      });
+    }
+
+    // ===== GENERAL BINDINGS AND EVENT LISTENERS =====
+    function setupListeners() {
+      // Tabs Swapper
+      document.querySelectorAll('.sidebar-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          currentTab = tab.getAttribute('data-tab');
+          renderSidebar();
+        });
+      });
+
+      // Search field
+      sidebarSearch.addEventListener('input', renderSidebar);
+
+      // Theme Swapper
+      themeSelect.addEventListener('change', (e) => {
+        document.body.className = '';
+        currentTheme = e.target.value;
+        if (currentTheme !== 'default') {
+          document.body.classList.add(`theme-${currentTheme}`);
+        }
+      });
+
+      // Reset Button (New Chat)
+      newChatBtn.addEventListener('click', () => {
+        // Reset all states and load default
+        hasStreamedApi = false;
+        mockChats['api-integration'].messages = [
+          {
+            sender: 'user',
+            time: '16:02',
+            text: '\x1b[38;2;88;166;255m▌ You\x1b[0m 16:02\nintegrate the z.ai API'
+          }
+        ];
+        loadChat('rust-json');
+        printTerminalSystemMessage("Simulated engine state reset completed successfully.");
+      });
+
+      // CRT Scanline Toggle
+      crtToggle.addEventListener('click', () => {
+        crtToggle.classList.toggle('active');
+        if (crtToggle.classList.contains('active')) {
+          crtOverlay.classList.remove('disabled');
+        } else {
+          crtOverlay.classList.add('disabled');
+        }
+      });
+
+      // ACP Right Panel Toggle
+      acpToggleBtn.addEventListener('click', toggleAcpPanel);
+      acpCloseBtn.addEventListener('click', toggleAcpPanel);
+
+      // Send Button Clicks
+      sendBtn.addEventListener('click', handleSendMessage);
+
+      // Keyboard Shortcuts
+      chatInput.addEventListener('keydown', (e) => {
+        // Autocomplete menu visible navigation
+        if (autocompleteMenu.style.display === 'flex') {
+          const items = autocompleteMenu.querySelectorAll('.autocomplete-item');
+          let selectedIndex = -1;
+          for (let i = 0; i < items.length; i++) {
+            if (items[i].classList.contains('selected')) {
+              selectedIndex = i;
+              break;
+            }
+          }
+
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (selectedIndex > -1) items[selectedIndex].classList.remove('selected');
+            const next = (selectedIndex + 1) % items.length;
+            items[next].classList.add('selected');
+            items[next].scrollIntoView({ block: 'nearest' });
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (selectedIndex > -1) items[selectedIndex].classList.remove('selected');
+            const prev = (selectedIndex - 1 + items.length) % items.length;
+            items[prev].classList.add('selected');
+            items[prev].scrollIntoView({ block: 'nearest' });
+          } else if (e.key === 'Enter' || e.key === 'Tab') {
+            e.preventDefault();
+            if (selectedIndex > -1) {
+              insertCommand(items[selectedIndex].getAttribute('data-cmd'));
+            } else {
+              autocompleteMenu.style.display = 'none';
+            }
+          } else if (e.key === 'Escape') {
+            autocompleteMenu.style.display = 'none';
+          }
+          return;
+        }
+
+        // Send triggers
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          handleSendMessage();
+        }
+      });
+
+      // Show autocomplete when / typed
+      chatInput.addEventListener('keyup', (e) => {
+        if (e.key === '/') {
+          autocompleteMenu.style.display = 'flex';
+          autocompleteMenu.querySelectorAll('.autocomplete-item').forEach(i => i.classList.remove('selected'));
+          autocompleteMenu.querySelector('.autocomplete-item').classList.add('selected');
+        } else if (chatInput.value === '') {
+          autocompleteMenu.style.display = 'none';
+        }
+      });
+
+      // Close menu if clicked outside
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.input-bar-container')) {
+          autocompleteMenu.style.display = 'none';
+        }
+      });
+
+      // Global keyboard handlers for hotkeys
+      document.addEventListener('keydown', (e) => {
+        // Ctrl + / opens autocomplete menu
+        if (e.ctrlKey && e.key === '/') {
+          e.preventDefault();
+          chatInput.focus();
+          chatInput.value = '/';
+          autocompleteMenu.style.display = 'flex';
+          autocompleteMenu.querySelectorAll('.autocomplete-item').forEach(i => i.classList.remove('selected'));
+          autocompleteMenu.querySelector('.autocomplete-item').classList.add('selected');
+        }
+
+        // Escape closes nano editor
+        if (e.key === 'Escape' && nanoEditor.style.display === 'flex') {
+          nanoEditor.style.display = 'none';
+        }
+      });
+
+      // Nano Editor Close
+      nanoCloseBtn.addEventListener('click', () => {
+        nanoEditor.style.display = 'none';
+      });
+
+      // Setup Resizing
+      setupResize();
+    }
+
+    function toggleAcpPanel() {
+      acpPanel.classList.toggle('collapsed');
+      if (acpPanel.classList.contains('collapsed')) {
+        acpToggleBtn.innerHTML = '<span>ACP MONITOR (OFF)</span>';
+        acpToggleBtn.style.backgroundColor = 'var(--bg-tertiary)';
+        acpToggleBtn.style.color = 'var(--text-secondary)';
+      } else {
+        acpToggleBtn.innerHTML = '<span>ACP MONITOR (ON)</span>';
+        acpToggleBtn.style.backgroundColor = 'var(--orange)';
+        acpToggleBtn.style.color = 'var(--bg-primary)';
+      }
+    }
+
+    function insertCommand(cmd) {
+      chatInput.value = cmd + ' ';
+      autocompleteMenu.style.display = 'none';
+      chatInput.focus();
+      autoResizeTextarea();
+    }
+
+    // Run app on load
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
