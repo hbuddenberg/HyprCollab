@@ -1,0 +1,4032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HyprCollab — Terminal TUI Frontend (v7)</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="HyprCollab TUI frontend proposal v7 built from scratch. Inspired by Neovim/LazyVim, Bubble Tea, and Lazygit. Uses pure Unicode box-drawing character borders and monospace layouts.">
+  <meta name="theme-color" content="#1e1e2e">
+  
+  <!-- JetBrains Mono from Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap" rel="stylesheet">
+  
+  <style>
+    /* ===== RESET & BASE STYLES ===== */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+      font-family: 'JetBrains Mono', monospace !important;
+    }
+
+    :root {
+      /* Default Theme: Catppuccin Mocha */
+      --bg-base: #1e1e2e;
+      --bg-surface0: #313244;
+      --bg-surface1: #45475a;
+      --bg-mantle: #1e1e2e;
+      --text: #cdd6f4;
+      --subtext0: #a6adc8;
+      --overlay0: #6c7086;
+      --accent: #89b4fa; /* blue */
+      --green: #a6e3a1;
+      --yellow: #f9e2af;
+      --red: #f38ba8;
+      --mauve: #cba6f7;
+      --teal: #94e2d5;
+      --peach: #fab387;
+    }
+
+    body.theme-tokyonight {
+      --bg-base: #1a1b26;
+      --bg-surface0: #24283b;
+      --bg-surface1: #3b4261;
+      --bg-mantle: #16161f;
+      --text: #c0caf5;
+      --subtext0: #a9b1d6;
+      --overlay0: #565f89;
+      --accent: #7aa2f7;
+      --green: #9ece6a;
+      --yellow: #e0af68;
+      --red: #f7768e;
+      --mauve: #bb9af7;
+      --teal: #73daca;
+      --peach: #ff9e64;
+    }
+
+    body.theme-nord {
+      --bg-base: #2e3440;
+      --bg-surface0: #3b4252;
+      --bg-surface1: #4c566a;
+      --bg-mantle: #242933;
+      --text: #eceff4;
+      --subtext0: #d8dee9;
+      --overlay0: #616e88;
+      --accent: #88c0d0;
+      --green: #a3be8c;
+      --yellow: #ebcb8b;
+      --red: #bf616a;
+      --mauve: #b48ead;
+      --teal: #8fbcbb;
+      --peach: #d08770;
+    }
+
+    body.theme-dracula {
+      --bg-base: #282a36;
+      --bg-surface0: #1e1f29;
+      --bg-surface1: #44475a;
+      --bg-mantle: #191a21;
+      --text: #f8f8f2;
+      --subtext0: #f8f8f2;
+      --overlay0: #6272a4;
+      --accent: #ff79c6;
+      --green: #50fa7b;
+      --yellow: #f1fa8c;
+      --red: #ff5555;
+      --mauve: #bd93f9;
+      --teal: #8be9fd;
+      --peach: #ffb86c;
+    }
+
+    body.theme-github {
+      --bg-base: #0d1117;
+      --bg-surface0: #161b22;
+      --bg-surface1: #30363d;
+      --bg-mantle: #0b0e14;
+      --text: #c9d1d9;
+      --subtext0: #8b949e;
+      --overlay0: #58a6ff;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --yellow: #d29922;
+      --red: #f85149;
+      --mauve: #bc8cff;
+      --teal: #39d2c0;
+      --peach: #f0883e;
+    }
+
+    body.theme-rosepine {
+      --bg-base: #191724;
+      --bg-surface0: #1f1d2e;
+      --bg-surface1: #26233a;
+      --bg-mantle: #12101a;
+      --text: #e0def4;
+      --subtext0: #908caa;
+      --overlay0: #6e6a86;
+      --accent: #ebbcba;
+      --green: #9ccfd8;
+      --yellow: #f6c177;
+      --red: #eb6f92;
+      --mauve: #c4a7e7;
+      --teal: #9ccfd8;
+      --peach: #ea9a97;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.2;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* ===== CRT SCANLINE EFFECTS ===== */
+    .crt-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.05) 50%);
+      background-size: 100% 4px;
+      z-index: 99999;
+      pointer-events: none;
+      opacity: 0.2;
+    }
+
+    .crt-overlay.disabled {
+      display: none;
+    }
+
+    /* ===== OUTER TERMINAL CHROME WRAPPER ===== */
+    .window-chrome {
+      display: flex;
+      flex-direction: column;
+      width: 100vw;
+      height: 100vh;
+      background-color: var(--bg-base);
+      overflow: hidden;
+    }
+
+    .chrome-middle {
+      display: flex;
+      flex-direction: row;
+      flex-grow: 1;
+      overflow: hidden;
+      align-items: stretch;
+    }
+
+    .chrome-left, .chrome-right {
+      flex-shrink: 0;
+      color: var(--bg-surface1);
+    }
+
+    .app-container {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ===== UNICODE CHARACTER BORDERS ===== */
+    .border-h {
+      display: flex;
+      white-space: nowrap;
+      overflow: hidden;
+      color: var(--bg-surface1);
+      font-size: 13px;
+      line-height: 1.2;
+      flex-shrink: 0;
+      user-select: none;
+    }
+
+    .border-h-fill {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: clip;
+      letter-spacing: -0.05px;
+    }
+
+    .border-h-fill::before {
+      content: "────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────";
+      display: block;
+    }
+
+    .divider-v {
+      position: relative;
+      width: 1ch;
+      flex-shrink: 0;
+      align-self: stretch;
+      color: var(--bg-surface1);
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .divider-v::before {
+      content: "│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│";
+      display: block;
+      white-space: pre;
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    /* ===== WORKSPACE ROW ===== */
+    .tui-workspace-row {
+      display: flex;
+      flex-grow: 1;
+      overflow: hidden;
+    }
+
+    /* ===== ACTIVITY BAR (LEFT EDGE - 6ch) ===== */
+    .activity-bar {
+      width: 6ch;
+      background-color: var(--bg-mantle);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1ch 0;
+      flex-shrink: 0;
+    }
+
+    .activity-items {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      gap: 1ch;
+      align-items: center;
+    }
+
+    .activity-item {
+      width: 100%;
+      height: 3ch;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding-left: 1ch;
+      cursor: pointer;
+      position: relative;
+      color: var(--subtext0);
+    }
+
+    .activity-item:hover {
+      color: var(--text);
+      background-color: var(--bg-surface0);
+    }
+
+    .activity-item.active {
+      color: var(--accent);
+      background-color: var(--bg-surface0);
+    }
+
+    .activity-indicator {
+      width: 1.5ch;
+      flex-shrink: 0;
+      color: var(--accent);
+      font-weight: bold;
+    }
+
+    .activity-item:not(.active) .activity-indicator {
+      visibility: hidden;
+    }
+
+    .activity-icon {
+      font-size: 14px;
+      margin-left: 0.5ch;
+    }
+
+    .activity-fallback {
+      font-size: 13px;
+      margin-left: 0.5ch;
+    }
+
+    body.no-nerd-font .activity-icon {
+      display: none;
+    }
+    body:not(.no-nerd-font) .activity-fallback {
+      display: none;
+    }
+
+    /* Unread/Notification badge in Activity Bar */
+    .activity-badge {
+      position: absolute;
+      top: 0.2ch;
+      right: 0.5ch;
+      color: var(--red);
+      font-size: 9px;
+      font-weight: bold;
+      pointer-events: none;
+    }
+
+    /* Tooltips on Hover */
+    .tui-tooltip-container {
+      position: relative;
+      display: inline-block;
+    }
+
+    .tui-btn-tooltip {
+      display: none;
+      position: absolute;
+      bottom: 120%;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: var(--bg-surface0);
+      color: var(--text);
+      font-size: 11px;
+      white-space: pre;
+      z-index: 10000;
+      pointer-events: none;
+    }
+
+    .tui-tooltip-container:hover .tui-btn-tooltip {
+      display: block;
+    }
+
+    /* ===== SIDEBAR COLUMN (25ch wide) ===== */
+    .sidebar-column {
+      width: 25ch;
+      background-color: var(--bg-mantle);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow-y: auto;
+    }
+
+    /* Hide default scrollbars */
+    .sidebar-column::-webkit-scrollbar,
+    .chat-canvas-wrapper::-webkit-scrollbar,
+    .preview-panel-content::-webkit-scrollbar {
+      width: 1ch;
+    }
+    .sidebar-column::-webkit-scrollbar-track,
+    .chat-canvas-wrapper::-webkit-scrollbar-track,
+    .preview-panel-content::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .sidebar-column::-webkit-scrollbar-thumb,
+    .chat-canvas-wrapper::-webkit-scrollbar-thumb,
+    .preview-panel-content::-webkit-scrollbar-thumb {
+      background: var(--bg-surface1);
+    }
+    .sidebar-column::-webkit-scrollbar-thumb:hover,
+    .chat-canvas-wrapper::-webkit-scrollbar-thumb:hover,
+    .preview-panel-content::-webkit-scrollbar-thumb:hover {
+      background: var(--text);
+    }
+
+    .sidebar-panel {
+      display: none;
+      flex-direction: column;
+      height: 100%;
+      padding: 1ch 0;
+    }
+
+    .sidebar-panel.active {
+      display: flex;
+    }
+
+    .sidebar-header {
+      font-weight: bold;
+      color: var(--accent);
+      padding: 0 1.5ch;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.5ch;
+    }
+
+    .sidebar-header-underline {
+      padding: 0 1.5ch;
+      color: var(--bg-surface1);
+      margin-bottom: 1ch;
+    }
+
+    .sidebar-search-box {
+      padding: 0 1.5ch 1ch;
+    }
+
+    /* Neo-tree Tree Item Structure */
+    .tree-folder {
+      display: flex;
+      align-items: center;
+      padding: 0.4ch 1.5ch;
+      cursor: pointer;
+      color: var(--subtext0);
+      font-weight: bold;
+    }
+    .tree-folder:hover {
+      color: var(--text);
+    }
+    .folder-indicator {
+      width: 2ch;
+      color: var(--accent);
+    }
+    .tree-folder-contents {
+      display: flex;
+      flex-direction: column;
+    }
+    .tree-folder-contents.collapsed {
+      display: none;
+    }
+
+    .tree-item {
+      display: flex;
+      align-items: center;
+      padding: 0.4ch 1.5ch;
+      cursor: pointer;
+      color: var(--subtext0);
+      white-space: nowrap;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .tree-item:hover {
+      color: var(--text);
+    }
+
+    .tree-item.active {
+      color: var(--text);
+      font-weight: bold;
+    }
+
+    /* NVIM visual mode highlight inversion */
+    .tree-item.active-nav {
+      background-color: var(--text);
+      color: var(--bg-base);
+    }
+    .tree-item.active-nav .item-indicator {
+      color: var(--bg-base);
+    }
+
+    .item-indicator {
+      width: 2ch;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .item-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .item-badge-unread {
+      color: var(--red);
+      margin-left: auto;
+      font-size: 10px;
+      font-weight: bold;
+    }
+
+    .chat-item-actions {
+      display: none;
+      position: absolute;
+      right: 1ch;
+      gap: 0.5ch;
+      background-color: inherit;
+      padding-left: 1ch;
+    }
+    
+    .tree-item:hover .chat-item-actions {
+      display: flex;
+    }
+
+    .tree-item.active-nav .chat-item-actions {
+      background-color: var(--text);
+      color: var(--bg-base);
+    }
+
+    .chat-action-btn {
+      color: var(--accent);
+      font-weight: bold;
+    }
+    .tree-item.active-nav .chat-action-btn {
+      color: var(--bg-base);
+    }
+
+    .tree-item.sub-depth-1 { padding-left: 3.5ch; }
+    .tree-item.sub-depth-2 { padding-left: 5.5ch; }
+    .tree-item.sub-depth-3 { padding-left: 7.5ch; }
+
+    .panel-detail-box {
+      padding: 0.2ch 1.5ch 0.8ch 3.5ch;
+      color: var(--overlay0);
+      font-size: 11px;
+      line-height: 1.3;
+      white-space: pre-wrap;
+    }
+
+    .panel-action-row {
+      display: flex;
+      padding: 1ch 1.5ch;
+      gap: 1ch;
+    }
+
+    /* Forms inside sidebar settings */
+    .settings-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5ch;
+      padding: 1ch 1.5ch;
+    }
+
+    .settings-label {
+      font-size: 11px;
+      font-weight: bold;
+      color: var(--accent);
+      letter-spacing: 0.5px;
+    }
+
+    .tui-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 1ch;
+      cursor: pointer;
+      color: var(--text);
+      font-size: 12px;
+      height: 2.5ch;
+    }
+    .tui-checkbox:hover .checkbox-label {
+      color: var(--accent);
+    }
+    .checkbox-box {
+      color: var(--accent);
+      font-weight: bold;
+    }
+
+    /* Theme list item */
+    .theme-list-item {
+      display: flex;
+      align-items: center;
+      padding: 0.5ch 1ch;
+      cursor: pointer;
+      color: var(--subtext0);
+    }
+    .theme-list-item:hover {
+      color: var(--text);
+    }
+    .theme-list-item.active {
+      color: var(--text);
+      font-weight: bold;
+    }
+    .theme-list-item.active-nav {
+      background-color: var(--text);
+      color: var(--bg-base);
+    }
+    .theme-list-item.active-nav .item-indicator {
+      color: var(--bg-base);
+    }
+
+    /* Box drawing wrapper for inputs */
+    .tui-input-box {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      margin-bottom: 0.8ch;
+    }
+    .tui-input-middle {
+      display: flex;
+      align-items: center;
+      height: 3ch;
+      background-color: var(--bg-surface0);
+    }
+    .tui-input-middle span {
+      color: var(--bg-surface1);
+      padding: 0 0.8ch;
+    }
+    .tui-input-element {
+      flex-grow: 1;
+      background: transparent;
+      color: var(--text);
+      border: none;
+      outline: none;
+      font-size: 12px;
+      height: 100%;
+    }
+
+    /* SELECT box wrapper */
+    .tui-select-element {
+      flex-grow: 1;
+      background: transparent;
+      color: var(--text);
+      border: none;
+      outline: none;
+      font-size: 12px;
+      height: 100%;
+      cursor: pointer;
+      appearance: none;
+    }
+    .tui-select-element option {
+      background-color: var(--bg-surface0);
+      color: var(--text);
+    }
+
+    /* ===== CLICKABLE TUI BUTTONS ===== */
+    .tui-btn-clickable {
+      background: transparent;
+      color: var(--text);
+      border: none;
+      cursor: pointer;
+      padding: 0 1ch;
+      user-select: none;
+      display: inline-block;
+    }
+
+    .tui-btn-clickable:hover {
+      background-color: var(--text) !important;
+      color: var(--bg-base) !important;
+    }
+
+    .tui-btn-clickable.primary {
+      color: var(--accent);
+    }
+    .tui-btn-clickable.dimmed {
+      color: var(--overlay0);
+    }
+    .tui-btn-clickable.dimmed:hover {
+      color: var(--bg-base);
+    }
+
+    @keyframes button-flash {
+      0% { background-color: var(--accent); color: var(--bg-base); }
+      100% { background-color: transparent; color: var(--text); }
+    }
+    .tui-btn-clickable.flash {
+      animation: button-flash 0.15s ease-out;
+    }
+
+    /* ===== CENTER CHAT COLUMN ===== */
+    .chat-column {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background-color: var(--bg-base);
+      overflow: hidden;
+    }
+
+    /* Fixed top status bar */
+    .chat-status-bar-top {
+      background-color: var(--bg-base);
+      color: var(--subtext0);
+    }
+
+    .chat-canvas-wrapper {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 1.5ch 2ch;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chat-canvas {
+      display: none;
+      flex-direction: column;
+      gap: 1.5ch;
+      width: 100%;
+    }
+
+    .chat-canvas.active {
+      display: flex;
+    }
+
+    /* ===== BOX DRAWING MESSAGES ===== */
+    .message-box {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+    }
+
+    .message-middle {
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+    }
+
+    .message-left-edge, .message-right-edge {
+      position: relative;
+      overflow: hidden;
+      width: 1ch;
+      color: var(--bg-surface1);
+      user-select: none;
+      line-height: 1.4;
+      flex-shrink: 0;
+    }
+
+    .message-left-edge::before, .message-right-edge::before {
+      content: "│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│";
+      display: block;
+      white-space: pre;
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      text-align: center;
+    }
+
+    .message-content {
+      flex-grow: 1;
+      padding: 0.5ch 2ch;
+      white-space: pre-wrap;
+      line-height: 1.4;
+      word-break: break-word;
+      color: var(--text);
+    }
+
+    /* Code block inside message */
+    .code-block-box {
+      display: flex;
+      flex-direction: column;
+      margin: 1ch 0;
+      width: 100%;
+      max-width: 80ch;
+    }
+
+    .code-block-middle {
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      background-color: var(--bg-surface0);
+    }
+
+    .code-block-left-edge, .code-block-right-edge {
+      position: relative;
+      overflow: hidden;
+      width: 1ch;
+      color: var(--bg-surface1);
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .code-block-left-edge::before, .code-block-right-edge::before {
+      content: "│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│";
+      display: block;
+      white-space: pre;
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      text-align: center;
+    }
+
+    .code-block-content {
+      flex-grow: 1;
+      padding: 0.5ch 2ch;
+      white-space: pre-wrap;
+      line-height: 1.4;
+      font-size: 12px;
+      color: var(--text);
+      overflow-x: auto;
+    }
+
+    .artifact-actions {
+      display: flex;
+      gap: 1ch;
+      padding: 0.5ch 2ch;
+      background-color: var(--bg-surface0);
+    }
+
+    /* Tool / Shell command execution panels */
+    .tool-box {
+      display: flex;
+      flex-direction: column;
+      margin: 1ch 0;
+      width: 100%;
+      max-width: 80ch;
+    }
+
+    .tool-box.border-cyan {
+      --border-color: var(--teal);
+    }
+    .tool-box.border-accent {
+      --border-color: var(--accent);
+    }
+
+    .tool-box .border-h {
+      color: var(--border-color, var(--bg-surface1));
+    }
+    .tool-box .border-h span {
+      cursor: pointer;
+    }
+
+    .tool-middle {
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      background-color: var(--bg-surface0);
+    }
+
+    .tool-left-edge, .tool-right-edge {
+      position: relative;
+      overflow: hidden;
+      width: 1ch;
+      color: var(--border-color, var(--bg-surface1));
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .tool-left-edge::before, .tool-right-edge::before {
+      content: "│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│";
+      display: block;
+      white-space: pre;
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      text-align: center;
+    }
+
+    .tool-content {
+      flex-grow: 1;
+      padding: 0.5ch 2ch;
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    .tool-collapsible-body {
+      display: none;
+      flex-direction: column;
+    }
+    
+    .tool-box.expanded .tool-collapsible-body {
+      display: flex;
+    }
+
+    .tool-collapsible-header-btn {
+      color: var(--accent);
+      font-weight: bold;
+      padding-left: 2ch;
+    }
+
+    /* Syntax Highlighting CSS */
+    .line-num {
+      color: var(--overlay0);
+      margin-right: 1.5ch;
+      display: inline-block;
+      width: 3ch;
+      text-align: right;
+      user-select: none;
+    }
+    .keyword { color: var(--mauve); font-weight: bold; }
+    .function { color: var(--accent); }
+    .type { color: var(--yellow); }
+    .string { color: var(--green); }
+    .comment { color: var(--overlay0); font-style: italic; }
+    .number { color: var(--peach); }
+    .tag { color: var(--red); }
+    .attr { color: var(--peach); }
+
+    /* User Message alignment helper */
+    .message-container.user-msg-align {
+      align-self: flex-end;
+      width: 90%;
+      max-width: 80ch;
+    }
+
+    .message-container.assistant-msg-align {
+      align-self: flex-start;
+      width: 100%;
+    }
+
+    /* ===== INPUT AREA (BOTTOM) ===== */
+    .chat-input-area {
+      flex-shrink: 0;
+      background-color: var(--bg-base);
+      display: flex;
+      flex-direction: column;
+      padding-top: 1ch;
+    }
+
+    /* Command Dropdown */
+    .commands-dropdown {
+      display: none;
+      flex-direction: column;
+      position: absolute;
+      bottom: 6ch;
+      left: 32ch;
+      width: 50ch;
+      background-color: var(--bg-surface0);
+      z-index: 5000;
+    }
+
+    .commands-dropdown.visible {
+      display: flex;
+    }
+
+    .dropdown-middle {
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+    }
+
+    .dropdown-left-edge, .dropdown-right-edge {
+      position: relative;
+      overflow: hidden;
+      width: 1ch;
+      color: var(--bg-surface1);
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .dropdown-left-edge::before, .dropdown-right-edge::before {
+      content: "│\n│\n│\n│\n│\n│\n│\n│\n│\n│";
+      display: block;
+      white-space: pre;
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      text-align: center;
+    }
+
+    .dropdown-content {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .dropdown-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5ch 2ch;
+      cursor: pointer;
+      color: var(--subtext0);
+    }
+    
+    .dropdown-item.active {
+      background-color: var(--text);
+      color: var(--bg-base);
+    }
+
+    .dropdown-item-cmd {
+      font-weight: bold;
+    }
+
+    /* Prompt Line */
+    .input-prompt-line {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      padding: 0.8ch 2ch;
+      height: 3ch;
+    }
+
+    .prompt-arrow {
+      color: var(--accent);
+      font-weight: bold;
+      margin-right: 1.5ch;
+      user-select: none;
+    }
+
+    .input-container {
+      flex-grow: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+      height: 100%;
+      cursor: text;
+    }
+
+    .input-typed {
+      color: var(--text);
+      white-space: pre;
+    }
+
+    .input-placeholder {
+      color: var(--overlay0);
+      position: absolute;
+      left: 0;
+      pointer-events: none;
+    }
+
+    .cursor-block {
+      color: var(--accent);
+      font-weight: bold;
+      animation: cursor-blink 1s infinite steps(2);
+      user-select: none;
+      margin-left: 1px;
+    }
+
+    @keyframes cursor-blink {
+      0% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    .actual-input {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      border: none;
+      outline: none;
+      background: transparent;
+      color: transparent;
+      caret-color: transparent;
+    }
+
+    .input-actions-row {
+      display: flex;
+      flex-direction: row;
+      gap: 1ch;
+      padding: 0.5ch 2ch 1ch;
+    }
+
+    /* ===== RIGHT PREVIEW PANEL ===== */
+    .preview-column {
+      width: 45ch;
+      background-color: var(--bg-mantle);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .preview-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5ch 1.5ch;
+      height: 3.5ch;
+      color: var(--accent);
+      font-weight: bold;
+    }
+
+    .preview-panel-tabs {
+      display: flex;
+      gap: 1ch;
+      padding: 0.5ch 1.5ch;
+      background-color: var(--bg-surface0);
+    }
+
+    .preview-panel-content {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 1ch 1.5ch;
+      background-color: var(--bg-base);
+    }
+
+    .preview-empty-state {
+      color: var(--overlay0);
+      text-align: center;
+      padding-top: 5ch;
+    }
+
+    .preview-code-body {
+      white-space: pre;
+      font-size: 12px;
+      line-height: 1.4;
+      color: var(--text);
+    }
+
+    .preview-render-body {
+      white-space: pre;
+      font-size: 12px;
+      line-height: 1.4;
+      color: var(--text);
+      display: none;
+    }
+
+    .preview-image-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding-top: 5ch;
+      color: var(--overlay0);
+      gap: 1ch;
+    }
+
+    .preview-metadata-footer {
+      display: flex;
+      flex-direction: column;
+      padding: 1ch 1.5ch;
+      background-color: var(--bg-surface0);
+      gap: 1ch;
+    }
+
+    .preview-footer-info {
+      display: flex;
+      justify-content: space-between;
+      color: var(--subtext0);
+      font-size: 11px;
+    }
+
+    .preview-footer-actions {
+      display: flex;
+      gap: 1ch;
+    }
+
+    /* ===== NVIM STATUS BAR BOTTOM ===== */
+    .tui-status-bar-line {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 2ch;
+      background-color: var(--bg-surface0);
+      color: var(--text);
+      font-size: 12px;
+      padding: 0 1.5ch;
+      flex-shrink: 0;
+      user-select: none;
+    }
+
+    .status-left {
+      display: flex;
+      align-items: center;
+      gap: 2ch;
+      flex-grow: 1;
+      overflow: hidden;
+    }
+
+    .status-mode-pill {
+      background-color: var(--accent);
+      color: var(--bg-base);
+      font-weight: bold;
+      padding: 0 1ch;
+    }
+
+    body.mode-insert .status-mode-pill {
+      background-color: var(--green);
+    }
+    body.mode-command .status-mode-pill {
+      background-color: var(--yellow);
+    }
+    body.mode-chat .status-mode-pill {
+      background-color: var(--mauve);
+    }
+
+    .status-keybinds {
+      color: var(--subtext0);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .key-indicator {
+      color: var(--accent);
+      font-weight: bold;
+    }
+
+    .status-command-prompt {
+      display: none;
+      color: var(--yellow);
+      font-weight: bold;
+    }
+
+    .status-right {
+      display: flex;
+      align-items: center;
+      gap: 1.5ch;
+      color: var(--subtext0);
+      flex-shrink: 0;
+    }
+
+    /* ===== FLOATING MODALS ===== */
+    .tui-modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0, 0, 0, 0.4);
+      z-index: 10000;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .tui-modal-overlay.visible {
+      display: flex;
+    }
+
+    .tui-modal {
+      display: flex;
+      flex-direction: column;
+      background-color: var(--bg-base);
+      width: 60ch;
+      max-width: 90vw;
+    }
+
+    .tui-modal-middle {
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+    }
+
+    .tui-modal-left-edge, .tui-modal-right-edge {
+      position: relative;
+      overflow: hidden;
+      width: 1ch;
+      color: var(--bg-surface1);
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .tui-modal-left-edge::before, .tui-modal-right-edge::before {
+      content: "│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│";
+      display: block;
+      white-space: pre;
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      text-align: center;
+    }
+
+    .tui-modal-content {
+      flex-grow: 1;
+      padding: 1ch 2ch;
+      color: var(--text);
+    }
+
+    /* Help grid layout */
+    .help-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5ch;
+      margin-top: 1ch;
+    }
+
+    .help-row {
+      display: flex;
+      justify-content: flex-start;
+    }
+
+    .help-key {
+      width: 14ch;
+      color: var(--accent);
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+
+    .help-desc {
+      color: var(--subtext0);
+    }
+
+    /* ===== TOAST NOTIFICATIONS ===== */
+    .toast-container {
+      position: fixed;
+      bottom: 4ch;
+      right: 4ch;
+      display: flex;
+      flex-direction: column;
+      gap: 1ch;
+      z-index: 20000;
+      pointer-events: none;
+    }
+
+    .toast-box {
+      display: flex;
+      flex-direction: column;
+      width: 40ch;
+      background-color: var(--bg-surface0);
+      pointer-events: auto;
+    }
+
+    .toast-middle {
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+    }
+
+    .toast-left-edge, .toast-right-edge {
+      position: relative;
+      overflow: hidden;
+      width: 1ch;
+      color: var(--bg-surface1);
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .toast-left-edge::before, .toast-right-edge::before {
+      content: "│\n│\n│\n│\n│";
+      display: block;
+      white-space: pre;
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      text-align: center;
+    }
+
+    .toast-content {
+      flex-grow: 1;
+      padding: 0.5ch 2ch;
+      font-size: 11px;
+      color: var(--text);
+    }
+
+    .toast-box.fade-out {
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    /* Custom classes for layout rendering toggles */
+    .app-container.preview-collapsed .preview-column,
+    .app-container.preview-collapsed .preview-divider-v {
+      display: none !important;
+    }
+  </style>
+</head>
+<body class="theme-catppuccin mode-normal">
+
+  <!-- CRT SCREEN OVERLAY -->
+  <div class="crt-overlay" id="crt-screen"></div>
+
+  <!-- WINDOW CHROME WRAPPER -->
+  <div class="window-chrome">
+    
+    <!-- Title Bar Border (Top) -->
+    <div class="border-h chrome-top">
+      <span>╭─ HyprCollab ─ ~/chat ─ bash ─ <span id="chrome-term-size">190x40</span> </span>
+      <span class="border-h-fill"></span>
+      <span>╮</span>
+    </div>
+
+    <!-- Middle Window Content Area -->
+    <div class="chrome-middle">
+      
+      <!-- Left chrome frame element -->
+      <div class="divider-v chrome-left"></div>
+
+      <!-- Main Application Container -->
+      <div class="app-container">
+        
+        <!-- Workspace Layout Row -->
+        <div class="tui-workspace-row">
+          
+          <!-- 1. Activity Bar (Leftmost Edge) -->
+          <nav class="activity-bar">
+            <div class="activity-items">
+              
+              <!-- Tab 1: Chats -->
+              <div class="activity-item active" data-tab="chats" id="act-chats">
+                <span class="activity-indicator">▸</span>
+                <span class="activity-icon">󰭹</span>
+                <span class="activity-fallback">C</span>
+                <span class="activity-badge" id="chats-unread-dot">●</span>
+                <div class="tui-btn-tooltip">
+╭─────────────────╮
+│ 💬 Chats        │
+│ Shortcut: 1     │
+╰─────────────────╯
+                </div>
+              </div>
+
+              <!-- Tab 2: Files -->
+              <div class="activity-item" data-tab="files" id="act-files">
+                <span class="activity-indicator">▸</span>
+                <span class="activity-icon">📂</span>
+                <span class="activity-fallback">F</span>
+                <div class="tui-btn-tooltip">
+╭─────────────────╮
+│ 📂 Files        │
+│ Shortcut: 2     │
+╰─────────────────╯
+                </div>
+              </div>
+
+              <!-- Tab 3: Personas -->
+              <div class="activity-item" data-tab="personas" id="act-personas">
+                <span class="activity-indicator">▸</span>
+                <span class="activity-icon">🎭</span>
+                <span class="activity-fallback">P</span>
+                <div class="tui-btn-tooltip">
+╭─────────────────╮
+│ 🎭 Personas     │
+│ Shortcut: 3     │
+╰─────────────────╯
+                </div>
+              </div>
+
+              <!-- Tab 4: Agents -->
+              <div class="activity-item" data-tab="agents" id="act-agents">
+                <span class="activity-indicator">▸</span>
+                <span class="activity-icon">🔧</span>
+                <span class="activity-fallback">A</span>
+                <span class="activity-badge" id="agents-badge">1</span>
+                <div class="tui-btn-tooltip">
+╭─────────────────╮
+│ 🔧 Agents & ACP │
+│ Shortcut: 4     │
+╰─────────────────╯
+                </div>
+              </div>
+
+              <!-- Tab 5: Skills -->
+              <div class="activity-item" data-tab="skills" id="act-skills">
+                <span class="activity-indicator">▸</span>
+                <span class="activity-icon">⚡</span>
+                <span class="activity-fallback">S</span>
+                <div class="tui-btn-tooltip">
+╭─────────────────╮
+│ ⚡ Skills       │
+│ Shortcut: 5     │
+╰─────────────────╯
+                </div>
+              </div>
+
+              <!-- Tab 6: MCP Servers -->
+              <div class="activity-item" data-tab="mcp" id="act-mcp">
+                <span class="activity-indicator">▸</span>
+                <span class="activity-icon"></span>
+                <span class="activity-fallback">M</span>
+                <div class="tui-btn-tooltip">
+╭─────────────────╮
+│  MCP Servers   │
+│ Shortcut: 6     │
+╰─────────────────╯
+                </div>
+              </div>
+
+              <!-- Tab 7: Memories -->
+              <div class="activity-item" data-tab="memories" id="act-memories">
+                <span class="activity-indicator">▸</span>
+                <span class="activity-icon">🧠</span>
+                <span class="activity-fallback">R</span>
+                <div class="tui-btn-tooltip">
+╭─────────────────╮
+│ 🧠 Memories     │
+│ Shortcut: 7     │
+╰─────────────────╯
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Bottom of Activity Bar: Settings icon -->
+            <div class="activity-items">
+              <div class="activity-item" data-tab="settings" id="act-settings">
+                <span class="activity-indicator">▸</span>
+                <span class="activity-icon">⚙</span>
+                <span class="activity-fallback">O</span>
+                <div class="tui-btn-tooltip">
+╭─────────────────╮
+│ ⚙ Settings      │
+│ Shortcut: 8     │
+╰─────────────────╯
+                </div>
+              </div>
+            </div>
+          </nav>
+
+          <!-- Divider 1 -->
+          <div class="divider-v"></div>
+
+          <!-- 2. Sidebar Column (Navigator) -->
+          <div class="sidebar-column" id="left-sidebar">
+            
+            <!-- PANEL: Chats (tab="chats") -->
+            <div class="sidebar-panel active" id="panel-chats">
+              <div class="sidebar-header">💬 CHATS</div>
+              <div class="sidebar-header-underline">──────────────────────</div>
+              
+              <div class="sidebar-search-box">
+                <div class="tui-input-box">
+                  <div class="border-h">
+                    <span>┌</span>
+                    <span class="border-h-fill"></span>
+                    <span>┐</span>
+                  </div>
+                  <div class="tui-input-middle">
+                    <span>/</span>
+                    <input type="text" class="tui-input-element" placeholder="Search chats...">
+                  </div>
+                  <div class="border-h">
+                    <span>└</span>
+                    <span class="border-h-fill"></span>
+                    <span>┘</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Folders (Date groups) -->
+              <div class="tree-folder" data-folder="pinned">
+                <span class="folder-indicator">▾</span>
+                <span class="folder-name">PINNED</span>
+              </div>
+              <div class="tree-folder-contents" id="folder-contents-pinned">
+                <div class="tree-item active" data-item-type="chat" data-item-target="chat-1">
+                  <span class="item-indicator">▸</span>
+                  <span class="item-text">📌 Rust workspace refac</span>
+                  <div class="chat-item-actions">
+                    <span class="chat-action-btn" onclick="renameChat('chat-1', event)">[✏]</span>
+                    <span class="chat-action-btn" onclick="deleteChat('chat-1', event)">[✖]</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="tree-folder" data-folder="today">
+                <span class="folder-indicator">▾</span>
+                <span class="folder-name">TODAY</span>
+              </div>
+              <div class="tree-folder-contents" id="folder-contents-today">
+                <div class="tree-item" data-item-type="chat" data-item-target="chat-3">
+                  <span class="item-indicator"> </span>
+                  <span class="item-text">API integration</span>
+                  <div class="chat-item-actions">
+                    <span class="chat-action-btn" onclick="renameChat('chat-3', event)">[✏]</span>
+                    <span class="chat-action-btn" onclick="deleteChat('chat-3', event)">[✖]</span>
+                    <span class="chat-action-btn" onclick="pinChat('chat-3', event)">[📌]</span>
+                  </div>
+                </div>
+                <div class="tree-item" data-item-type="chat" data-item-target="chat-4">
+                  <span class="item-indicator"> </span>
+                  <span class="item-text">System architecture</span>
+                  <div class="chat-item-actions">
+                    <span class="chat-action-btn" onclick="renameChat('chat-4', event)">[✏]</span>
+                    <span class="chat-action-btn" onclick="deleteChat('chat-4', event)">[✖]</span>
+                    <span class="chat-action-btn" onclick="pinChat('chat-4', event)">[📌]</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="tree-folder" data-folder="yesterday">
+                <span class="folder-indicator">▾</span>
+                <span class="folder-name">YESTERDAY</span>
+              </div>
+              <div class="tree-folder-contents" id="folder-contents-yesterday">
+                <div class="tree-item" data-item-type="chat" data-item-target="chat-2">
+                  <span class="item-indicator"> </span>
+                  <span class="item-text">UI redesign brainstorm</span>
+                  <div class="chat-item-actions">
+                    <span class="chat-action-btn" onclick="renameChat('chat-2', event)">[✏]</span>
+                    <span class="chat-action-btn" onclick="deleteChat('chat-2', event)">[✖]</span>
+                    <span class="chat-action-btn" onclick="pinChat('chat-2', event)">[📌]</span>
+                  </div>
+                </div>
+                <div class="tree-item" data-item-type="chat" data-item-target="chat-5">
+                  <span class="item-indicator"> </span>
+                  <span class="item-text">Async worker debug</span>
+                  <div class="chat-item-actions">
+                    <span class="chat-action-btn" onclick="renameChat('chat-5', event)">[✏]</span>
+                    <span class="chat-action-btn" onclick="deleteChat('chat-5', event)">[✖]</span>
+                    <span class="chat-action-btn" onclick="pinChat('chat-5', event)">[📌]</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="tree-folder" data-folder="previous">
+                <span class="folder-indicator">▸</span>
+                <span class="folder-name">PREVIOUS 7 DAYS</span>
+              </div>
+              <div class="tree-folder-contents collapsed" id="folder-contents-previous">
+                <div class="tree-item" data-item-type="chat" data-item-target="chat-6">
+                  <span class="item-indicator"> </span>
+                  <span class="item-text">Hyprland keybinds</span>
+                </div>
+                <div class="tree-item" data-item-type="chat" data-item-target="chat-7">
+                  <span class="item-indicator"> </span>
+                  <span class="item-text">AUR package publish</span>
+                </div>
+                <div class="tree-item" data-item-type="chat" data-item-target="chat-8">
+                  <span class="item-indicator"> </span>
+                  <span class="item-text">Playwright setup</span>
+                  <span class="item-badge-unread">(3)</span>
+                </div>
+              </div>
+
+              <div style="flex-grow: 1;"></div>
+              
+              <div class="sidebar-header-underline">──────────────────────</div>
+              <div class="panel-action-row">
+                <button class="tui-btn-clickable" onclick="createNewChat()">[+ Create]</button>
+              </div>
+            </div>
+
+            <!-- PANEL: Files (tab="files") -->
+            <div class="sidebar-panel" id="panel-files">
+              <div class="sidebar-header">📁 FILES &amp; KNOWLEDGE</div>
+              <div class="sidebar-header-underline">──────────────────────</div>
+              
+              <div class="tree-folder" data-folder="vector">
+                <span class="folder-indicator">▾</span>
+                <span class="folder-name">Vector Stores</span>
+              </div>
+              <div class="tree-folder-contents" id="folder-contents-vector">
+                <div class="tree-item sub-depth-1"><span class="item-indicator">●</span><span class="item-text">hyprcollab-docs</span></div>
+                <div class="tree-item sub-depth-1"><span class="item-indicator">●</span><span class="item-text">rust-patterns</span></div>
+              </div>
+
+              <div class="tree-folder" data-folder="uploaded">
+                <span class="folder-indicator">▾</span>
+                <span class="folder-name">Uploaded Files</span>
+              </div>
+              <div class="tree-folder-contents" id="folder-contents-uploaded">
+                <div class="tree-item sub-depth-1" data-item-type="project-file"><span class="item-indicator"> </span><span class="item-text">PRD.md</span></div>
+                <div class="tree-item sub-depth-1" data-item-type="project-file"><span class="item-indicator"> </span><span class="item-text">TRD.md</span></div>
+                <div class="tree-item sub-depth-1" data-item-type="project-file"><span class="item-indicator"> </span><span class="item-text">PLAN.md</span></div>
+              </div>
+
+              <div class="tree-folder" data-folder="workspace">
+                <span class="folder-indicator">▾</span>
+                <span class="folder-name">Workspace Files</span>
+              </div>
+              <div class="tree-folder-contents" id="folder-contents-workspace">
+                <div class="tree-item sub-depth-1" data-item-type="project-file"><span class="item-indicator"> </span><span class="item-text">main.rs</span></div>
+                <div class="tree-item sub-depth-1" data-item-type="project-file"><span class="item-indicator"> </span><span class="item-text">error.rs</span></div>
+                <div class="tree-item sub-depth-1" data-item-type="project-file"><span class="item-indicator"> </span><span class="item-text">config.jsonc</span></div>
+                <div class="tree-item sub-depth-1" data-item-type="project-file"><span class="item-indicator"> </span><span class="item-text">client.py</span></div>
+                <div class="tree-item sub-depth-1" data-item-type="project-file"><span class="item-indicator"> </span><span class="item-text">architecture.mermaid</span></div>
+                <div class="tree-item sub-depth-1" data-item-type="project-file"><span class="item-indicator"> </span><span class="item-text">worker.rs</span></div>
+              </div>
+
+              <div style="flex-grow: 1;"></div>
+              <div class="sidebar-header-underline">──────────────────────</div>
+              <div class="panel-action-row">
+                <button class="tui-btn-clickable" onclick="triggerAttach()">[⬆ Upload]</button>
+              </div>
+            </div>
+
+            <!-- PANEL: Personas (tab="personas") -->
+            <div class="sidebar-panel" id="panel-personas">
+              <div class="sidebar-header">🎭 PERSONAS</div>
+              <div class="sidebar-header-underline">──────────────────────</div>
+              
+              <div class="tree-item active" data-item-type="persona"><span class="item-indicator">▸</span><span class="item-text">🤖 Dev</span></div>
+              <div class="panel-detail-box">Rust expert · code-helper
+Model: claude-3.5-sonnet</div>
+
+              <div class="tree-item" data-item-type="persona"><span class="item-indicator"> </span><span class="item-text">🎨 Luna</span></div>
+              <div class="panel-detail-box">UI/UX designer · design-review
+Model: gpt-4o</div>
+
+              <div class="tree-item" data-item-type="persona"><span class="item-indicator"> </span><span class="item-text">🌐 Atlas</span></div>
+              <div class="panel-detail-box">API integrator · api-builder
+Model: deepseek-v3</div>
+
+              <div class="tree-item" data-item-type="persona"><span class="item-indicator"> </span><span class="item-text">📚 Sage</span></div>
+              <div class="panel-detail-box">Documentation · docs-writer
+Model: gemini-2.5-pro</div>
+
+              <div style="flex-grow: 1;"></div>
+              <div class="sidebar-header-underline">──────────────────────</div>
+              <div class="panel-action-row">
+                <button class="tui-btn-clickable" onclick="triggerToast('[+] Persona creation triggers...')">[+ Create]</button>
+              </div>
+            </div>
+
+            <!-- PANEL: Agents (tab="agents") -->
+            <div class="sidebar-panel" id="panel-agents">
+              <div class="sidebar-header">🔧 AGENTS &amp; ACP</div>
+              <div class="sidebar-header-underline">──────────────────────</div>
+              
+              <div class="tree-item active" data-item-type="acp-session"><span class="item-indicator">▸</span><span class="item-text">🤖 code-helper</span></div>
+              <div class="panel-detail-box">
+Tools: <span style="color: var(--teal);">terminal, files, browser</span>
+MCP: <span style="color: var(--green);">3 servers</span>
+Status: <span id="acp-code-helper-status" style="color: var(--green); font-weight: bold;">● ready</span>
+<div style="display: flex; gap: 0.5ch; margin-top: 0.5ch;">
+  <button class="tui-btn-clickable primary" onclick="controlAcp('code-helper', 'start')">[▶ Start]</button>
+  <button class="tui-btn-clickable dimmed" onclick="controlAcp('code-helper', 'stop')">[■ Stop]</button>
+</div>
+              </div>
+
+              <div class="tree-item" data-item-type="acp-session"><span class="item-indicator"> </span><span class="item-text">🎨 design-review</span></div>
+              <div class="panel-detail-box">
+Tools: <span style="color: var(--teal);">browser, image_gen</span>
+Status: <span id="acp-design-review-status" style="color: var(--yellow); font-weight: bold;">● active</span>
+<div style="display: flex; gap: 0.5ch; margin-top: 0.5ch;">
+  <button class="tui-btn-clickable dimmed" onclick="controlAcp('design-review', 'restart')">[↻ Restart]</button>
+  <button class="tui-btn-clickable dimmed" onclick="controlAcp('design-review', 'stop')">[■ Stop]</button>
+</div>
+              </div>
+
+              <div style="flex-grow: 1;"></div>
+              <div class="sidebar-header-underline">──────────────────────</div>
+              <div class="panel-action-row">
+                <button class="tui-btn-clickable" onclick="triggerToast('[+] ACP session configuration...')">[+ Configure]</button>
+              </div>
+            </div>
+
+            <!-- PANEL: Skills (tab="skills") -->
+            <div class="sidebar-panel" id="panel-skills">
+              <div class="sidebar-header">⚡ SKILLS</div>
+              <div class="sidebar-header-underline">──────────────────────</div>
+              
+              <div class="tree-item" data-item-type="skill"><span class="item-indicator">▸</span><span class="item-text">[x] code-review</span></div>
+              <div class="panel-detail-box">Pre-commit review: security, quality gates</div>
+
+              <div class="tree-item" data-item-type="skill"><span class="item-indicator"> </span><span class="item-text">[x] debugging</span></div>
+              <div class="panel-detail-box">4-phase root cause analysis</div>
+
+              <div class="tree-item" data-item-type="skill"><span class="item-indicator"> </span><span class="item-text">[x] test-driven</span></div>
+              <div class="panel-detail-box">RED-GREEN-REFACTOR cycle</div>
+
+              <div class="tree-item" data-item-type="skill"><span class="item-indicator"> </span><span class="item-text">[ ] plan-mode</span></div>
+              <div class="panel-detail-box">Markdown plans, no execution</div>
+
+              <div style="flex-grow: 1;"></div>
+              <div class="sidebar-header-underline">──────────────────────</div>
+              <div class="panel-action-row">
+                <button class="tui-btn-clickable" onclick="triggerToast('[+] Skill template loaded...')">[+ Create]</button>
+              </div>
+            </div>
+
+            <!-- PANEL: MCP Servers (tab="mcp") -->
+            <div class="sidebar-panel" id="panel-mcp">
+              <div class="sidebar-header"> MCP SERVERS</div>
+              <div class="sidebar-header-underline">──────────────────────</div>
+              
+              <div class="tree-item" data-item-type="mcp-server"><span class="item-indicator">▸</span><span class="item-text">● sqlite-mcp</span></div>
+              <div class="panel-detail-box">SQLite direct DB access
+Status: <span style="color: var(--green);">● online</span> (port 3010)</div>
+
+              <div class="tree-item" data-item-type="mcp-server"><span class="item-indicator"> </span><span class="item-text">● github-mcp</span></div>
+              <div class="panel-detail-box">Read/write GitHub repos
+Status: <span style="color: var(--green);">● online</span> (hyprcollab)</div>
+
+              <div class="tree-item" data-item-type="mcp-server"><span class="item-indicator"> </span><span class="item-text">○ slack-mcp</span></div>
+              <div class="panel-detail-box">Slack workspace channels
+Status: <span style="color: var(--overlay0);">○ offline</span></div>
+
+              <div class="tree-item" data-item-type="mcp-server"><span class="item-indicator"> </span><span class="item-text">● filesystem-mcp</span></div>
+              <div class="panel-detail-box">Local sandbox file system
+Status: <span style="color: var(--green);">● online</span> (~/)</div>
+
+              <div style="flex-grow: 1;"></div>
+              <div class="sidebar-header-underline">──────────────────────</div>
+              <div class="panel-action-row">
+                <button class="tui-btn-clickable" onclick="triggerToast('Registering new MCP Server...')">[+ Register]</button>
+              </div>
+            </div>
+
+            <!-- PANEL: Memories (tab="memories") -->
+            <div class="sidebar-panel" id="panel-memories">
+              <div class="sidebar-header">🧠 MEMORIES</div>
+              <div class="sidebar-header-underline">──────────────────────</div>
+              <div style="padding: 0 1.5ch 1ch; color: var(--overlay0); font-size: 11px;">Stats: 5/100 slots used</div>
+              
+              <div class="tree-item" data-item-type="memory"><span class="item-indicator">▸</span><span class="item-text">● user_name: hbuddenberg</span></div>
+              <div class="tree-item" data-item-type="memory"><span class="item-indicator"> </span><span class="item-text">● user_editor: neovim</span></div>
+              <div class="tree-item" data-item-type="memory"><span class="item-indicator"> </span><span class="item-text">● fav_theme: catppuccin</span></div>
+              <div class="tree-item" data-item-type="memory"><span class="item-indicator"> </span><span class="item-text">● target_os: arch linux</span></div>
+              <div class="tree-item" data-item-type="memory"><span class="item-indicator"> </span><span class="item-text">● main_language: rust</span></div>
+
+              <div style="flex-grow: 1;"></div>
+              <div class="sidebar-header-underline">──────────────────────</div>
+              <div class="panel-action-row">
+                <button class="tui-btn-clickable" onclick="triggerToast('Adding a new memory fact...')">[+ Add]</button>
+                <button class="tui-btn-clickable" onclick="triggerToast('Syncing memories from core...')">[↻ Sync]</button>
+              </div>
+            </div>
+
+            <!-- PANEL: Settings (tab="settings") -->
+            <div class="sidebar-panel" id="panel-settings">
+              <div class="sidebar-header">⚙ SETTINGS</div>
+              <div class="sidebar-header-underline">──────────────────────</div>
+              
+              <!-- Checkboxes -->
+              <div class="settings-group">
+                <div class="settings-label">GENERAL</div>
+                <div class="tui-checkbox" onclick="toggleCrtSetting()">
+                  <span class="checkbox-box" id="checkbox-crt">[x]</span>
+                  <span class="checkbox-label">CRT scanlines</span>
+                </div>
+                <div class="tui-checkbox" onclick="toggleSendOnEnter()">
+                  <span class="checkbox-box" id="checkbox-send-enter">[x]</span>
+                  <span class="checkbox-label">Send on Enter</span>
+                </div>
+                <div class="tui-checkbox" onclick="toggleNerdFontSetting()">
+                  <span class="checkbox-box" id="checkbox-nerdfont">[x]</span>
+                  <span class="checkbox-label">Nerd Fonts</span>
+                </div>
+              </div>
+
+              <!-- Providers Form -->
+              <div class="settings-group">
+                <div class="settings-label">AI CONNECTIVITY</div>
+                
+                <div style="font-size: 11px; margin-bottom: 0.2ch;">Provider:</div>
+                <div class="tui-input-box">
+                  <div class="border-h">
+                    <span>┌</span>
+                    <span class="border-h-fill"></span>
+                    <span>┐</span>
+                  </div>
+                  <div class="tui-input-middle">
+                    <span> </span>
+                    <select class="tui-select-element" id="setting-provider">
+                      <option value="gemini">Google Gemini</option>
+                      <option value="anthropic">Anthropic Claude</option>
+                      <option value="openai">OpenAI GPT</option>
+                    </select>
+                  </div>
+                  <div class="border-h">
+                    <span>└</span>
+                    <span class="border-h-fill"></span>
+                    <span>┘</span>
+                  </div>
+                </div>
+
+                <div style="font-size: 11px; margin-bottom: 0.2ch;">Model:</div>
+                <div class="tui-input-box">
+                  <div class="border-h">
+                    <span>┌</span>
+                    <span class="border-h-fill"></span>
+                    <span>┐</span>
+                  </div>
+                  <div class="tui-input-middle">
+                    <span> </span>
+                    <select class="tui-select-element" id="setting-model">
+                      <option value="gemini-3.5-flash">gemini-3.5-flash</option>
+                      <option value="claude-3.5-sonnet">claude-3.5-sonnet</option>
+                      <option value="gpt-4o">gpt-4o</option>
+                    </select>
+                  </div>
+                  <div class="border-h">
+                    <span>└</span>
+                    <span class="border-h-fill"></span>
+                    <span>┘</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="settings-group">
+                <div class="settings-label">THEMES LIST</div>
+                <div style="display: flex; flex-direction: column;">
+                  <button class="tui-btn-clickable" style="text-align: left;" onclick="selectTheme('catppuccin')">[ ] Catppuccin Mocha</button>
+                  <button class="tui-btn-clickable" style="text-align: left;" onclick="selectTheme('tokyonight')">[ ] Tokyo Night</button>
+                  <button class="tui-btn-clickable" style="text-align: left;" onclick="selectTheme('nord')">[ ] Nord Theme</button>
+                  <button class="tui-btn-clickable" style="text-align: left;" onclick="selectTheme('dracula')">[ ] Dracula Theme</button>
+                  <button class="tui-btn-clickable" style="text-align: left;" onclick="selectTheme('github')">[ ] GitHub Dark</button>
+                  <button class="tui-btn-clickable" style="text-align: left;" onclick="selectTheme('rosepine')">[ ] Rosé Pine</button>
+                </div>
+              </div>
+
+              <div style="flex-grow: 1;"></div>
+              <div class="sidebar-header-underline">──────────────────────</div>
+              <div class="panel-action-row">
+                <button class="tui-btn-clickable primary" onclick="saveSystemSettings()">[Save]</button>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Divider 2 -->
+          <div class="divider-v"></div>
+
+          <!-- 3. Center Chat Canvas Column -->
+          <div class="chat-column">
+            
+            <!-- Nvim Status Bar Fixed at top of chat canvas -->
+            <div class="chat-status-bar-top border-h">
+              <span>── <span id="status-top-mode">NORMAL</span> │ <span id="status-top-model">gemini-3.5-flash</span> │ <span id="status-top-tokens">1.2k</span> tok │ <span id="status-top-latency">142ms</span> │ Rust UTF-8 ───</span>
+              <span class="border-h-fill"></span>
+              <span>───</span>
+            </div>
+
+            <!-- Scrollable Chats Area -->
+            <div class="chat-canvas-wrapper">
+              
+              <!-- CHAT 1: Rust workspace refactor -->
+              <div class="chat-canvas active" id="canvas-chat-1">
+                
+                <!-- User message -->
+                <div class="message-container user-msg-align">
+                  <div class="message-box">
+                    <div class="border-h">
+                      <span>╭─ You ─ 14:30 </span>
+                      <span class="border-h-fill"></span>
+                      <span>╮</span>
+                    </div>
+                    <div class="message-middle">
+                      <div class="message-left-edge"></div>
+                      <div class="message-content">how do I parse JSON in Rust?</div>
+                      <div class="message-right-edge"></div>
+                    </div>
+                    <div class="border-h">
+                      <span>╰</span>
+                      <span class="border-h-fill"></span>
+                      <span>╯</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Assistant Response -->
+                <div class="message-container assistant-msg-align">
+                  <div class="message-box">
+                    <div class="border-h">
+                      <span>╭─ 🤖 Dev ─ 14:30 </span>
+                      <span class="border-h-fill"></span>
+                      <span>╮</span>
+                    </div>
+                    <div class="message-middle">
+                      <div class="message-left-edge"></div>
+                      <div class="message-content">Use <span class="keyword">serde_json</span> for parsing. First, add the dependency to your cargo project. Here is an implementation showing deserialization of a JSON string into a structured object:
+
+<div class="code-block-box">
+  <div class="border-h">
+    <span>┌─ Rust ─ src/main.rs </span>
+    <span class="border-h-fill"></span>
+    <span>┐</span>
+  </div>
+  <div class="code-block-middle">
+    <div class="code-block-left-edge"></div>
+    <div class="code-block-content"><span class="line-num">1</span><span class="keyword">use</span> serde_json::{Value, from_str};
+<span class="line-num">2</span>
+<span class="line-num">3</span><span class="keyword">fn</span> <span class="function">main</span>() -> <span class="type">Result</span>&lt;(), serde_json::Error&gt; {
+<span class="line-num">4</span>    <span class="keyword">let</span> s = <span class="string">r#"{"name": "HyprCollab", "version": "0.1.0"}"#</span>;
+<span class="line-num">5</span>    <span class="keyword">let</span> v: Value = <span class="function">from_str</span>(s)?;
+<span class="line-num">6</span>    <span class="function">println!</span>(<span class="string">"App: {}"</span>, v[<span class="string">"name"</span>]);
+<span class="line-num">7</span>    <span class="type">Ok</span>(())
+<span class="line-num">8</span>}</div>
+    <div class="code-block-right-edge"></div>
+  </div>
+  <div class="border-h">
+    <span>└</span>
+    <span class="border-h-fill"></span>
+    <span>┘</span>
+  </div>
+  <div class="artifact-actions">
+    <button class="tui-btn-clickable primary" onclick="previewFile('main.rs')">[Preview]</button>
+    <button class="tui-btn-clickable" onclick="copyMockContent('main.rs')">[Copy]</button>
+    <button class="tui-btn-clickable" onclick="saveMockArtifact('src/main.rs')">[Save]</button>
+  </div>
+</div>
+
+We can also inspect what the file tool returned when we searched the workspace:
+
+<div class="tool-box border-cyan">
+  <div class="border-h" onclick="toggleCollapsible(this.parentNode)">
+    <span>╭─ ▸ Tool: read_file("src/main.rs") </span>
+    <span class="border-h-fill"></span>
+    <span class="tool-collapsible-header-btn">[Click to expand]</span>
+    <span>╮</span>
+  </div>
+  <div class="tool-middle">
+    <div class="tool-left-edge"></div>
+    <div class="tool-content">✓ Successfully read file (8 lines)</div>
+    <div class="tool-right-edge"></div>
+  </div>
+  <div class="tool-collapsible-body">
+    <div class="border-h" style="color: var(--teal);">
+      <span>├─ contents </span>
+      <span class="border-h-fill"></span>
+      <span>┤</span>
+    </div>
+    <div class="tool-middle">
+      <div class="tool-left-edge"></div>
+      <div class="tool-content comment">use serde_json::{Value, from_str};
+
+fn main() -> Result<(), serde_json::Error> {
+    let s = r#"{"name": "HyprCollab", "version": "0.1.0"}"#;
+    let v: Value = from_str(s)?;
+    println!("App: {}", v["name"]);
+    Ok(())
+}</div>
+      <div class="tool-right-edge"></div>
+    </div>
+  </div>
+  <div class="border-h">
+    <span>╰</span>
+    <span class="border-h-fill"></span>
+    <span>╯</span>
+  </div>
+</div>
+</div>
+                      <div class="message-right-edge"></div>
+                    </div>
+                    <div class="border-h">
+                      <span>...</span>
+                      <span class="border-h-fill"></span>
+                      <span>╯</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- User message 2 -->
+                <div class="message-container user-msg-align">
+                  <div class="message-box">
+                    <div class="border-h">
+                      <span>╭─ You ─ 14:31 </span>
+                      <span class="border-h-fill"></span>
+                      <span>╮</span>
+                    </div>
+                    <div class="message-middle">
+                      <div class="message-left-edge"></div>
+                      <div class="message-content">what about error handling?</div>
+                      <div class="message-right-edge"></div>
+                    </div>
+                    <div class="border-h">
+                      <span>╰</span>
+                      <span class="border-h-fill"></span>
+                      <span>╯</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Assistant Response 2 -->
+                <div class="message-container assistant-msg-align">
+                  <div class="message-box">
+                    <div class="border-h">
+                      <span>╭─ 🤖 Dev ─ 14:31 </span>
+                      <span class="border-h-fill"></span>
+                      <span>╮</span>
+                    </div>
+                    <div class="message-middle">
+                      <div class="message-left-edge"></div>
+                      <div class="message-content">For robust applications, map errors to a custom error type using <span class="keyword">std::result::Result</span>:
+
+<div class="code-block-box">
+  <div class="border-h">
+    <span>┌─ Rust ─ src/error.rs </span>
+    <span class="border-h-fill"></span>
+    <span>┐</span>
+  </div>
+  <div class="code-block-middle">
+    <div class="code-block-left-edge"></div>
+    <div class="code-block-content"><span class="line-num">1</span><span class="keyword">pub type</span> <span class="type">Result</span>&lt;T&gt; =
+<span class="line-num">2</span>    std::result::Result
+<span class="line-num">3</span>    &lt;T, AppError&gt;;</div>
+    <div class="code-block-right-edge"></div>
+  </div>
+  <div class="border-h">
+    <span>└</span>
+    <span class="border-h-fill"></span>
+    <span>┘</span>
+  </div>
+  <div class="artifact-actions">
+    <button class="tui-btn-clickable primary" onclick="previewFile('error.rs')">[Preview]</button>
+    <button class="tui-btn-clickable" onclick="copyMockContent('error.rs')">[Copy]</button>
+  </div>
+</div></div>
+                      <div class="message-right-edge"></div>
+                    </div>
+                    <div class="border-h">
+                      <span>╰</span>
+                      <span class="border-h-fill"></span>
+                      <span>╯</span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- CHAT 2: UI redesign brainstorm -->
+              <div class="chat-canvas" id="canvas-chat-2">
+                
+                <div class="message-container user-msg-align">
+                  <div class="message-box">
+                    <div class="border-h">
+                      <span>╭─ You ─ 18:12 </span>
+                      <span class="border-h-fill"></span>
+                      <span>╮</span>
+                    </div>
+                    <div class="message-middle">
+                      <div class="message-left-edge"></div>
+                      <div class="message-content">Hey, my waybar is not showing the workspaces module on workspace 2. It only displays when I switch to it. How can I fix this in hyprland.conf?</div>
+                      <div class="message-right-edge"></div>
+                    </div>
+                    <div class="border-h">
+                      <span>╰</span>
+                      <span class="border-h-fill"></span>
+                      <span>╯</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="message-container assistant-msg-align">
+                  <div class="message-box">
+                    <div class="border-h">
+                      <span>╭─ 🎨 Luna ─ 18:13 </span>
+                      <span class="border-h-fill"></span>
+                      <span>╮</span>
+                    </div>
+                    <div class="message-middle">
+                      <div class="message-left-edge"></div>
+                      <div class="message-content">This happens because Waybar workspaces modules dynamically render active/existing workspaces. To force Waybar to show them even when empty, you must configure them in your <span class="keyword">hyprland.conf</span> and update Waybar's settings. 
+
+First, let's look at your active monitor outputs:
+
+<div class="tool-box border-cyan">
+  <div class="border-h" onclick="toggleCollapsible(this.parentNode)">
+    <span>╭─ ▸ Tool: shell_command("hyprctl monitors") </span>
+    <span class="border-h-fill"></span>
+    <span class="tool-collapsible-header-btn">[Click to expand]</span>
+    <span>╮</span>
+  </div>
+  <div class="tool-middle">
+    <div class="tool-left-edge"></div>
+    <div class="tool-content">✓ Exit code: 0</div>
+    <div class="tool-right-edge"></div>
+  </div>
+  <div class="tool-collapsible-body">
+    <div class="border-h" style="color: var(--teal);">
+      <span>├─ stdout </span>
+      <span class="border-h-fill"></span>
+      <span>┤</span>
+    </div>
+    <div class="tool-middle">
+      <div class="tool-left-edge"></div>
+      <div class="tool-content comment">Monitor eDP-1 (ID 0):
+  1920x1080@144.00Hz at 0x0
+  active workspace: 1 (1)
+  special workspace: 0 ()</div>
+      <div class="tool-right-edge"></div>
+    </div>
+  </div>
+  <div class="border-h">
+    <span>╰</span>
+    <span class="border-h-fill"></span>
+    <span>╯</span>
+  </div>
+</div>
+
+Add this rules block to your config:
+
+<div class="code-block-box">
+  <div class="border-h">
+    <span>┌─ Config ─ ~/.config/hypr/hyprland.conf </span>
+    <span class="border-h-fill"></span>
+    <span>┐</span>
+  </div>
+  <div class="code-block-middle">
+    <div class="code-block-left-edge"></div>
+    <div class="code-block-content"><span class="line-num">1</span><span class="comment"># Persistent Workspaces Rules</span>
+<span class="line-num">2</span>workspace = 1, persistent:true
+<span class="line-num">3</span>workspace = 2, persistent:true
+<span class="line-num">4</span>workspace = 3, persistent:true</div>
+    <div class="code-block-right-edge"></div>
+  </div>
+  <div class="border-h">
+    <span>└</span>
+    <span class="border-h-fill"></span>
+    <span>┘</span>
+  </div>
+</div>
+
+Additionally, update your Waybar <span class="keyword">config.jsonc</span> workspace settings to match:
+
+<div class="code-block-box">
+  <div class="border-h">
+    <span>┌─ JSONC ─ config.jsonc </span>
+    <span class="border-h-fill"></span>
+    <span>┐</span>
+  </div>
+  <div class="code-block-middle">
+    <div class="code-block-left-edge"></div>
+    <div class="code-block-content"><span class="line-num">1</span><span class="comment">// Waybar Workspaces Config</span>
+<span class="line-num">2</span><span class="string">"hyprland/workspaces"</span>: {
+<span class="line-num">3</span>    <span class="string">"format"</span>: <span class="string">"{name}"</span>,
+<span class="line-num">4</span>    <span class="string">"on-click"</span>: <span class="string">"activate"</span>,
+<span class="line-num">5</span>    <span class="string">"persistent-workspaces"</span>: {
+<span class="line-num">6</span>        <span class="string">"*"</span>: <span class="number">3</span>
+<span class="line-num">7</span>    }
+<span class="line-num">8</span>}</div>
+    <div class="code-block-right-edge"></div>
+  </div>
+  <div class="border-h">
+    <span>└</span>
+    <span class="border-h-fill"></span>
+    <span>┘</span>
+  </div>
+  <div class="artifact-actions">
+    <button class="tui-btn-clickable primary" onclick="previewFile('config.jsonc')">[Preview]</button>
+    <button class="tui-btn-clickable" onclick="copyMockContent('config.jsonc')">[Copy]</button>
+    <button class="tui-btn-clickable" onclick="saveMockArtifact('~/.config/waybar/config.jsonc')">[Save]</button>
+  </div>
+</div></div>
+                      <div class="message-right-edge"></div>
+                    </div>
+                    <div class="border-h">
+                      <span>╰</span>
+                      <span class="border-h-fill"></span>
+                      <span>╯</span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- CHAT 3: API integration -->
+              <div class="chat-canvas" id="canvas-chat-3">
+                
+                <div class="message-container user-msg-align">
+                  <div class="message-box">
+                    <div class="border-h">
+                      <span>╭─ You ─ 22:01 </span>
+                      <span class="border-h-fill"></span>
+                      <span>╮</span>
+                    </div>
+                    <div class="message-middle">
+                      <div class="message-left-edge"></div>
+                      <div class="message-content">how can I integrate with the z.ai API in Python?</div>
+                      <div class="message-right-edge"></div>
+                    </div>
+                    <div class="border-h">
+                      <span>╰</span>
+                      <span class="border-h-fill"></span>
+                      <span>╯</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="message-container assistant-msg-align" id="streaming-message-container">
+                  <div class="message-box">
+                    <div class="border-h">
+                      <span>╭─ 🤖 Dev ─ 22:01 </span>
+                      <span class="border-h-fill"></span>
+                      <span>╮</span>
+                    </div>
+                    <div class="message-middle">
+                      <div class="message-left-edge"></div>
+                      <div class="message-content" id="streaming-text"></div>
+                      <div class="message-right-edge"></div>
+                    </div>
+                    <div class="border-h">
+                      <span>╰</span>
+                      <span class="border-h-fill"></span>
+                      <span>╯</span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- CHAT 4: System architecture -->
+              <div class="chat-canvas" id="canvas-chat-4">
+                
+                <div class="message-container user-msg-align">
+                  <div class="message-box">
+                    <div class="border-h">
+                      <span>╭─ You ─ 10:15 </span>
+                      <span class="border-h-fill"></span>
+                      <span>╮</span>
+                    </div>
+                    <div class="message-middle">
+                      <div class="message-left-edge"></div>
+                      <div class="message-content">can we outline the design for the multi-agent orchestration backend? I need a clear diagram of the agent lifecycle.</div>
+                      <div class="message-right-edge"></div>
+                    </div>
+                    <div class="border-h">
+                      <span>╰</span>
+                      <span class="border-h-fill"></span>
+                      <span>╯</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="message-container assistant-msg-align">
+                  <div class="message-box">
+                    <div class="border-h">
+                      <span>╭─ 🌐 Atlas ─ 10:16 </span>
+                      <span class="border-h-fill"></span>
+                      <span>╮</span>
+                    </div>
+                    <div class="message-middle">
+                      <div class="message-left-edge"></div>
+                      <div class="message-content">Certainly. We will route requests through an Orchestrator Router which delegates execution flow to specialised agents depending on metadata triggers, followed by ACP local command evaluation.
+
+Here is the Mermaid code:
+
+<div class="code-block-box">
+  <div class="border-h">
+    <span>┌─ Mermaid ─ architecture.mermaid </span>
+    <span class="border-h-fill"></span>
+    <span>┐</span>
+  </div>
+  <div class="code-block-middle">
+    <div class="code-block-left-edge"></div>
+    <div class="code-block-content"><span class="line-num">1</span><span class="keyword">graph</span> TD
+<span class="line-num">2</span>  User[User Request] --&gt; Router[Orchestration Router]
+<span class="line-num">3</span>  Router --&gt; Dev[Dev Agent]
+<span class="line-num">4</span>  Router --&gt; Luna[Luna UI Agent]
+<span class="line-num">5</span>  Dev --&gt; ACP[ACP Tool Execution]
+<span class="line-num">6</span>  Luna --&gt; ACP</div>
+    <div class="code-block-right-edge"></div>
+  </div>
+  <div class="border-h">
+    <span>└</span>
+    <span class="border-h-fill"></span>
+    <span>┘</span>
+  </div>
+  <div class="artifact-actions">
+    <button class="tui-btn-clickable primary" onclick="previewFile('architecture.mermaid')">[Preview]</button>
+    <button class="tui-btn-clickable" onclick="copyMockContent('architecture.mermaid')">[Copy]</button>
+  </div>
+</div>
+
+We have rendered the ASCII-art flow layout representing the graph in the preview panel. Click [Preview] above to inspect it in the right panel.</div>
+                      <div class="message-right-edge"></div>
+                    </div>
+                    <div class="border-h">
+                      <span>╰</span>
+                      <span class="border-h-fill"></span>
+                      <span>╯</span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- CHAT 5: Async worker debug -->
+              <div class="chat-canvas" id="canvas-chat-5">
+                
+                <div class="message-container user-msg-align">
+                  <div class="message-box">
+                    <div class="border-h">
+                      <span>╭─ You ─ 11:42 </span>
+                      <span class="border-h-fill"></span>
+                      <span>╮</span>
+                    </div>
+                    <div class="message-middle">
+                      <div class="message-left-edge"></div>
+                      <div class="message-content">Our worker thread panics under load with 'join relation not found'. Let's debug this memory leak or thread deadlock.</div>
+                      <div class="message-right-edge"></div>
+                    </div>
+                    <div class="border-h">
+                      <span>╰</span>
+                      <span class="border-h-fill"></span>
+                      <span>╯</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="message-container assistant-msg-align">
+                  <div class="message-box">
+                    <div class="border-h">
+                      <span>╭─ 🤖 Dev ─ 11:43 </span>
+                      <span class="border-h-fill"></span>
+                      <span>╮</span>
+                    </div>
+                    <div class="message-middle">
+                      <div class="message-left-edge"></div>
+                      <div class="message-content">This panic typically happens when asynchronous spawned workers are not cleanly managed during shutdown or yield panics that escape the scheduler.
+
+Let's check cargo test output first:
+
+<div class="tool-box border-cyan">
+  <div class="border-h" onclick="toggleCollapsible(this.parentNode)">
+    <span>╭─ ▸ Tool: shell_command("cargo test --test worker_tests") </span>
+    <span class="border-h-fill"></span>
+    <span class="tool-collapsible-header-btn">[Click to expand]</span>
+    <span>╮</span>
+  </div>
+  <div class="tool-middle">
+    <div class="tool-left-edge"></div>
+    <div class="tool-content">✗ Test suite failed: worker::test_panic_handler</div>
+    <div class="tool-right-edge"></div>
+  </div>
+  <div class="tool-collapsible-body">
+    <div class="border-h" style="color: var(--teal);">
+      <span>├─ stderr </span>
+      <span class="border-h-fill"></span>
+      <span>┤</span>
+    </div>
+    <div class="tool-middle">
+      <div class="tool-left-edge"></div>
+      <div class="tool-content comment">thread 'worker::test_panic_handler' panicked at 'join relation not found: thread 19 collapsed', src/worker.rs:42:15
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace</div>
+      <div class="tool-right-edge"></div>
+    </div>
+  </div>
+  <div class="border-h">
+    <span>╰</span>
+    <span class="border-h-fill"></span>
+    <span>╯</span>
+  </div>
+</div>
+
+We should refactor the code to use <span class="keyword">tokio::task::JoinSet</span> which handles dynamic lists of async tasks cleanly and propagates panics without crashing the scheduler:
+
+<div class="code-block-box">
+  <div class="border-h">
+    <span>┌─ Rust ─ src/worker.rs </span>
+    <span class="border-h-fill"></span>
+    <span>┐</span>
+  </div>
+  <div class="code-block-middle">
+    <div class="code-block-left-edge"></div>
+    <div class="code-block-content"><span class="line-num">1</span><span class="keyword">use</span> tokio::task::JoinSet;
+<span class="line-num">2</span>
+<span class="line-num">3</span><span class="keyword">async fn</span> <span class="function">spawn_workers</span>() {
+<span class="line-num">4</span>    <span class="keyword">let mut</span> set = JoinSet::new();
+<span class="line-num">5</span>    <span class="keyword">for</span> i <span class="keyword">in</span> 0..10 {
+<span class="line-num">6</span>        set.spawn(<span class="keyword">async move</span> {
+<span class="line-num">7</span>            <span class="comment">// worker task logic</span>
+<span class="line-num">8</span>        });
+<span class="line-num">9</span>    }
+<span class="line-num">10</span>    <span class="keyword">while let Some</span>(res) = set.join_next().<span class="keyword">await</span> {
+<span class="line-num">11</span>        <span class="comment">// handle task completion / panic</span>
+<span class="line-num">12</span>    }
+<span class="line-num">13</span>}</div>
+    <div class="code-block-right-edge"></div>
+  </div>
+  <div class="border-h">
+    <span>└</span>
+    <span class="border-h-fill"></span>
+    <span>┘</span>
+  </div>
+  <div class="artifact-actions">
+    <button class="tui-btn-clickable primary" onclick="previewFile('worker.rs')">[Preview]</button>
+    <button class="tui-btn-clickable" onclick="copyMockContent('worker.rs')">[Copy]</button>
+  </div>
+</div></div>
+                      <div class="message-right-edge"></div>
+                    </div>
+                    <div class="border-h">
+                      <span>╰</span>
+                      <span class="border-h-fill"></span>
+                      <span>╯</span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+
+            <!-- 4. Input Area (Fixed at bottom of chat canvas) -->
+            <div class="chat-input-area">
+              
+              <!-- Commands Dropdown Auto-suggest -->
+              <div class="commands-dropdown" id="suggest-dropdown">
+                <div class="border-h">
+                  <span>┌─ commands </span>
+                  <span class="border-h-fill"></span>
+                  <span>┐</span>
+                </div>
+                <div class="dropdown-middle">
+                  <div class="dropdown-left-edge"></div>
+                  <div class="dropdown-content">
+                    <div class="dropdown-item active" data-cmd="/agent">
+                      <span class="dropdown-item-cmd">▸ /agent</span>
+                      <span class="dropdown-item-desc">Switch active persona</span>
+                    </div>
+                    <div class="dropdown-item" data-cmd="/model">
+                      <span class="dropdown-item-cmd">  /model</span>
+                      <span class="dropdown-item-desc">Change model</span>
+                    </div>
+                    <div class="dropdown-item" data-cmd="/help">
+                      <span class="dropdown-item-cmd">  /help</span>
+                      <span class="dropdown-item-desc">Open keybinds modal</span>
+                    </div>
+                  </div>
+                  <div class="dropdown-right-edge"></div>
+                </div>
+                <div class="border-h">
+                  <span>└</span>
+                  <span class="border-h-fill"></span>
+                  <span>┘</span>
+                </div>
+              </div>
+
+              <!-- Input top status divider -->
+              <div class="input-status-line border-h">
+                <span>── <span id="input-status-mode">NORMAL</span> │ &lt;C-s&gt; send │ &lt;C-p&gt; preview │ &lt;C-/&gt; help </span>
+                <span class="border-h-fill"></span>
+                <span>──</span>
+              </div>
+
+              <!-- Input prompt row -->
+              <div class="input-prompt-line">
+                <span class="prompt-arrow">&gt;</span>
+                <div class="input-container" onclick="focusInput()">
+                  <span class="input-typed" id="typed-text"></span>
+                  <span class="input-placeholder" id="input-placeholder">Type a message... (Press 'i' to enter INSERT mode)</span>
+                  <span class="cursor-block" id="cursor-character">_</span>
+                  <input type="text" class="actual-input" id="terminal-input" disabled autocomplete="off" />
+                </div>
+              </div>
+
+              <!-- Action button row -->
+              <div class="input-actions-row">
+                <button class="tui-btn-clickable" id="btn-attach" onclick="triggerAttach()">[📎]</button>
+                <button class="tui-btn-clickable" id="btn-voice" onclick="triggerVoice()">[🎤]</button>
+                <button class="tui-btn-clickable primary" id="btn-send" onclick="triggerSend()">[▶ Send]</button>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Divider 3 (Preview Column, only shown if preview visible) -->
+          <div class="divider-v preview-divider-v" style="display: none;"></div>
+
+          <!-- 5. Right Preview Column (collapsible) -->
+          <div class="preview-column" id="preview-column" style="display: none;">
+            <div class="preview-panel-header border-h">
+              <span>── <span id="preview-filename">FILE PREVIEW</span> </span>
+              <span class="border-h-fill"></span>
+              <button class="tui-btn-clickable dimmed" onclick="collapsePreviewPanel()">[◀]</button>
+            </div>
+            
+            <!-- File preview tabs -->
+            <div class="preview-panel-tabs">
+              <button class="tui-btn-clickable" id="tab-preview-code" onclick="switchPreviewTab('code')">[Code]</button>
+              <button class="tui-btn-clickable" id="tab-preview-render" onclick="switchPreviewTab('render')">[Render]</button>
+              <button class="tui-btn-clickable" id="tab-preview-mermaid" onclick="switchPreviewTab('mermaid')">[Mermaid]</button>
+            </div>
+
+            <!-- Content viewport -->
+            <div class="preview-panel-content">
+              <!-- Empty state -->
+              <div class="preview-empty-state" id="preview-empty">
+                No file selected. Click [Preview] on a file or code block.
+              </div>
+              
+              <!-- Code viewer -->
+              <div class="preview-code-body" id="preview-code-body"></div>
+              
+              <!-- Text render viewer -->
+              <div class="preview-render-body" id="preview-render-body"></div>
+
+              <!-- Image viewer mockup -->
+              <div id="preview-image-content" style="display: none;">
+                <div class="preview-image-placeholder">
+                  <span>🖼 IMAGE PLACEHOLDER</span>
+                  <span id="preview-img-dims">Dimensions: 512 x 512</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Metadata footer -->
+            <div class="preview-metadata-footer" id="preview-footer" style="display: none;">
+              <div class="preview-footer-info">
+                <span id="preview-info-lines">Lines: --</span>
+                <span id="preview-info-lang">Lang: Text</span>
+              </div>
+              <div class="preview-footer-actions">
+                <button class="tui-btn-clickable primary" onclick="copyPreviewFile()">[Copy]</button>
+                <button class="tui-btn-clickable" onclick="openPreviewFile()">[Open]</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Horizontal separator row above bottom nvim bar -->
+        <div class="border-h" id="bottom-sep-row">
+          <span>├</span>
+          <span class="border-h-fill" style="flex: 0 0 6ch;"></span>
+          <span>┼</span>
+          <span class="border-h-fill" style="flex: 0 0 25ch;"></span>
+          <span>┼</span>
+          <span class="border-h-fill"></span>
+          <span class="preview-connector" style="display: none;">┼</span>
+          <span class="border-h-fill preview-connector" style="flex: 0 0 45ch; display: none;"></span>
+          <span>┤</span>
+        </div>
+
+        <!-- 6. NVIM Status Bar Line (Bottom Edge) -->
+        <div class="tui-status-bar-line">
+          <div class="status-left">
+            <div class="status-mode-pill" id="mode-pill">NORMAL</div>
+            <div class="status-keybinds">
+              <span class="key-indicator">&lt;leader&gt;h</span> help │ 
+              <span class="key-indicator">&lt;C-p&gt;</span> toggle preview │ 
+              <span class="key-indicator">&lt;C-w&gt;h/l</span> focus │ 
+              <span class="key-indicator">&lt;leader&gt;t</span> themes │
+              <span class="key-indicator">1-8</span> tabs │
+              <span class="key-indicator">i</span> insert
+            </div>
+            <div class="status-command-prompt" id="command-prompt">:</div>
+          </div>
+          <div class="status-right">
+            <span class="status-right-mode" id="status-right-mode">NORMAL</span>
+            <span class="status-right-encoding">utf-8</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right chrome frame element -->
+      <div class="divider-v chrome-right"></div>
+
+    </div>
+
+    <!-- Bottom Chrome Border -->
+    <div class="border-h chrome-bottom">
+      <span>╰</span>
+      <span class="border-h-fill"></span>
+      <span>╯</span>
+    </div>
+
+  </div>
+
+  <!-- FLOATING MODAL: Help Menu -->
+  <div class="tui-modal-overlay" id="help-modal">
+    <div class="tui-modal">
+      <div class="border-h">
+        <span>╭─ help </span>
+        <span class="border-h-fill"></span>
+        <span>╮</span>
+      </div>
+      <div class="tui-modal-middle">
+        <div class="tui-modal-left-edge"></div>
+        <div class="tui-modal-content">
+          <div style="font-weight: bold; color: var(--accent); margin-bottom: 1ch;">HyprCollab TUI UI Manual & Keybinds</div>
+          <div class="help-grid">
+            <div class="help-row"><span class="help-key">j / k</span><span class="help-desc">Navigate list items in focused view</span></div>
+            <div class="help-row"><span class="help-key">Enter</span><span class="help-desc">Select active chat/item, or toggle skill checkbox</span></div>
+            <div class="help-row"><span class="help-key">1 - 8</span><span class="help-desc">Switch Activity Bar tab views</span></div>
+            <div class="help-row"><span class="help-key">i</span><span class="help-desc">Enter INSERT mode (focus terminal input)</span></div>
+            <div class="help-row"><span class="help-key">Esc</span><span class="help-desc">Exit INSERT / COMMAND mode or close active modal</span></div>
+            <div class="help-row"><span class="help-key">:</span><span class="help-desc">Enter COMMAND mode (execute command prompt)</span></div>
+            <div class="help-row"><span class="help-key">&lt;C-w&gt;h</span><span class="help-desc">Focus Left Navigator panel</span></div>
+            <div class="help-row"><span class="help-key">&lt;C-w&gt;l</span><span class="help-desc">Focus Chat Input panel</span></div>
+            <div class="help-row"><span class="help-key">&lt;C-p&gt;</span><span class="help-desc">Toggle Right Preview Panel</span></div>
+            <div class="help-row"><span class="help-key">Space + t</span><span class="help-desc">Open Theme Selector window (&lt;leader&gt;t)</span></div>
+            <div class="help-row"><span class="help-key">Space + h</span><span class="help-desc">Open Help Window manual (&lt;leader&gt;h)</span></div>
+            <div class="help-row"><span class="help-key">Space + s</span><span class="help-desc">Open Settings tab (&lt;leader&gt;s)</span></div>
+            <div class="help-row"><span class="help-key">q</span><span class="help-desc">Close any open floating modal window</span></div>
+            <div class="help-row"><span class="help-key">/</span><span class="help-desc">Type commands auto-dropdown (in INSERT)</span></div>
+          </div>
+          <div style="margin-top: 2ch; color: var(--subtext0); font-size: 11px; text-align: center;">Press [q] or [Esc] to exit help window.</div>
+        </div>
+        <div class="tui-modal-right-edge"></div>
+      </div>
+      <div class="border-h">
+        <span>╰</span>
+        <span class="border-h-fill"></span>
+        <span>╯</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLOATING MODAL: Theme Selector -->
+  <div class="tui-modal-overlay" id="theme-modal">
+    <div class="tui-modal">
+      <div class="border-h">
+        <span>╭─ themes </span>
+        <span class="border-h-fill"></span>
+        <span>╮</span>
+      </div>
+      <div class="tui-modal-middle">
+        <div class="tui-modal-left-edge"></div>
+        <div class="tui-modal-content">
+          <div style="font-weight: bold; color: var(--accent); margin-bottom: 1ch;">Select Color Theme</div>
+          <div id="theme-list">
+            <div class="theme-list-item active" data-theme="catppuccin">
+              <span class="item-indicator">▸</span> Catppuccin Mocha (Default)
+            </div>
+            <div class="theme-list-item" data-theme="tokyonight">
+              <span class="item-indicator"> </span> Tokyo Night
+            </div>
+            <div class="theme-list-item" data-theme="nord">
+              <span class="item-indicator"> </span> Nord Theme
+            </div>
+            <div class="theme-list-item" data-theme="dracula">
+              <span class="item-indicator"> </span> Dracula Theme
+            </div>
+            <div class="theme-list-item" data-theme="github">
+              <span class="item-indicator"> </span> GitHub Dark
+            </div>
+            <div class="theme-list-item" data-theme="rosepine">
+              <span class="item-indicator"> </span> Rosé Pine
+            </div>
+          </div>
+          <div style="margin-top: 2ch; color: var(--subtext0); font-size: 11px; text-align: center;">Press j/k to navigate, Enter to select theme.</div>
+        </div>
+        <div class="tui-modal-right-edge"></div>
+      </div>
+      <div class="border-h">
+        <span>╰</span>
+        <span class="border-h-fill"></span>
+        <span>╯</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- ===== INTERACTIVE JAVASCRIPT HANDLERS ===== -->
+  <script>
+    // App State Management
+    const state = {
+      mode: 'NORMAL', // NORMAL, INSERT, COMMAND, CHAT
+      activeTab: 'chats', // chats, files, personas, agents, skills, mcp, memories, settings
+      activeChat: 'chat-1',
+      activeFocus: 'chat-input', // sidebar, chat-input, modal-theme, modal-help
+      isPreviewVisible: false,
+      previewTab: 'code', // code, render, mermaid
+      currentTheme: 'catppuccin',
+      sidebarItems: [], // List of items for j/k navigation in current panel
+      activeSidebarIndex: 0,
+      themeItems: [],
+      activeThemeIndex: 0,
+      typingTimer: null,
+      leaderPressed: false,
+      commandBuffer: '',
+      lastKeyPressed: '',
+      previewFile: null,
+      sendOnEnter: true
+    };
+
+    // Autocomplete dropdown commands list
+    const slashCommands = [
+      { cmd: '/agent', desc: 'Switch active persona' },
+      { cmd: '/model', desc: 'Change the connected model' },
+      { cmd: '/help', desc: 'Show keybindings manual' }
+    ];
+    let selectedDropdownIndex = 0;
+
+    // Mock Files for preview panel
+    const mockFiles = {
+      'main.rs': {
+        lang: 'Rust',
+        lines: 8,
+        content: `<span class="line-num">1</span><span class="keyword">use</span> serde_json::{Value, from_str};
+<span class="line-num">2</span>
+<span class="line-num">3</span><span class="keyword">fn</span> <span class="function">main</span>() -> <span class="type">Result</span>&lt;(), serde_json::Error&gt; {
+<span class="line-num">4</span>    <span class="keyword">let</span> s = <span class="string">r#"{"name": "HyprCollab", "version": "0.1.0"}"#</span>;
+<span class="line-num">5</span>    <span class="keyword">let</span> v: Value = <span class="function">from_str</span>(s)?;
+<span class="line-num">6</span>    <span class="function">println!</span>(<span class="string">"App: {}"</span>, v[<span class="string">"name"</span>]);
+<span class="line-num">7</span>    <span class="type">Ok</span>(())
+<span class="line-num">8</span>}`,
+        render: `Rust binary template: main.rs
+This script compiles into the primary execution loop of the HyprCollab CLI backend.
+It leverages serde_json to read dynamic settings files.`
+      },
+      'error.rs': {
+        lang: 'Rust',
+        lines: 3,
+        content: `<span class="line-num">1</span><span class="keyword">pub type</span> <span class="type">Result</span>&lt;T&gt; =
+<span class="line-num">2</span>    std::result::Result
+<span class="line-num">3</span>    &lt;T, AppError&gt;;`,
+        render: `Rust error handling module.
+Maps internal results to specific AppError containers for formatting backtraces.`
+      },
+      'config.jsonc': {
+        lang: 'JSONC',
+        lines: 8,
+        content: `<span class="line-num">1</span><span class="comment">// Waybar Workspaces Config</span>
+<span class="line-num">2</span><span class="string">"hyprland/workspaces"</span>: {
+<span class="line-num">3</span>    <span class="string">"format"</span>: <span class="string">"{name}"</span>,
+<span class="line-num">4</span>    <span class="string">"on-click"</span>: <span class="string">"activate"</span>,
+<span class="line-num">5</span>    <span class="string">"persistent-workspaces"</span>: {
+<span class="line-num">6</span>        <span class="string">"*"</span>: <span class="number">3</span>
+<span class="line-num">7</span>    }
+<span class="line-num">8</span>}`,
+        render: `JSON configuration map for Waybar panels.
+Toggles persistence workspaces dynamically when Hyprland environment triggers.`
+      },
+      'client.py': {
+        lang: 'Python',
+        lines: 7,
+        content: `<span class="line-num">1</span><span class="keyword">from</span> z_ai <span class="keyword">import</span> Client
+<span class="line-num">2</span>
+<span class="line-num">3</span>client = Client()
+<span class="line-num">4</span>res = client.chat(
+<span class="line-num">5</span>    prompt=<span class="string">"Hello"</span>
+<span class="line-num">6</span>)
+<span class="line-num">7</span><span class="function">print</span>(res)`,
+        render: `Python client integration script for z-ai.
+Establishes active streaming socket sessions with the central LLM agent cluster.`
+      },
+      'architecture.mermaid': {
+        lang: 'Mermaid',
+        lines: 6,
+        content: `<span class="line-num">1</span><span class="keyword">graph</span> TD
+<span class="line-num">2</span>  User[User Request] --&gt; Router[Orchestration Router]
+<span class="line-num">3</span>  Router --&gt; Dev[Dev Agent]
+<span class="line-num">4</span>  Router --&gt; Luna[Luna UI Agent]
+<span class="line-num">5</span>  Dev --&gt; ACP[ACP Tool Execution]
+<span class="line-num">6</span>  Luna --&gt; ACP`,
+        render: `
+     ┌────────────────────────┐
+     │      User Request      │
+     └───────────┬────────────┘
+                 │
+                 ▼
+     ┌────────────────────────┐
+     │  Orchestration Router  │
+     └─────┬────────────┬─────┘
+           │            │
+           ▼            ▼
+     ┌───────────┐ ┌───────────┐
+     │ Dev Agent │ │ Luna (UI) │
+     └─────┬─────┘ └─────┬─────┘
+           │             │
+           └──────┬──────┘
+                  │
+                  ▼
+     ┌────────────────────────┐
+     │   ACP Tool Execution   │
+     └────────────────────────┘
+        `
+      },
+      'worker.rs': {
+        lang: 'Rust',
+        lines: 13,
+        content: `<span class="line-num">1</span><span class="keyword">use</span> tokio::task::JoinSet;
+<span class="line-num">2</span>
+<span class="line-num">3</span><span class="keyword">async fn</span> <span class="function">spawn_workers</span>() {
+<span class="line-num">4</span>    <span class="keyword">let mut</span> set = JoinSet::new();
+<span class="line-num">5</span>    <span class="keyword">for</span> i <span class="keyword">in</span> 0..10 {
+<span class="line-num">6</span>        set.spawn(<span class="keyword">async move</span> {
+<span class="line-num">7</span>            <span class="comment">// worker task logic</span>
+<span class="line-num">8</span>        });
+<span class="line-num">9</span>    }
+<span class="line-num">10</span>    <span class="keyword">while let Some</span>(res) = set.join_next().<span class="keyword">await</span> {
+<span class="line-num">11</span>        <span class="comment">// handle task completion / panic</span>
+<span class="line-num">12</span>    }
+<span class="line-num">13</span>}`,
+        render: `Rust Tokio JoinSet worker thread loop.
+Guarantees clean shutdown limits and avoids join deadlock memory panic cycles under load.`
+      }
+    };
+
+    // Typewriter content for Chat 3 API streaming simulation
+    const chat3TypewriterText = `To integrate with the z.ai API, you can use the official \`z-ai-sdk\` in Python. Here is a simple implementation:
+
+Let me trigger the z.ai Python Client preview on the right...`;
+
+    // DOM Elements Cache
+    const body = document.body;
+    const appContainer = document.querySelector('.app-container');
+    const terminalInput = document.getElementById('terminal-input');
+    const typedText = document.getElementById('typed-text');
+    const inputPlaceholder = document.getElementById('input-placeholder');
+    const modePill = document.getElementById('mode-pill');
+    const statusRightMode = document.getElementById('status-right-mode');
+    const statusTopMode = document.getElementById('status-top-mode');
+    const inputStatusMode = document.getElementById('input-status-mode');
+    const suggestDropdown = document.getElementById('suggest-dropdown');
+    
+    // Top Status Bar elements
+    const statModel = document.getElementById('status-top-model');
+    const statTokens = document.getElementById('status-top-tokens');
+    const statLatency = document.getElementById('status-top-latency');
+    
+    // Preview panel elements
+    const previewColumn = document.getElementById('preview-column');
+    const previewFilename = document.getElementById('preview-filename');
+    const previewEmpty = document.getElementById('preview-empty');
+    const previewCodeBody = document.getElementById('preview-code-body');
+    const previewRenderBody = document.getElementById('preview-render-body');
+    const previewImageContent = document.getElementById('preview-image-content');
+    const previewFooter = document.getElementById('preview-footer');
+    const previewInfoLines = document.getElementById('preview-info-lines');
+    const previewInfoLang = document.getElementById('preview-info-lang');
+    const previewConnectors = document.querySelectorAll('.preview-connector');
+    const previewDividerV = document.querySelector('.preview-divider-v');
+
+    // Sidebar items caching & tracking
+    function initializeSidebarList() {
+      const activePanel = document.querySelector(`.sidebar-panel.active`);
+      if (activePanel) {
+        state.sidebarItems = Array.from(activePanel.querySelectorAll('.tree-item'));
+        
+        let foundActive = false;
+        state.sidebarItems.forEach((item, index) => {
+          if (item.classList.contains('active')) {
+            state.activeSidebarIndex = index;
+            foundActive = true;
+          }
+          item.classList.remove('active-nav');
+        });
+        
+        if (!foundActive && state.sidebarItems.length > 0) {
+          state.activeSidebarIndex = 0;
+          state.sidebarItems[0].classList.add('active-nav');
+        } else if (state.sidebarItems.length > 0) {
+          state.sidebarItems[state.activeSidebarIndex].classList.add('active-nav');
+        }
+      } else {
+        state.sidebarItems = [];
+        state.activeSidebarIndex = 0;
+      }
+    }
+
+    function initializeThemeList() {
+      state.themeItems = Array.from(document.querySelectorAll('#theme-list .theme-list-item'));
+      state.themeItems.forEach((item, index) => {
+        if (item.classList.contains('active')) {
+          state.activeThemeIndex = index;
+        }
+        item.classList.remove('active-nav');
+      });
+      if (state.themeItems.length > 0) {
+        state.themeItems[state.activeThemeIndex].classList.add('active-nav');
+      }
+    }
+
+    // Switch Sidebar tab panel
+    function switchPanel(tabName) {
+      if (!tabName) return;
+      state.activeTab = tabName;
+      
+      // Update Activity bar icons
+      document.querySelectorAll('.activity-bar .activity-item').forEach(item => {
+        if (item.getAttribute('data-tab') === tabName) {
+          item.classList.add('active');
+        } else {
+          item.classList.remove('active');
+        }
+      });
+      
+      // Show matching panel, hide others
+      document.querySelectorAll('.sidebar-column .sidebar-panel').forEach(panel => {
+        if (panel.id === 'panel-' + tabName) {
+          panel.classList.add('active');
+        } else {
+          panel.classList.remove('active');
+        }
+      });
+
+      // Clear badge if clicking chats
+      if (tabName === 'chats') {
+        const dot = document.getElementById('chats-unread-dot');
+        if (dot) dot.style.display = 'none';
+      }
+
+      initializeSidebarList();
+      triggerToast('✓ Switched view to: ' + tabName.toUpperCase());
+    }
+
+    // Set TUI editor mode
+    function setMode(newMode) {
+      state.mode = newMode;
+      body.className = '';
+      body.classList.add('mode-' + newMode.toLowerCase());
+      body.classList.add('theme-' + state.currentTheme);
+      
+      if (document.getElementById('checkbox-nerdfont') && document.getElementById('checkbox-nerdfont').textContent === '[ ]') {
+        body.classList.add('no-nerd-font');
+      }
+      
+      modePill.textContent = newMode;
+      statusRightMode.textContent = newMode;
+      statusTopMode.textContent = newMode;
+      inputStatusMode.textContent = newMode;
+
+      if (newMode === 'INSERT') {
+        terminalInput.removeAttribute('disabled');
+        terminalInput.focus();
+        inputPlaceholder.style.opacity = '0';
+        typedText.textContent = terminalInput.value;
+      } else {
+        terminalInput.setAttribute('disabled', 'true');
+        terminalInput.blur();
+        if (terminalInput.value === '') {
+          inputPlaceholder.style.opacity = '1';
+        }
+        suggestDropdown.classList.remove('visible');
+      }
+
+      if (newMode === 'COMMAND') {
+        document.getElementById('command-prompt').textContent = ':';
+        document.getElementById('command-prompt').style.display = 'flex';
+        state.commandBuffer = '';
+      } else {
+        document.getElementById('command-prompt').style.display = 'none';
+      }
+    }
+
+    // Modals Control
+    function showModal(modalId) {
+      closeModals();
+      const modal = document.getElementById(modalId);
+      if (modal) {
+        modal.classList.add('visible');
+        if (modalId === 'theme-modal') {
+          state.activeFocus = 'modal-theme';
+          initializeThemeList();
+        } else if (modalId === 'help-modal') {
+          state.activeFocus = 'modal-help';
+        }
+      }
+    }
+
+    function closeModals() {
+      document.querySelectorAll('.tui-modal-overlay').forEach(el => {
+        el.classList.remove('visible');
+      });
+      state.activeFocus = 'chat-input';
+      if (state.mode === 'COMMAND') {
+        setMode('NORMAL');
+      }
+    }
+
+    // Expand / collapse tool output boxes
+    function toggleCollapsible(element) {
+      element.classList.toggle('expanded');
+      const headerBtn = element.querySelector('.tool-collapsible-header-btn');
+      if (headerBtn) {
+        if (element.classList.contains('expanded')) {
+          headerBtn.textContent = '[Click to collapse]';
+        } else {
+          headerBtn.textContent = '[Click to expand]';
+        }
+      }
+    }
+
+    // Toast triggers
+    function triggerToast(message) {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = 'toast-box';
+      
+      toast.innerHTML = `
+        <div class="border-h">
+          <span>╭─ notification </span>
+          <span class="border-h-fill"></span>
+          <span>╮</span>
+        </div>
+        <div class="toast-middle">
+          <div class="toast-left-edge"></div>
+          <div class="toast-content">${message}</div>
+          <div class="toast-right-edge"></div>
+        </div>
+        <div class="border-h">
+          <span>╰</span>
+          <span class="border-h-fill"></span>
+          <span>╯</span>
+        </div>
+      `;
+      
+      container.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.classList.add('fade-out');
+        setTimeout(() => {
+          if (toast.parentNode === container) {
+            container.removeChild(toast);
+          }
+        }, 300);
+      }, 3000);
+    }
+
+    // Preview active file in preview panel
+    function previewFile(filename) {
+      state.previewFile = filename;
+      state.isPreviewVisible = true;
+      appContainer.classList.remove('preview-collapsed');
+      previewDividerV.style.display = 'block';
+      previewColumn.style.display = 'flex';
+      
+      // Update Title Bar bottom intersection indicators
+      previewConnectors.forEach(el => el.style.display = 'inline-flex');
+      
+      previewFilename.textContent = `Preview: ${filename}`;
+      previewEmpty.style.display = 'none';
+      
+      const fileData = mockFiles[filename];
+      if (fileData) {
+        previewImageContent.style.display = 'none';
+        
+        // Populate content body depending on tab
+        previewCodeBody.innerHTML = fileData.content;
+        previewRenderBody.textContent = fileData.render || 'No text rendering details available.';
+        
+        switchPreviewTab(state.previewTab);
+        
+        previewFooter.style.display = 'flex';
+        previewInfoLines.textContent = `Lines: ${fileData.lines}`;
+        previewInfoLang.textContent = `Lang: ${fileData.lang}`;
+      } else {
+        // Fallback for image preview
+        previewCodeBody.style.display = 'none';
+        previewRenderBody.style.display = 'none';
+        previewImageContent.style.display = 'block';
+        previewFooter.style.display = 'none';
+      }
+      
+      triggerToast(`✓ File loaded: ${filename}`);
+    }
+
+    function switchPreviewTab(tab) {
+      state.previewTab = tab;
+      
+      document.getElementById('tab-preview-code').classList.remove('primary');
+      document.getElementById('tab-preview-render').classList.remove('primary');
+      document.getElementById('tab-preview-mermaid').classList.remove('primary');
+      
+      const fileData = mockFiles[state.previewFile];
+      
+      if (tab === 'code') {
+        document.getElementById('tab-preview-code').classList.add('primary');
+        previewCodeBody.style.display = 'block';
+        previewRenderBody.style.display = 'none';
+      } else if (tab === 'render') {
+        document.getElementById('tab-preview-render').classList.add('primary');
+        previewCodeBody.style.display = 'none';
+        previewRenderBody.style.display = 'block';
+      } else if (tab === 'mermaid') {
+        document.getElementById('tab-preview-mermaid').classList.add('primary');
+        previewCodeBody.style.display = 'block'; // Falls back to raw mermaid text
+        previewRenderBody.style.display = 'none';
+        if (state.previewFile === 'architecture.mermaid') {
+          previewCodeBody.style.display = 'none';
+          previewRenderBody.textContent = fileData.render;
+          previewRenderBody.style.display = 'block';
+        }
+      }
+    }
+
+    function togglePreviewPanel() {
+      state.isPreviewVisible = !state.isPreviewVisible;
+      if (state.isPreviewVisible) {
+        appContainer.classList.remove('preview-collapsed');
+        previewDividerV.style.display = 'block';
+        previewColumn.style.display = 'flex';
+        previewConnectors.forEach(el => el.style.display = 'inline-flex');
+        if (!state.previewFile) {
+          previewFile('main.rs'); // Load default file
+        }
+        triggerToast('✓ Preview panel visible');
+      } else {
+        collapsePreviewPanel();
+      }
+    }
+
+    function collapsePreviewPanel() {
+      state.isPreviewVisible = false;
+      appContainer.classList.add('preview-collapsed');
+      previewDividerV.style.display = 'none';
+      previewColumn.style.display = 'none';
+      previewConnectors.forEach(el => el.style.display = 'none');
+      triggerToast('✓ Preview panel collapsed');
+    }
+
+    function copyPreviewFile() {
+      if (state.previewFile) {
+        triggerToast(`✓ Copied ${state.previewFile} to clipboard`);
+      }
+    }
+
+    function openPreviewFile() {
+      if (state.previewFile) {
+        triggerToast(`✓ Opening ${state.previewFile} in editor...`);
+      }
+    }
+
+    function copyMockContent(filename) {
+      triggerToast(`✓ Copied content of ${filename} to clipboard`);
+    }
+
+    function saveMockArtifact(filepath) {
+      triggerToast(`✓ Saved file artifact: ${filepath}`);
+    }
+
+    // ACP actions
+    function controlAcp(sessionName, action) {
+      const statusEl = document.getElementById(`acp-${sessionName}-status`);
+      if (action === 'start') {
+        statusEl.style.color = 'var(--yellow)';
+        statusEl.textContent = '● active';
+        triggerToast(`✓ ACP Session [${sessionName}] started`);
+      } else if (action === 'stop') {
+        statusEl.style.color = 'var(--overlay0)';
+        statusEl.textContent = '● offline';
+        triggerToast(`✓ ACP Session [${sessionName}] stopped`);
+      } else if (action === 'restart') {
+        statusEl.style.color = 'var(--yellow)';
+        statusEl.textContent = '● active';
+        triggerToast(`✓ ACP Session [${sessionName}] restarted`);
+      }
+    }
+
+    // Rename/delete/pin chats
+    function renameChat(chatId, e) {
+      e.stopPropagation();
+      const newName = prompt('Enter new chat buffer name:');
+      if (newName) {
+        const item = document.querySelector(`[data-item-target="${chatId}"] .item-text`);
+        if (item) {
+          item.textContent = newName;
+          triggerToast(`✓ Chat renamed to: ${newName}`);
+        }
+      }
+    }
+
+    function deleteChat(chatId, e) {
+      e.stopPropagation();
+      if (confirm('Delete this conversation buffer?')) {
+        const item = document.querySelector(`[data-item-target="${chatId}"]`);
+        if (item) {
+          item.style.display = 'none';
+          triggerToast('✓ Conversation buffer deleted');
+        }
+      }
+    }
+
+    function pinChat(chatId, e) {
+      e.stopPropagation();
+      triggerToast('✓ Chat pinned to top');
+    }
+
+    // Switch Chat Buffer
+    function switchChat(chatId) {
+      state.activeChat = chatId;
+      
+      // Update sidebar tree indicators
+      document.querySelectorAll('#panel-chats .tree-item').forEach((item) => {
+        const itemTarget = item.getAttribute('data-item-target');
+        if (itemTarget === chatId) {
+          item.classList.add('active');
+          item.querySelector('.item-indicator').textContent = '▸';
+          state.activeSidebarIndex = state.sidebarItems.indexOf(item);
+        } else {
+          item.classList.remove('active');
+          item.querySelector('.item-indicator').textContent = ' ';
+        }
+      });
+      
+      // Swap Chat canvases
+      document.querySelectorAll('.chat-canvas').forEach(canvas => {
+        if (canvas.id === 'canvas-' + chatId) {
+          canvas.classList.add('active');
+          canvas.scrollTop = canvas.scrollHeight;
+        } else {
+          canvas.classList.remove('active');
+        }
+      });
+
+      // Special Typewriter Stream on Chat 3
+      if (chatId === 'chat-3') {
+        startChat3Typing();
+      } else {
+        statModel.textContent = 'gemini-3.5-flash';
+        statTokens.textContent = '1.2k';
+        statLatency.textContent = '142ms';
+        if (state.typingTimer) {
+          clearInterval(state.typingTimer);
+          state.typingTimer = null;
+        }
+      }
+
+      triggerToast('✓ Chat buffer ' + chatId.replace('chat-', '') + ' selected');
+    }
+
+    // Theme selector handler
+    function selectTheme(themeName) {
+      state.currentTheme = themeName;
+      body.className = '';
+      body.classList.add('mode-' + state.mode.toLowerCase());
+      body.classList.add('theme-' + themeName);
+      
+      if (document.getElementById('checkbox-nerdfont') && document.getElementById('checkbox-nerdfont').textContent === '[ ]') {
+        body.classList.add('no-nerd-font');
+      }
+
+      // Sync settings tab buttons checkbox state check
+      document.querySelectorAll('#panel-settings button').forEach(btn => {
+        if (btn.textContent.includes('Theme')) return;
+        const btnText = btn.textContent;
+        if (btnText.includes('Catppuccin') && themeName === 'catppuccin') btn.textContent = '[x] Catppuccin Mocha';
+        else if (btnText.includes('Tokyo') && themeName === 'tokyonight') btn.textContent = '[x] Tokyo Night';
+        else if (btnText.includes('Nord') && themeName === 'nord') btn.textContent = '[x] Nord Theme';
+        else if (btnText.includes('Dracula') && themeName === 'dracula') btn.textContent = '[x] Dracula Theme';
+        else if (btnText.includes('GitHub') && themeName === 'github') btn.textContent = '[x] GitHub Dark';
+        else if (btnText.includes('Rosé') && themeName === 'rosepine') btn.textContent = '[x] Rosé Pine';
+        else {
+          btn.textContent = btn.textContent.replace('[x]', '[ ]').replace('[ ]', '[ ]');
+          if (!btn.textContent.includes('[ ]')) {
+            btn.textContent = '[ ] ' + btn.textContent.replace(/^\[.*?\]\s*/, '');
+          }
+        }
+      });
+
+      // Update theme selector modal active class
+      document.querySelectorAll('#theme-list .theme-list-item').forEach((item, index) => {
+        if (item.getAttribute('data-theme') === themeName) {
+          item.classList.add('active');
+          item.querySelector('.item-indicator').textContent = '▸';
+          state.activeThemeIndex = index;
+        } else {
+          item.classList.remove('active');
+          item.querySelector('.item-indicator').textContent = ' ';
+        }
+      });
+      
+      triggerToast('✓ Palette changed: ' + themeName.toUpperCase());
+    }
+
+    // Typewriter Simulation for Chat 3
+    function startChat3Typing() {
+      const streamingText = document.getElementById('streaming-text');
+      streamingText.innerHTML = '';
+      
+      statModel.textContent = 'gemini-3.5-flash';
+      statTokens.textContent = '0';
+      statLatency.textContent = '110ms';
+      setMode('CHAT');
+      previewFile('client.py'); // open file preview on trigger
+
+      let charIndex = 0;
+      if (state.typingTimer) {
+        clearInterval(state.typingTimer);
+      }
+
+      state.typingTimer = setInterval(() => {
+        if (charIndex < chat3TypewriterText.length) {
+          const char = chat3TypewriterText[charIndex];
+          if (char === '\n') {
+            streamingText.innerHTML += '<br>';
+          } else {
+            streamingText.innerHTML += char;
+          }
+          charIndex++;
+          statTokens.textContent = Math.floor(charIndex * 1.5);
+          statLatency.textContent = (110 + Math.floor(Math.random() * 20)) + 'ms';
+          
+          const canvas = document.getElementById('canvas-chat-3');
+          canvas.scrollTop = canvas.scrollHeight;
+        } else {
+          clearInterval(state.typingTimer);
+          state.typingTimer = null;
+          setMode('NORMAL');
+          triggerToast('✓ Stream buffer completed');
+        }
+      }, 15);
+    }
+
+    // Autocomplete prompt dropdown matches
+    function showAutocompleteDropdown(textVal) {
+      if (textVal.startsWith('/')) {
+        suggestDropdown.classList.add('visible');
+        const filter = textVal.split(' ')[0];
+        const items = suggestDropdown.querySelectorAll('.dropdown-item');
+        let matched = false;
+        
+        items.forEach((item, idx) => {
+          const cmd = item.getAttribute('data-cmd');
+          if (cmd.startsWith(filter)) {
+            item.style.display = 'flex';
+            if (!matched) {
+              selectedDropdownIndex = idx;
+              matched = true;
+            }
+          } else {
+            item.style.display = 'none';
+          }
+        });
+        updateDropdownSelection();
+      } else {
+        suggestDropdown.classList.remove('visible');
+      }
+    }
+
+    function updateDropdownSelection() {
+      const items = suggestDropdown.querySelectorAll('.dropdown-item');
+      items.forEach((item, idx) => {
+        if (idx === selectedDropdownIndex) {
+          item.classList.add('active');
+          item.querySelector('.dropdown-item-cmd').textContent = '▸ ' + item.getAttribute('data-cmd');
+        } else {
+          item.classList.remove('active');
+          item.querySelector('.dropdown-item-cmd').textContent = '  ' + item.getAttribute('data-cmd');
+        }
+      });
+    }
+
+    // Send Message execution
+    function executeMessage(content) {
+      if (content.trim() === '') return;
+      
+      if (content.startsWith('/')) {
+        const cmd = content.split(' ')[0];
+        if (cmd === '/help') {
+          showModal('help-modal');
+        } else if (cmd === '/theme') {
+          showModal('theme-modal');
+        } else if (cmd === '/model') {
+          triggerToast('🤖 Changed model to claude-3.5-sonnet');
+          statModel.textContent = 'claude-3.5-son';
+        } else if (cmd === '/agent') {
+          switchPanel('personas');
+        } else {
+          triggerToast('Command executed: ' + cmd);
+        }
+      } else {
+        triggerToast('Message sent! Running agent loop...');
+        
+        const activeCanvas = document.querySelector('.chat-canvas.active');
+        
+        // Append User Message with TUI box border
+        const userMsg = document.createElement('div');
+        userMsg.className = 'message-container user-msg-align';
+        userMsg.innerHTML = `
+          <div class="message-box">
+            <div class="border-h">
+              <span>╭─ You ─ ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} </span>
+              <span class="border-h-fill"></span>
+              <span>╮</span>
+            </div>
+            <div class="message-middle">
+              <div class="message-left-edge"></div>
+              <div class="message-content">${content}</div>
+              <div class="message-right-edge"></div>
+            </div>
+            <div class="border-h">
+              <span>╰</span>
+              <span class="border-h-fill"></span>
+              <span>╯</span>
+            </div>
+          </div>
+        `;
+        activeCanvas.appendChild(userMsg);
+        
+        // Mock Agent reply
+        setTimeout(() => {
+          const assistMsg = document.createElement('div');
+          assistMsg.className = 'message-container assistant-msg-align';
+          assistMsg.innerHTML = `
+            <div class="message-box">
+              <div class="border-h">
+                <span>╭─ 🤖 Dev ─ ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} </span>
+                <span class="border-h-fill"></span>
+                <span>╮</span>
+              </div>
+              <div class="message-middle">
+                <div class="message-left-edge"></div>
+                <div class="message-content">Mock Response: Message successfully received on HyprCollab stream. Ready for code execution loop.</div>
+                <div class="message-right-edge"></div>
+              </div>
+              <div class="border-h">
+                <span>╰</span>
+                <span class="border-h-fill"></span>
+                <span>╯</span>
+              </div>
+            </div>
+          `;
+          activeCanvas.appendChild(assistMsg);
+          activeCanvas.scrollTop = activeCanvas.scrollHeight;
+        }, 1000);
+      }
+      
+      terminalInput.value = '';
+      typedText.textContent = '';
+      setMode('NORMAL');
+    }
+
+    // Execute colon command lines (COMMAND Mode)
+    function executeCommandPrompt(cmdStr) {
+      if (cmdStr === 'help' || cmdStr === 'h') {
+        showModal('help-modal');
+      } else if (cmdStr.startsWith('theme ') || cmdStr.startsWith('t ')) {
+        const theme = cmdStr.split(' ')[1];
+        if (theme) selectTheme(theme);
+      } else if (cmdStr === 'q') {
+        closeModals();
+      } else if (cmdStr === 'preview' || cmdStr === 'p') {
+        togglePreviewPanel();
+      } else if (cmdStr === '1' || cmdStr === 'chats') {
+        switchPanel('chats');
+      } else if (cmdStr === '2' || cmdStr === 'files') {
+        switchPanel('files');
+      } else if (cmdStr === '3' || cmdStr === 'personas') {
+        switchPanel('personas');
+      } else if (cmdStr === '4' || cmdStr === 'agents') {
+        switchPanel('agents');
+      } else if (cmdStr === '5' || cmdStr === 'skills') {
+        switchPanel('skills');
+      } else if (cmdStr === '6' || cmdStr === 'mcp') {
+        switchPanel('mcp');
+      } else if (cmdStr === '7' || cmdStr === 'memories') {
+        switchPanel('memories');
+      } else if (cmdStr === '8' || cmdStr === 'settings') {
+        switchPanel('settings');
+      } else {
+        triggerToast('Command not found: :' + cmdStr);
+      }
+      setMode('NORMAL');
+    }
+
+    // Tree-item Navigator selections
+    function selectSidebarItem(item) {
+      state.sidebarItems.forEach(el => {
+        el.classList.remove('active-nav');
+        el.querySelector('.item-indicator').textContent = ' ';
+      });
+      
+      item.classList.add('active-nav');
+      item.querySelector('.item-indicator').textContent = '▸';
+      
+      const targetType = item.getAttribute('data-item-type');
+      const targetVal = item.getAttribute('data-item-target');
+      
+      if (targetType === 'chat') {
+        switchChat(targetVal);
+      } else if (targetType === 'project-file') {
+        const filename = item.querySelector('.item-text').textContent.trim();
+        previewFile(filename);
+      } else if (targetType === 'persona') {
+        triggerToast('✓ Selected persona: ' + item.querySelector('.item-text').textContent.trim());
+      } else if (targetType === 'acp-session') {
+        triggerToast('✓ Selected ACP agent session');
+      } else if (targetType === 'skill') {
+        toggleSkillItem(item);
+      } else if (targetType === 'mcp-server') {
+        triggerToast('✓ Focused MCP server: ' + item.querySelector('.item-text').textContent.trim());
+      } else if (targetType === 'memory') {
+        triggerToast('✓ Focused memory key-value pair');
+      }
+    }
+
+    function toggleSkillItem(item) {
+      const textEl = item.querySelector('.item-text');
+      if (textEl) {
+        const isEnabled = textEl.textContent.includes('[x]');
+        if (isEnabled) {
+          textEl.textContent = textEl.textContent.replace('[x]', '[ ]');
+          triggerToast('✓ Disabled skill: ' + textEl.textContent.replace('[ ]', '').trim());
+        } else {
+          textEl.textContent = textEl.textContent.replace('[ ]', '[x]');
+          triggerToast('✓ Enabled skill: ' + textEl.textContent.replace('[x]', '').trim());
+        }
+      }
+    }
+
+    // Checkbox togglers
+    function toggleCrtSetting() {
+      const box = document.getElementById('checkbox-crt');
+      const isEnabled = box.textContent === '[x]';
+      if (isEnabled) {
+        box.textContent = '[ ]';
+        document.getElementById('crt-screen').classList.add('disabled');
+        triggerToast('✓ CRT filter disabled');
+      } else {
+        box.textContent = '[x]';
+        document.getElementById('crt-screen').classList.remove('disabled');
+        triggerToast('✓ CRT filter enabled');
+      }
+    }
+
+    function toggleSendOnEnter() {
+      const box = document.getElementById('checkbox-send-enter');
+      const isEnabled = box.textContent === '[x]';
+      if (isEnabled) {
+        box.textContent = '[ ]';
+        state.sendOnEnter = false;
+        triggerToast('✓ Send on Enter disabled');
+      } else {
+        box.textContent = '[x]';
+        state.sendOnEnter = true;
+        triggerToast('✓ Send on Enter enabled');
+      }
+    }
+
+    function toggleNerdFontSetting() {
+      const box = document.getElementById('checkbox-nerdfont');
+      const isEnabled = box.textContent === '[x]';
+      if (isEnabled) {
+        box.textContent = '[ ]';
+        document.body.classList.add('no-nerd-font');
+        triggerToast('✓ Nerd Fonts disabled (emoji fallbacks active)');
+      } else {
+        box.textContent = '[x]';
+        document.body.classList.remove('no-nerd-font');
+        triggerToast('✓ Nerd Fonts activated');
+      }
+    }
+
+    function saveSystemSettings() {
+      const provider = document.getElementById('setting-provider').value;
+      const model = document.getElementById('setting-model').value;
+      statModel.textContent = model;
+      triggerToast('✓ Settings updated! Model: ' + model);
+    }
+
+    function focusInput() {
+      setMode('INSERT');
+    }
+
+    function triggerAttach() {
+      triggerToast('📎 Mock attachment dialog opened');
+    }
+
+    function triggerVoice() {
+      triggerToast('🎤 Voice input listening...');
+    }
+
+    function triggerSend() {
+      executeMessage(terminalInput.value);
+    }
+
+    function createNewChat() {
+      triggerToast('✓ Created new chat buffer');
+    }
+
+    // Keyboard navigation routing
+    window.addEventListener('keydown', function(e) {
+      // Allow normal typing inside select boxes, dropdown menus, etc.
+      if (document.activeElement && (
+        document.activeElement.tagName === 'SELECT' ||
+        document.activeElement.tagName === 'OPTION' ||
+        (document.activeElement.tagName === 'INPUT' && document.activeElement.id !== 'terminal-input')
+      )) {
+        if (e.key === 'Escape') {
+          document.activeElement.blur();
+          setMode('NORMAL');
+        }
+        return;
+      }
+
+      // Brief flash animation on clicks helper
+      if (e.target.closest('.tui-btn-clickable')) {
+        const btn = e.target.closest('.tui-btn-clickable');
+        btn.classList.add('flash');
+        setTimeout(() => btn.classList.remove('flash'), 150);
+      }
+
+      // 1. INSERT Mode keys
+      if (state.mode === 'INSERT') {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          setMode('NORMAL');
+          return;
+        }
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (suggestDropdown.classList.contains('visible')) {
+            const activeItem = suggestDropdown.querySelectorAll('.dropdown-item')[selectedDropdownIndex];
+            if (activeItem && activeItem.style.display !== 'none') {
+              const cmdText = activeItem.getAttribute('data-cmd');
+              terminalInput.value = cmdText + ' ';
+              typedText.textContent = cmdText + ' ';
+              suggestDropdown.classList.remove('visible');
+              return;
+            }
+          }
+          if (state.sendOnEnter) {
+            executeMessage(terminalInput.value);
+          }
+          return;
+        }
+        if (suggestDropdown.classList.contains('visible')) {
+          if (e.key === 'ArrowDown' || (e.ctrlKey && e.key === 'j')) {
+            e.preventDefault();
+            const items = Array.from(suggestDropdown.querySelectorAll('.dropdown-item')).filter(el => el.style.display !== 'none');
+            selectedDropdownIndex = (selectedDropdownIndex + 1) % items.length;
+            updateDropdownSelection();
+            return;
+          }
+          if (e.key === 'ArrowUp' || (e.ctrlKey && e.key === 'k')) {
+            e.preventDefault();
+            const items = Array.from(suggestDropdown.querySelectorAll('.dropdown-item')).filter(el => el.style.display !== 'none');
+            selectedDropdownIndex = (selectedDropdownIndex - 1 + items.length) % items.length;
+            updateDropdownSelection();
+            return;
+          }
+        }
+        return;
+      }
+
+      // 2. COMMAND Mode keys
+      if (state.mode === 'COMMAND') {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          setMode('NORMAL');
+          return;
+        }
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          executeCommandPrompt(state.commandBuffer);
+          return;
+        }
+        if (e.key === 'Backspace') {
+          e.preventDefault();
+          state.commandBuffer = state.commandBuffer.slice(0, -1);
+          document.getElementById('command-prompt').textContent = ':' + state.commandBuffer;
+          return;
+        }
+        if (e.key.length === 1) {
+          e.preventDefault();
+          state.commandBuffer += e.key;
+          document.getElementById('command-prompt').textContent = ':' + state.commandBuffer;
+          return;
+        }
+        return;
+      }
+
+      // 3. Modal Menu navigation
+      if (state.activeFocus === 'modal-theme') {
+        if (e.key === 'Escape' || e.key === 'q') {
+          e.preventDefault();
+          closeModals();
+          return;
+        }
+        if (e.key === 'j' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          state.activeThemeIndex = (state.activeThemeIndex + 1) % state.themeItems.length;
+          state.themeItems.forEach((item, index) => {
+            if (index === state.activeThemeIndex) {
+              item.classList.add('active-nav');
+              item.querySelector('.item-indicator').textContent = '▸';
+            } else {
+              item.classList.remove('active-nav');
+              item.querySelector('.item-indicator').textContent = ' ';
+            }
+          });
+          return;
+        }
+        if (e.key === 'k' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          state.activeThemeIndex = (state.activeThemeIndex - 1 + state.themeItems.length) % state.themeItems.length;
+          state.themeItems.forEach((item, index) => {
+            if (index === state.activeThemeIndex) {
+              item.classList.add('active-nav');
+              item.querySelector('.item-indicator').textContent = '▸';
+            } else {
+              item.classList.remove('active-nav');
+              item.querySelector('.item-indicator').textContent = ' ';
+            }
+          });
+          return;
+        }
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const targetTheme = state.themeItems[state.activeThemeIndex].getAttribute('data-theme');
+          selectTheme(targetTheme);
+          closeModals();
+          return;
+        }
+        return;
+      }
+
+      if (state.activeFocus.startsWith('modal-')) {
+        if (e.key === 'Escape' || e.key === 'q' || e.key === 'Enter') {
+          e.preventDefault();
+          closeModals();
+        }
+        return;
+      }
+
+      // 4. GLOBAL Hotkeys (1-8 Panel Switching)
+      if (e.key === '1') { e.preventDefault(); switchPanel('chats'); return; }
+      if (e.key === '2') { e.preventDefault(); switchPanel('files'); return; }
+      if (e.key === '3') { e.preventDefault(); switchPanel('personas'); return; }
+      if (e.key === '4') { e.preventDefault(); switchPanel('agents'); return; }
+      if (e.key === '5') { e.preventDefault(); switchPanel('skills'); return; }
+      if (e.key === '6') { e.preventDefault(); switchPanel('mcp'); return; }
+      if (e.key === '7') { e.preventDefault(); switchPanel('memories'); return; }
+      if (e.key === '8') { e.preventDefault(); switchPanel('settings'); return; }
+
+      // Ctrl+p toggle preview
+      if (e.ctrlKey && e.key === 'p') {
+        e.preventDefault();
+        togglePreviewPanel();
+        return;
+      }
+
+      // Ctrl+w h/l pane navigation
+      if (e.ctrlKey && e.key === 'w') {
+        e.preventDefault();
+        state.leaderPressed = 'ctrl-w';
+        return;
+      }
+      if (state.leaderPressed === 'ctrl-w') {
+        state.leaderPressed = false;
+        if (e.key === 'h') {
+          e.preventDefault();
+          state.activeFocus = 'sidebar';
+          triggerToast('Focus pane: Navigator Sidebar');
+          return;
+        }
+        if (e.key === 'l') {
+          e.preventDefault();
+          state.activeFocus = 'chat-input';
+          triggerToast('Focus pane: Chat Input');
+          return;
+        }
+      }
+
+      // Space leader options
+      if (e.key === ' ') {
+        e.preventDefault();
+        state.leaderPressed = 'space';
+        return;
+      }
+      if (state.leaderPressed === 'space') {
+        state.leaderPressed = false;
+        if (e.key === 't') {
+          e.preventDefault();
+          showModal('theme-modal');
+          return;
+        }
+        if (e.key === 'h') {
+          e.preventDefault();
+          showModal('help-modal');
+          return;
+        }
+        if (e.key === 's') {
+          e.preventDefault();
+          switchPanel('settings');
+          return;
+        }
+      }
+
+      state.leaderPressed = false;
+
+      // Mode switching triggers
+      if (e.key === 'i') {
+        e.preventDefault();
+        setMode('INSERT');
+        return;
+      }
+
+      if (e.key === ':') {
+        e.preventDefault();
+        setMode('COMMAND');
+        return;
+      }
+
+      // List navigation hooks
+      if (e.key === 'j' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (state.sidebarItems.length > 0) {
+          state.sidebarItems[state.activeSidebarIndex].classList.remove('active-nav');
+          state.activeSidebarIndex = (state.activeSidebarIndex + 1) % state.sidebarItems.length;
+          
+          const targetEl = state.sidebarItems[state.activeSidebarIndex];
+          targetEl.classList.add('active-nav');
+          targetEl.scrollIntoView({ block: 'nearest' });
+        }
+        return;
+      }
+
+      if (e.key === 'k' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (state.sidebarItems.length > 0) {
+          state.sidebarItems[state.activeSidebarIndex].classList.remove('active-nav');
+          state.activeSidebarIndex = (state.activeSidebarIndex - 1 + state.sidebarItems.length) % state.sidebarItems.length;
+          
+          const targetEl = state.sidebarItems[state.activeSidebarIndex];
+          targetEl.classList.add('active-nav');
+          targetEl.scrollIntoView({ block: 'nearest' });
+        }
+        return;
+      }
+
+      if (e.key === 'g') {
+        if (state.lastKeyPressed === 'g') {
+          e.preventDefault();
+          if (state.sidebarItems.length > 0) {
+            state.sidebarItems[state.activeSidebarIndex].classList.remove('active-nav');
+            state.activeSidebarIndex = 0;
+            state.sidebarItems[0].classList.add('active-nav');
+            state.sidebarItems[0].scrollIntoView({ block: 'nearest' });
+          }
+          state.lastKeyPressed = '';
+          return;
+        }
+        state.lastKeyPressed = 'g';
+        return;
+      }
+
+      if (e.key === 'G') {
+        e.preventDefault();
+        if (state.sidebarItems.length > 0) {
+          state.sidebarItems[state.activeSidebarIndex].classList.remove('active-nav');
+          const lastIdx = state.sidebarItems.length - 1;
+          state.activeSidebarIndex = lastIdx;
+          state.sidebarItems[lastIdx].classList.add('active-nav');
+          state.sidebarItems[lastIdx].scrollIntoView({ block: 'nearest' });
+        }
+        return;
+      }
+
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (state.sidebarItems.length > 0) {
+          selectSidebarItem(state.sidebarItems[state.activeSidebarIndex]);
+        }
+        return;
+      }
+
+      state.lastKeyPressed = e.key;
+    });
+
+    // Hidden Input handlers
+    terminalInput.addEventListener('input', function(e) {
+      typedText.textContent = terminalInput.value;
+      showAutocompleteDropdown(terminalInput.value);
+    });
+
+    // Click delegations
+    document.addEventListener('click', function(e) {
+      // Dropdown match items click
+      if (e.target.closest('.dropdown-item')) {
+        const item = e.target.closest('.dropdown-item');
+        const cmdVal = item.getAttribute('data-cmd');
+        terminalInput.value = cmdVal + ' ';
+        typedText.textContent = cmdVal + ' ';
+        suggestDropdown.classList.remove('visible');
+        terminalInput.focus();
+        return;
+      }
+      
+      // Activity Bar icons clicks
+      if (e.target.closest('.activity-bar .activity-item')) {
+        const item = e.target.closest('.activity-bar .activity-item');
+        const tabName = item.getAttribute('data-tab');
+        switchPanel(tabName);
+        return;
+      }
+
+      // Sidebar tree-item click
+      if (e.target.closest('.sidebar-column .tree-item')) {
+        const sidebarEl = e.target.closest('.sidebar-column .tree-item');
+        if (state.sidebarItems.includes(sidebarEl)) {
+          state.sidebarItems[state.activeSidebarIndex].classList.remove('active-nav');
+          state.activeSidebarIndex = state.sidebarItems.indexOf(sidebarEl);
+        }
+        selectSidebarItem(sidebarEl);
+        return;
+      }
+
+      // Theme Selector modal items click
+      if (e.target.closest('#theme-list .theme-list-item')) {
+        const themeEl = e.target.closest('#theme-list .theme-list-item');
+        selectTheme(themeEl.getAttribute('data-theme'));
+        closeModals();
+        return;
+      }
+
+      // Sidebar Folders collapse/expand clicks
+      if (e.target.closest('.sidebar-column .tree-folder')) {
+        const folderEl = e.target.closest('.sidebar-column .tree-folder');
+        const folderTargetName = folderEl.getAttribute('data-folder');
+        const contentsEl = document.getElementById(`folder-contents-${folderTargetName}`);
+        const indicatorEl = folderEl.querySelector('.folder-indicator');
+        
+        if (contentsEl) {
+          contentsEl.classList.toggle('collapsed');
+          if (contentsEl.classList.contains('collapsed')) {
+            indicatorEl.textContent = '▸';
+          } else {
+            indicatorEl.textContent = '▾';
+          }
+          initializeSidebarList(); // Recalculate navigable visible items
+        }
+        return;
+      }
+
+      // Set input focus when clicking on the input row area
+      if (state.mode === 'INSERT' && 
+          !e.target.closest('.tui-modal') && 
+          !e.target.closest('.sidebar-column') && 
+          !e.target.closest('.activity-bar') && 
+          !e.target.closest('.input-actions-row') &&
+          !e.target.closest('.preview-column') &&
+          !e.target.closest('.artifact-actions') &&
+          !e.target.closest('.tool-box')) {
+        terminalInput.focus();
+      }
+    });
+
+    // Update dimensions in top bar
+    function updateTerminalSize() {
+      const width = Math.floor(window.innerWidth / 8); 
+      const height = Math.floor(window.innerHeight / 18); 
+      const sizeEl = document.getElementById('chrome-term-size');
+      if (sizeEl) {
+        sizeEl.textContent = `${width}x${height}`;
+      }
+    }
+
+    // Nerd Font detection check
+    function checkNerdFonts() {
+      const text = "\uf035b";
+      const span = document.createElement("span");
+      span.style.fontSize = "72px";
+      span.style.position = "absolute";
+      span.style.visibility = "hidden";
+      span.style.fontFamily = "monospace";
+      span.textContent = text;
+      document.body.appendChild(span);
+      
+      const widthMonospace = span.getBoundingClientRect().width;
+      span.style.fontFamily = "'JetBrainsMono Nerd Font', monospace";
+      const widthNerd = span.getBoundingClientRect().width;
+      document.body.removeChild(span);
+      
+      const hasNerdFont = (widthNerd !== widthMonospace && widthNerd > 0);
+      const checkboxBox = document.getElementById('checkbox-nerdfont');
+      
+      if (!hasNerdFont) {
+        body.classList.add('no-nerd-font');
+        if (checkboxBox) checkboxBox.textContent = '[ ]';
+      } else {
+        body.classList.remove('no-nerd-font');
+        if (checkboxBox) checkboxBox.textContent = '[x]';
+      }
+    }
+
+    // Windows onload boot sequence
+    window.onload = function() {
+      checkNerdFonts();
+      updateTerminalSize();
+      window.addEventListener('resize', updateTerminalSize);
+      initializeSidebarList();
+      selectTheme('catppuccin'); // Default Catppuccin Mocha colors active on load
+      
+      triggerToast('✓ Loaded HyprCollab terminal proposal v7');
+      triggerToast('💡 Press [i] for Insert, [Esc] to exit');
+      triggerToast('💡 Press keys [1]-[8] to toggle sidebar panels');
+    };
+  </script>
+</body>
+</html>

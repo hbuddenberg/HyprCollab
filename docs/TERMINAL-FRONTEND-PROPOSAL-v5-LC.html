@@ -1,0 +1,3339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HyprCollab — LibreChat TUI Reference (v5)</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="Stunning TUI-style interactive frontend design proposal v4 FINAL for HyprCollab — an agentic AI chat platform built with terminal aesthetics. Includes avatars, collapsible file preview sidebar, and clickable TUI buttons.">
+  <meta name="theme-color" content="#1a1b26">
+  
+  <!-- JetBrains Mono from Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    /* ===== RESET & BASE STYLES ===== */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    :root {
+      /* Tokyo Night (Default) */
+      --bg-primary: #1a1b26;
+      --bg-secondary: #24283b;
+      --bg-tertiary: #1f2335;
+      --bg-activity-bar: #16161f;
+      --border: #3b4261;
+      --text-primary: #c0caf5;
+      --text-dim: #565f89;
+      --accent: #7aa2f7;
+      --green: #9ece6a;
+      --yellow: #e0af68;
+      --red: #f7768e;
+      --purple: #bb9af7;
+      --cyan: #7dcfff;
+      --orange: #ff9e64;
+      --teal: #73daca;
+      
+      --font: 'JetBrains Mono', monospace;
+    }
+
+    body.theme-catppuccin {
+      --bg-primary: #1e1e2e;
+      --bg-secondary: #181825;
+      --bg-tertiary: #11111b;
+      --bg-activity-bar: #0f0f17;
+      --border: #313244;
+      --text-primary: #cdd6f4;
+      --text-dim: #7f849c;
+      --accent: #89b4fa;
+      --green: #a6e3a1;
+      --yellow: #f9e2af;
+      --red: #f38ba8;
+      --purple: #cba6f7;
+      --cyan: #89dceb;
+      --orange: #fab387;
+      --teal: #94e2d5;
+    }
+
+    body.theme-nord {
+      --bg-primary: #2e3440;
+      --bg-secondary: #3b4252;
+      --bg-tertiary: #242933;
+      --bg-activity-bar: #1e222b;
+      --border: #4c566a;
+      --text-primary: #eceff4;
+      --text-dim: #616e88;
+      --accent: #88c0d0;
+      --green: #a3be8c;
+      --yellow: #ebcb8b;
+      --red: #bf616a;
+      --purple: #b48ead;
+      --cyan: #8fbcbb;
+      --orange: #d08770;
+      --teal: #8fbcbb;
+    }
+
+    body.theme-dracula {
+      --bg-primary: #282a36;
+      --bg-secondary: #1e1f29;
+      --bg-tertiary: #191a21;
+      --bg-activity-bar: #14141a;
+      --border: #44475a;
+      --text-primary: #f8f8f2;
+      --text-dim: #6272a4;
+      --accent: #ff79c6;
+      --green: #50fa7b;
+      --yellow: #f1fa8c;
+      --red: #ff5555;
+      --purple: #bd93f9;
+      --cyan: #8be9fd;
+      --orange: #ffb86c;
+      --teal: #8be9fd;
+    }
+
+    body.theme-github {
+      --bg-primary: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-tertiary: #0b0e14;
+      --bg-activity-bar: #07090d;
+      --border: #30363d;
+      --text-primary: #c9d1d9;
+      --text-dim: #8b949e;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --yellow: #d29922;
+      --red: #f85149;
+      --purple: #bc8cff;
+      --cyan: #39d2c0;
+      --orange: #f0883e;
+      --teal: #39d2c0;
+    }
+
+    body.theme-rosepine {
+      --bg-primary: #191724;
+      --bg-secondary: #1f1d2e;
+      --bg-tertiary: #12101a;
+      --bg-activity-bar: #0e0d14;
+      --border: #26233a;
+      --text-primary: #e0def4;
+      --text-dim: #908caa;
+      --accent: #ebbcba;
+      --green: #9ccfd8;
+      --yellow: #f6c177;
+      --red: #eb6f92;
+      --purple: #c4a7e7;
+      --cyan: #9ccfd8;
+      --orange: #ea9a97;
+      --teal: #9ccfd8;
+    }
+
+    body {
+      font-family: var(--font);
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: 13px;
+      line-height: 1.2;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ===== CRT SCANLINE EFFECTS ===== */
+    .crt-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.08) 50%),
+                  linear-gradient(90deg, rgba(255, 0, 0, 0.01), rgba(0, 255, 0, 0.005), rgba(0, 0, 255, 0.01));
+      background-size: 100% 4px, 4px 100%;
+      z-index: 99999;
+      pointer-events: none;
+      opacity: 0.7;
+    }
+
+    .crt-overlay.disabled {
+      display: none;
+    }
+
+    /* ===== APPLICATION GRID CONTAINER ===== */
+    .app-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+      padding: 0;
+      position: relative;
+    }
+
+    /* ===== MONOSPACE CHARACTER BORDERS ===== */
+    .tui-border-h {
+      display: flex;
+      white-space: nowrap;
+      overflow: hidden;
+      color: var(--border);
+      font-size: 13px;
+      line-height: 1.2;
+      flex-shrink: 0;
+    }
+
+    .tui-border-fill {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: clip;
+      white-space: nowrap;
+      letter-spacing: -0.05px;
+    }
+
+    .tui-border-char {
+      flex-shrink: 0;
+    }
+
+    .divider-v {
+      width: 1px;
+      background-color: var(--border);
+      flex-shrink: 0;
+      align-self: stretch;
+    }
+
+    /* Sizing horizontal split segments exactly to columns */
+    .activity-bar-sep-cell {
+      flex: 0 0 40px !important;
+      width: 40px;
+      overflow: hidden;
+    }
+    
+    .sidebar-sep-cell {
+      flex: 0 0 200px !important;
+      width: 200px;
+      overflow: hidden;
+    }
+
+    .chat-sep-cell {
+      flex: 1;
+    }
+
+    /* ===== TOP BAR (NEW v4 CLEAN TOP BAR) ===== */
+    .tui-top-header {
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      background-color: var(--bg-primary);
+      padding: 0;
+    }
+
+    .header-content-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 2ch;
+      color: var(--text-dim);
+      font-size: 12px;
+      height: 20px;
+      line-height: 20px;
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      background-color: var(--bg-secondary);
+    }
+
+    .header-app-name {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    /* ===== CONTENT AREA WORKSPACE ===== */
+    .tui-workspace-row {
+      display: flex;
+      flex-grow: 1;
+      overflow: hidden;
+    }
+
+    /* ===== ACTIVITY BAR (48px) ===== */
+    .activity-bar {
+      width: 48px;
+      background-color: var(--bg-activity-bar);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      flex-shrink: 0;
+      height: 100%;
+    }
+
+    .activity-items {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .activity-item {
+      width: 100%;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      color: var(--text-dim);
+      transition: background-color 0.15s, color 0.15s;
+    }
+
+    .activity-icon {
+      font-size: 18px;
+      font-family: 'JetBrainsMono Nerd Font', 'JetBrains Mono', monospace;
+      display: inline-block;
+    }
+
+    .activity-fallback {
+      display: none;
+      font-family: var(--font);
+    }
+
+    body.no-nerd-font .activity-icon {
+      display: none;
+    }
+    body.no-nerd-font .activity-fallback {
+      display: inline-block;
+    }
+
+    .activity-item:hover {
+      background-color: color-mix(in srgb, var(--text-dim) 15%, transparent);
+      color: var(--text-primary);
+    }
+
+    .activity-item.active {
+      background-color: color-mix(in srgb, var(--accent) 20%, transparent);
+      color: var(--accent);
+    }
+
+    .activity-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 15%;
+      bottom: 15%;
+      width: 2px;
+      background-color: var(--accent);
+    }
+
+    /* Unread/Notification badges on Activity Bar */
+    .activity-unread-dot {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      color: var(--green);
+      font-size: 9px;
+      pointer-events: none;
+    }
+
+    .activity-badge {
+      position: absolute;
+      bottom: 4px;
+      right: 4px;
+      background-color: var(--border);
+      color: var(--orange);
+      font-size: 9px;
+      font-weight: bold;
+      border: 1px solid var(--border);
+      padding: 0 3px;
+      line-height: 1;
+      pointer-events: none;
+    }
+
+    /* ===== LEFT SIDEBAR PANEL (200px wide) ===== */
+    .sidebar-column {
+      width: 200px;
+      background-color: var(--bg-secondary);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+    .sidebar-column::-webkit-scrollbar {
+      display: none;
+    }
+
+    .sidebar-panel {
+      display: none;
+      flex-direction: column;
+      height: 100%;
+      padding: 10px 0;
+    }
+
+    .sidebar-panel.active {
+      display: flex;
+    }
+
+    .sidebar-header {
+      font-weight: 700;
+      color: var(--accent);
+      padding: 4px 1.5ch;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .tree-item {
+      display: flex;
+      align-items: center;
+      padding: 6px 1.5ch;
+      cursor: pointer;
+      color: var(--text-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      font-family: var(--font);
+      position: relative;
+    }
+
+    .tree-item:hover {
+      color: var(--text-primary);
+    }
+
+    .tree-item.active {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .tree-item.active-nav {
+      background-color: color-mix(in srgb, var(--accent) 10%, transparent);
+      color: var(--text-primary);
+    }
+
+    .item-indicator {
+      width: 2ch;
+      color: var(--accent);
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .item-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .item-badge-unread {
+      color: var(--green);
+      margin-left: auto;
+      font-size: 9px;
+      padding-right: 0.5ch;
+    }
+
+    /* Hover buttons in sidebar chat list */
+    .chat-item-actions {
+      display: none;
+      position: absolute;
+      right: 1.5ch;
+      gap: 3px;
+      background-color: var(--bg-secondary);
+      padding-left: 1ch;
+    }
+    
+    .tree-item:hover .chat-item-actions {
+      display: flex;
+    }
+
+    .sidebar-tree-sep {
+      color: var(--border);
+      white-space: nowrap;
+      overflow: hidden;
+      padding: 6px 0;
+      flex-shrink: 0;
+    }
+
+    /* Sub-items in Projects tree */
+    .tree-item.sub-depth-1 { padding-left: 3.5ch; }
+    .tree-item.sub-depth-2 { padding-left: 5.5ch; }
+    .tree-item.sub-depth-3 { padding-left: 7.5ch; }
+
+    .persona-detail-box {
+      padding: 2px 1.5ch 8px 3.5ch;
+      color: var(--text-dim);
+      font-size: 11px;
+      line-height: 1.3;
+      white-space: pre-wrap;
+    }
+
+    .acp-session-detail {
+      padding: 2px 1.5ch 8px 3.5ch;
+      color: var(--text-dim);
+      font-size: 11px;
+      line-height: 1.3;
+    }
+
+    .skill-detail {
+      padding: 2px 1.5ch 8px 3.5ch;
+      color: var(--text-dim);
+      font-size: 11px;
+      line-height: 1.3;
+    }
+
+    /* Settings Form UI */
+    .settings-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+
+    .settings-label {
+      font-size: 10px;
+      font-weight: bold;
+      color: var(--accent);
+      letter-spacing: 0.5px;
+    }
+
+    .tui-input {
+      background-color: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      font-family: var(--font);
+      font-size: 12px;
+      padding: 2px 6px;
+      outline: none;
+      width: 100%;
+      height: 24px;
+    }
+
+    select.tui-input {
+      appearance: none;
+      cursor: pointer;
+      background-image: url("data:image/svg+xml;utf8,<svg fill='%237aa2f7' height='10' viewBox='0 0 24 24' width='10' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 6px center;
+      padding-right: 20px;
+    }
+
+    .tui-input:focus {
+      border-color: var(--accent);
+    }
+
+    .tui-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 1ch;
+      cursor: pointer;
+      color: var(--text-primary);
+      font-size: 12px;
+      user-select: none;
+      height: 20px;
+    }
+
+    .tui-checkbox:hover .checkbox-label {
+      color: var(--accent);
+    }
+
+    .checkbox-box {
+      color: var(--accent);
+      font-weight: bold;
+    }
+
+    /* ===== CLICKABLE TUI BUTTONS SYSTEM ===== */
+    .tui-btn-clickable {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      font-family: var(--font);
+      font-size: 11px;
+      font-weight: bold;
+      padding: 4px 10px;
+      cursor: pointer;
+      outline: none;
+      text-decoration: none;
+      min-width: 44px;
+      min-height: 28px;
+      user-select: none;
+      transition: border-color 0.1s, color 0.1s;
+    }
+
+    .tui-btn-clickable:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background-color: color-mix(in srgb, var(--accent) 5%, transparent);
+    }
+
+    .tui-btn-clickable:active {
+      background-color: var(--accent) !important;
+      color: var(--bg-primary) !important;
+      border-color: var(--accent) !important;
+    }
+
+    .tui-btn-clickable.primary {
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .tui-btn-clickable.primary:hover {
+      color: var(--text-primary);
+      border-color: var(--text-primary);
+      background-color: color-mix(in srgb, var(--accent) 15%, transparent);
+    }
+
+    .tui-btn-clickable.dimmed {
+      color: var(--text-dim);
+      border-color: var(--border);
+      opacity: 0.6;
+    }
+    
+    .tui-btn-clickable.dimmed:hover {
+      opacity: 1;
+      color: var(--text-primary);
+    }
+
+    .tui-btn-clickable:disabled {
+      color: var(--text-dim) !important;
+      border-color: var(--border) !important;
+      background: transparent !important;
+      cursor: not-allowed;
+      opacity: 0.4;
+    }
+
+    /* TUI Box-drawing Tooltip on hover */
+    .tui-tooltip-container {
+      position: relative;
+      display: inline-block;
+    }
+
+    .tui-btn-tooltip {
+      display: none;
+      position: absolute;
+      bottom: 110%;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: var(--bg-tertiary);
+      border: none;
+      color: var(--text-primary);
+      font-family: var(--font);
+      font-size: 11px;
+      line-height: 1.1;
+      white-space: pre;
+      z-index: 10000;
+      pointer-events: none;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+    }
+
+    .tui-tooltip-container:hover .tui-btn-tooltip {
+      display: block;
+    }
+
+    /* ===== CENTER PANEL (CHAT CANVAS) ===== */
+    .chat-column {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background-color: var(--bg-primary);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .chat-canvas {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 20px 3ch;
+      display: none;
+      flex-direction: column;
+      gap: 18px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    .chat-canvas.active {
+      display: flex;
+    }
+
+    /* Message structures with Avatars */
+    .message-container {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      width: 100%;
+    }
+
+    .message-container.user-message {
+      align-items: flex-end;
+    }
+
+    .message-header-row {
+      display: flex;
+      align-items: center;
+      gap: 1.5ch;
+      width: 100%;
+    }
+
+    .message-container.user-message .message-header-row {
+      justify-content: flex-end;
+    }
+
+    /* TUI Avatar Border */
+    .avatar-box {
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: bold;
+      flex-shrink: 0;
+      background-color: color-mix(in srgb, var(--accent) 10%, transparent);
+      color: var(--accent);
+    }
+
+    .avatar-box.avatar-dev {
+      background-color: color-mix(in srgb, var(--purple) 15%, transparent);
+      color: var(--purple);
+    }
+
+    .avatar-box.avatar-luna {
+      background-color: color-mix(in srgb, var(--orange) 15%, transparent);
+      color: var(--orange);
+    }
+
+    .avatar-box.avatar-sage {
+      background-color: color-mix(in srgb, var(--green) 15%, transparent);
+      color: var(--green);
+    }
+
+    .avatar-box.avatar-user {
+      background-color: color-mix(in srgb, var(--accent) 15%, transparent);
+      color: var(--accent);
+    }
+
+    .avatar-box.avatar-system {
+      background-color: color-mix(in srgb, var(--cyan) 15%, transparent);
+      color: var(--cyan);
+    }
+
+    .message-header {
+      display: flex;
+      align-items: center;
+      gap: 1.5ch;
+      font-weight: 500;
+    }
+
+    .message-bar-user {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .message-bar-assistant {
+      color: var(--purple);
+      font-weight: 700;
+    }
+
+    .message-bar-luna {
+      color: var(--orange);
+      font-weight: 700;
+    }
+
+    .message-timestamp {
+      color: var(--text-dim);
+      font-size: 11px;
+    }
+
+    .message-text {
+      padding-left: calc(28px + 1.5ch);
+      white-space: pre-wrap;
+      color: var(--text-primary);
+      line-height: 1.4;
+      width: 100%;
+    }
+
+    .message-container.user-message .message-text {
+      padding-left: 0;
+      padding-right: calc(28px + 1.5ch);
+      text-align: right;
+    }
+
+    /* Monospace Card / Box Container */
+    .tui-box {
+      background-color: var(--bg-tertiary);
+      display: flex;
+      flex-direction: column;
+      margin: 8px 0 8px calc(28px + 1.5ch);
+      width: calc(100% - 28px - 1.5ch);
+      max-width: 800px;
+    }
+
+    .message-container.user-message .tui-box {
+      margin-left: 0;
+      margin-right: calc(28px + 1.5ch);
+      align-self: flex-end;
+    }
+
+    .tui-box.border-cyan {
+      --border: var(--cyan);
+    }
+
+    .tui-box.border-accent {
+      --border: var(--accent);
+    }
+
+    .tui-box-row {
+      display: flex;
+      color: var(--text-primary);
+    }
+
+    .tui-box-row > span {
+      color: var(--border);
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .tui-box-content {
+      flex: 1;
+      padding: 4px 2ch;
+      overflow-x: auto;
+      white-space: pre;
+      line-height: 1.4;
+    }
+
+    /* Collapsible Tool Output */
+    .tui-collapsible {
+      cursor: pointer;
+    }
+    
+    .tui-collapsible-body {
+      display: none;
+    }
+
+    .tui-collapsible.expanded .tui-collapsible-body {
+      display: block;
+    }
+
+    .tui-collapsible-header-btn {
+      color: var(--text-dim);
+      font-size: 11px;
+      float: right;
+    }
+
+    /* Syntax Highlighting */
+    .keyword { color: var(--purple); font-weight: 500; }
+    .string { color: var(--green); }
+    .type { color: var(--cyan); }
+    .comment { color: var(--text-dim); font-style: italic; }
+    .function { color: var(--accent); }
+    .number { color: var(--orange); }
+    .line-num {
+      color: var(--text-dim);
+      display: inline-block;
+      width: 3ch;
+      text-align: right;
+      margin-right: 1.5ch;
+      user-select: none;
+    }
+
+    /* Artifact Actions */
+    .artifact-actions {
+      margin-top: 6px;
+      display: flex;
+      gap: 1.5ch;
+      align-items: center;
+    }
+
+    /* Typewriter Streaming indicators */
+    .streaming-cursor {
+      display: inline-block;
+      width: 1ch;
+      background-color: var(--text-primary);
+      color: var(--text-primary);
+      animation: blink 0.8s infinite;
+      vertical-align: middle;
+      margin-left: 2px;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    /* ===== INTERNAL STATUS BAR (CONNECTED MODEL) ===== */
+    .chat-status-bar {
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .chat-status-content {
+      display: flex;
+      align-items: center;
+      height: 24px;
+      padding: 0 2ch;
+      background-color: var(--bg-secondary);
+      font-size: 11px;
+      color: var(--text-dim);
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+    }
+
+    .status-dot {
+      margin-right: 1ch;
+      font-size: 8px;
+    }
+
+    .status-dot.green { color: var(--green); }
+    .status-dot.yellow { color: var(--yellow); }
+
+    .status-model {
+      color: var(--text-primary);
+      font-weight: 700;
+    }
+
+    .status-sep {
+      color: var(--border);
+      margin: 0 1.5ch;
+    }
+
+    .status-val {
+      color: var(--orange);
+      font-weight: bold;
+    }
+
+    /* ===== INPUT ROW ===== */
+    .chat-input-row {
+      display: flex;
+      align-items: center;
+      height: 44px;
+      padding: 0 2ch;
+      background-color: var(--bg-tertiary);
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      position: relative;
+      gap: 1.5ch;
+    }
+
+    .prompt-char {
+      color: var(--accent);
+      font-weight: bold;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .input-container {
+      flex: 1;
+      position: relative;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      cursor: text;
+    }
+
+    .input-placeholder {
+      position: absolute;
+      left: 0;
+      color: var(--text-dim);
+      pointer-events: none;
+      transition: opacity 0.15s;
+    }
+
+    .input-text-typed {
+      color: var(--text-primary);
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .input-cursor {
+      display: inline-block;
+      width: 1ch;
+      color: var(--accent);
+      font-weight: bold;
+      animation: blink 0.8s infinite;
+    }
+
+    body.mode-normal .input-cursor {
+      display: none;
+    }
+
+    .hidden-input {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+      pointer-events: none;
+    }
+
+    .input-actions-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    /* Slash command autosuggest */
+    .commands-dropdown {
+      position: absolute;
+      bottom: 100%;
+      left: 2ch;
+      width: 320px;
+      background-color: var(--bg-secondary);
+      z-index: 1000;
+      display: none;
+    }
+
+    .commands-dropdown.visible {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      padding: 6px 1.5ch;
+      cursor: pointer;
+      color: var(--text-dim);
+    }
+
+    .dropdown-item.active {
+      background-color: var(--bg-tertiary);
+      color: var(--accent);
+    }
+
+    .dropdown-item-cmd {
+      font-weight: bold;
+      width: 10ch;
+      flex-shrink: 0;
+    }
+
+    .dropdown-item-desc {
+      font-size: 11px;
+    }
+
+    /* ===== RIGHT SIDEBAR: FILE PREVIEW PANEL (280px wide) ===== */
+    .preview-column {
+      width: 280px;
+      background-color: var(--bg-secondary);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow: hidden;
+      height: 100%;
+    }
+
+    .preview-panel-header {
+      padding: 8px 1.5ch;
+      font-weight: 700;
+      color: var(--accent);
+      background-color: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 36px;
+    }
+
+    .preview-panel-content {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      background-color: var(--bg-primary);
+    }
+
+    .preview-empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 11px;
+      padding: 0 2ch;
+      line-height: 1.4;
+    }
+
+    .preview-code-body {
+      font-family: var(--font);
+      font-size: 11px;
+      line-height: 1.4;
+      white-space: pre;
+      overflow-x: auto;
+      flex: 1;
+      padding: 6px 0;
+    }
+
+    .preview-image-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 1px dashed var(--border);
+      background-color: var(--bg-tertiary);
+      height: 160px;
+      margin: 10px 0;
+      color: var(--text-dim);
+      font-size: 11px;
+    }
+
+    .preview-metadata-footer {
+      padding: 8px 1.5ch;
+      background-color: var(--bg-tertiary);
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .preview-footer-info {
+      display: flex;
+      justify-content: space-between;
+      color: var(--text-dim);
+    }
+
+    .preview-footer-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    /* ===== RIGHT SIDEBAR: ACP MONITOR ===== */
+    .acp-column {
+      width: 240px;
+      background-color: var(--bg-secondary);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+
+    .acp-column::-webkit-scrollbar {
+      display: none;
+    }
+
+    .acp-panel {
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .acp-header {
+      font-weight: 700;
+      color: var(--accent);
+      padding: 4px 0.5ch;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+    }
+
+    .acp-card-status {
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+
+    .acp-card-detail {
+      color: var(--text-dim);
+      font-size: 11px;
+      line-height: 1.3;
+    }
+
+    .acp-card-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    /* Collapse support for workspace layouts */
+    .app-container.acp-collapsed .acp-column,
+    .app-container.acp-collapsed .acp-junction-v,
+    .app-container.acp-collapsed .acp-sep-cell {
+      display: none !important;
+    }
+
+    .app-container.preview-collapsed .preview-column,
+    .app-container.preview-collapsed .preview-junction-v {
+      display: none !important;
+    }
+
+    /* ===== NVIM BOTTOM STATUS LINE & KEYBINDS ===== */
+    .tui-status-bar-line {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 24px;
+      background-color: var(--bg-secondary);
+      font-size: 12px;
+      padding: 0 1.5ch;
+      flex-shrink: 0;
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+    }
+
+    .status-left {
+      display: flex;
+      align-items: center;
+      gap: 2ch;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .status-mode-pill {
+      background-color: var(--accent);
+      color: var(--bg-primary);
+      font-weight: 700;
+      padding: 2px 8px;
+      user-select: none;
+    }
+
+    body.mode-insert .status-mode-pill {
+      background-color: var(--green);
+    }
+
+    body.mode-command .status-mode-pill {
+      background-color: var(--yellow);
+    }
+
+    body.mode-chat .status-mode-pill {
+      background-color: var(--purple);
+    }
+
+    .status-keybinds {
+      color: var(--text-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .key-indicator {
+      color: var(--accent);
+      font-weight: bold;
+    }
+
+    .status-command-prompt {
+      display: none;
+      color: var(--yellow);
+      font-weight: bold;
+      align-items: center;
+    }
+
+    .status-right {
+      display: flex;
+      align-items: center;
+      gap: 2ch;
+      flex-shrink: 0;
+      color: var(--text-dim);
+    }
+
+    .status-right-mode {
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    /* ===== FLOATING WINDOW MODALS ===== */
+    .tui-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0, 0, 0, 0.4);
+      z-index: 10000;
+      display: none;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .tui-modal-overlay.visible {
+      display: flex;
+    }
+
+    .tui-modal {
+      background-color: var(--bg-secondary);
+      border: none;
+      width: 480px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+    }
+
+    .tui-modal-row {
+      display: flex;
+    }
+
+    .tui-modal-row > span {
+      color: var(--border);
+      user-select: none;
+    }
+
+    .tui-modal-content {
+      flex: 1;
+      padding: 10px 2ch;
+      background-color: var(--bg-primary);
+      line-height: 1.4;
+    }
+
+    .help-grid {
+      display: grid;
+      grid-template-columns: 12ch 1fr;
+      row-gap: 4px;
+      font-size: 11px;
+      margin: 10px 0;
+    }
+
+    .help-key {
+      color: var(--accent);
+      font-weight: bold;
+    }
+
+    .help-desc {
+      color: var(--text-dim);
+    }
+
+    #theme-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin: 10px 0;
+    }
+
+    .theme-list-item {
+      padding: 4px 1ch;
+      cursor: pointer;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+    }
+
+    .theme-list-item:hover {
+      color: var(--text-primary);
+    }
+
+    .theme-list-item.active {
+      color: var(--accent);
+      font-weight: bold;
+    }
+
+    .theme-list-item.active-nav {
+      background-color: color-mix(in srgb, var(--accent) 10%, transparent);
+      color: var(--text-primary);
+    }
+
+    /* ===== TOAST NOTIFICATION CONTAINER ===== */
+    .toast-container {
+      position: fixed;
+      bottom: 30px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      z-index: 11000;
+      pointer-events: none;
+    }
+
+    .toast-box {
+      width: 280px;
+      background-color: var(--bg-secondary);
+      pointer-events: auto;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      animation: slide-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes slide-in {
+      from { transform: translateX(110%); }
+      to { transform: translateX(0); }
+    }
+
+    .toast-box.fade-out {
+      animation: fade-out 0.3s forwards;
+    }
+
+    @keyframes fade-out {
+      to { opacity: 0; transform: translateY(10px); }
+    }
+
+    .toast-text {
+      color: var(--text-primary);
+      font-size: 11px;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body class="theme-tokyonight mode-normal">
+
+  <!-- CRT SCREEN Scanlines overlay -->
+  <div class="crt-overlay" id="crt-screen"></div>
+
+  <!-- APPLICATION GRID CONTAINER -->
+  <div class="app-container">
+    
+    <!-- 1. NEW v4 SIMPLE ONE-LINE HEADER -->
+    <header class="tui-top-header">
+      <div class="tui-border-h">
+        <span class="tui-border-char">╭</span>
+        <span class="tui-border-fill">────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────</span>
+        <span class="tui-border-char">╮</span>
+      </div>
+      <div class="header-content-row">
+        <span class="header-app-name">HyprCollab v0.1.0</span>
+        <span class="header-mode-info"><span id="header-mode-text">NORMAL</span> utf-8</span>
+      </div>
+      <div class="tui-border-h">
+        <span class="tui-border-char">├</span>
+        <span class="tui-border-fill activity-bar-sep-cell">──</span>
+        <span class="tui-border-char">┬</span>
+        <span class="tui-border-fill sidebar-sep-cell">──────</span>
+        <span class="tui-border-char">┬</span>
+        <span class="tui-border-fill chat-sep-cell">────────────────────────────────────────────────────────────────────────────────────────────────────────────</span>
+        <span class="tui-border-char">┤</span>
+      </div>
+    </header>
+
+    <!-- 2. WORKSPACE ROW (AB + SIDEBAR + CHAT CANVAS + FILE PREVIEW) -->
+    <div class="tui-workspace-row">
+      
+      <!-- VS CODE-STYLE ACTIVITY BAR (48px) -->
+      <nav class="activity-bar">
+        <div class="activity-items">
+          
+          <div class="activity-item active" data-tab="chats" id="act-chats">
+            <span class="activity-icon">💬</span>
+            <span class="activity-fallback">C</span>
+            <span class="activity-unread-dot" id="chats-unread-dot">●</span>
+            <div class="tui-btn-tooltip">
+╭─────────────────╮
+│ 💬 Chats        │
+│ Shortcut: 1     │
+╰─────────────────╯
+            </div>
+          </div>
+
+          <div class="activity-item" data-tab="projects" id="act-projects">
+            <span class="activity-icon">📁</span>
+            <span class="activity-fallback">P</span>
+            <div class="tui-btn-tooltip">
+╭─────────────────╮
+│ 📁 Projects     │
+│ Shortcut: 2     │
+╰─────────────────╯
+            </div>
+          </div>
+
+          <div class="activity-item" data-tab="personas" id="act-personas">
+            <span class="activity-icon">🎭</span>
+            <span class="activity-fallback">A</span>
+            <div class="tui-btn-tooltip">
+╭─────────────────╮
+│ 🎭 Personas     │
+│ Shortcut: 3     │
+╰─────────────────╯
+            </div>
+          </div>
+
+          <div class="activity-item" data-tab="acp" id="act-acp">
+            <span class="activity-icon">🔧</span>
+            <span class="activity-fallback">M</span>
+            <span class="activity-badge" id="acp-badge">1</span>
+            <div class="tui-btn-tooltip">
+╭─────────────────╮
+│ 🔧 ACP Monitor  │
+│ Shortcut: 4     │
+╰─────────────────╯
+            </div>
+          </div>
+
+          <div class="activity-item" data-tab="skills" id="act-skills">
+            <span class="activity-icon">⚡</span>
+            <span class="activity-fallback">S</span>
+            <div class="tui-btn-tooltip">
+╭─────────────────╮
+│ ⚡ Skills       │
+│ Shortcut: 5     │
+╰─────────────────╯
+            </div>
+          </div>
+
+        </div>
+
+        <div class="activity-items">
+          <div class="activity-item" data-tab="settings" id="act-settings">
+            <span class="activity-icon">⚙</span>
+            <span class="activity-fallback">O</span>
+            <div class="tui-btn-tooltip">
+╭─────────────────╮
+│ ⚙ Settings      │
+│ Shortcut: 6     │
+╰─────────────────╯
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <!-- Vertical Split 1 -->
+      <div class="divider-v"></div>
+
+      <!-- LEFT SIDEBAR PANEL (200px wide) -->
+      <div class="sidebar-column" id="left-sidebar">
+        
+        <!-- LibreChat-style: Chats panel with search + date groups -->
+        <div class="sidebar-panel active" id="panel-chats">
+          <div class="sidebar-header">💬 CHATS</div>
+          <div style="padding: 4px 1.5ch;">
+            <input class="tui-input" placeholder="🔍 Search conversations..." style="font-size: 11px; height: 22px;">
+          </div>
+
+          <div style="padding: 2px 1.5ch; color: var(--text-dim); font-size: 10px; font-weight: bold; letter-spacing: 0.5px;">PINNED</div>
+          <div class="tree-item active" data-item-type="chat" data-item-target="chat-1">
+            <span class="item-indicator">▸</span>
+            <span class="item-text">📌 Rust workspace refactor</span>
+            <div class="chat-item-actions">
+              <span class="chat-action-btn">[✏]</span>
+              <span class="chat-action-btn">[✖]</span>
+            </div>
+          </div>
+
+          <div style="padding: 6px 1.5ch 2px; color: var(--text-dim); font-size: 10px; font-weight: bold; letter-spacing: 0.5px;">TODAY</div>
+          <div class="tree-item" data-item-type="chat" data-item-target="chat-2">
+            <span class="item-indicator"> </span>
+            <span class="item-text">UI redesign brainstorm</span>
+            <div class="chat-item-actions">
+              <span class="chat-action-btn">[✏]</span>
+              <span class="chat-action-btn">[✖]</span>
+              <span class="chat-action-btn">[📌]</span>
+            </div>
+          </div>
+          <div class="tree-item" data-item-type="chat" data-item-target="chat-3">
+            <span class="item-indicator"> </span>
+            <span class="item-text">Debugging session</span>
+            <div class="chat-item-actions">
+              <span class="chat-action-btn">[✏]</span>
+              <span class="chat-action-btn">[✖]</span>
+              <span class="chat-action-btn">[📌]</span>
+            </div>
+          </div>
+
+          <div style="padding: 6px 1.5ch 2px; color: var(--text-dim); font-size: 10px; font-weight: bold; letter-spacing: 0.5px;">YESTERDAY</div>
+          <div class="tree-item" data-item-type="chat" data-item-target="chat-4">
+            <span class="item-indicator"> </span>
+            <span class="item-text">API integration</span>
+            <div class="chat-item-actions">
+              <span class="chat-action-btn">[✏]</span>
+              <span class="chat-action-btn">[✖]</span>
+              <span class="chat-action-btn">[📌]</span>
+            </div>
+          </div>
+          <div class="tree-item" data-item-type="chat" data-item-target="chat-5">
+            <span class="item-indicator"> </span>
+            <span class="item-text">Documentation sprint</span>
+            <div class="chat-item-actions">
+              <span class="chat-action-btn">[✏]</span>
+              <span class="chat-action-btn">[✖]</span>
+              <span class="chat-action-btn">[📌]</span>
+            </div>
+          </div>
+
+          <div style="padding: 6px 1.5ch 2px; color: var(--text-dim); font-size: 10px; font-weight: bold; letter-spacing: 0.5px;">PREVIOUS 7 DAYS</div>
+          <div class="tree-item" data-item-type="chat" data-item-target="chat-6">
+            <span class="item-indicator"> </span>
+            <span class="item-text">Hyprland keybinds</span>
+          </div>
+          <div class="tree-item" data-item-type="chat" data-item-target="chat-7">
+            <span class="item-indicator"> </span>
+            <span class="item-text">AUR package publish</span>
+          </div>
+          <div class="tree-item" data-item-type="chat" data-item-target="chat-8">
+            <span class="item-indicator"> </span>
+            <span class="item-text">Playwright setup</span>
+            <span class="item-badge-unread" style="font-weight: bold;">(3)</span>
+          </div>
+
+          <div class="sidebar-tree-sep">──────────────────────────────</div>
+          <div style="display: flex; padding: 4px 1.5ch; gap: 4px;">
+            <button class="tui-btn-clickable" style="font-size: 10px; padding: 2px 8px;">[+] New</button>
+            <button class="tui-btn-clickable" style="font-size: 10px; padding: 2px 8px;">[📁] Import</button>
+          </div>
+        </div>
+
+        <!-- LibreChat: Files panel -->
+        <div class="sidebar-panel" id="panel-projects">
+          <div class="sidebar-header">📁 FILES &amp; KNOWLEDGE</div>
+          <div style="padding: 4px 1.5ch;">
+            <input class="tui-input" placeholder="🔍 Search files..." style="font-size: 11px; height: 22px;">
+          </div>
+          <div class="tree-item"><span class="item-indicator">▾</span><span class="item-text">📂 Vector Stores</span></div>
+          <div class="tree-item sub-depth-1"><span class="item-indicator"> </span><span class="item-text">├── hyprcollab-docs</span></div>
+          <div class="tree-item sub-depth-1"><span class="item-indicator"> </span><span class="item-text">└── rust-patterns</span></div>
+          <div class="tree-item"><span class="item-indicator">▾</span><span class="item-text">📂 Uploaded Files</span></div>
+          <div class="tree-item sub-depth-1"><span class="item-indicator"> </span><span class="item-text">├── PRD.md</span></div>
+          <div class="tree-item sub-depth-1"><span class="item-indicator"> </span><span class="item-text">├── TRD.md</span></div>
+          <div class="tree-item sub-depth-1"><span class="item-indicator"> </span><span class="item-text">├── PLAN.md</span></div>
+          <div class="tree-item sub-depth-1"><span class="item-indicator"> </span><span class="item-text">└── config.lua</span></div>
+          <div class="sidebar-tree-sep">──────────────────────────────</div>
+          <div style="display: flex; padding: 4px 1.5ch; gap: 4px;">
+            <button class="tui-btn-clickable" style="font-size: 10px; padding: 2px 8px;">[⬆] Upload</button>
+          </div>
+        </div>
+
+        <!-- LibreChat: Personas panel -->
+        <div class="sidebar-panel" id="panel-personas">
+          <div class="sidebar-header">🎭 PERSONAS</div>
+          <div class="tree-item active"><span class="item-indicator">▸</span><span class="item-text">🤖 Dev</span></div>
+          <div class="persona-detail-box">Rust expert · code-helper<br>Model: claude-sonnet-4</div>
+          <div class="tree-item"><span class="item-indicator"> </span><span class="item-text">🎨 Luna</span></div>
+          <div class="persona-detail-box">UI/UX designer · design-review<br>Model: gpt-4o</div>
+          <div class="tree-item"><span class="item-indicator"> </span><span class="item-text">🌐 Atlas</span></div>
+          <div class="persona-detail-box">API integrator · api-builder<br>Model: deepseek-v3</div>
+          <div class="tree-item"><span class="item-indicator"> </span><span class="item-text">📚 Sage</span></div>
+          <div class="persona-detail-box">Documentation · docs-writer<br>Model: gemini-2.5-pro</div>
+          <div class="sidebar-tree-sep">──────────────────────────────</div>
+          <div style="display: flex; padding: 4px 1.5ch; gap: 4px;">
+            <button class="tui-btn-clickable" style="font-size: 10px; padding: 2px 8px;">[+] Create</button>
+          </div>
+        </div>
+
+        <!-- LibreChat: Agents panel -->
+        <div class="sidebar-panel" id="panel-acp">
+          <div class="sidebar-header">🔧 AGENTS &amp; ACP</div>
+          <div class="tree-item active"><span class="item-indicator">▸</span><span class="item-text">🤖 code-helper</span></div>
+          <div class="acp-session-detail">
+            Tools: <span style="color: var(--cyan);">terminal, files, browser</span><br>
+            MCP: <span style="color: var(--green);">3 servers</span><br>
+            Status: <span style="color: var(--green); font-weight: bold;">● ready</span>
+            <div class="acp-card-actions">
+              <button class="tui-btn-clickable primary" style="font-size: 10px;">[▶ Start]</button>
+              <button class="tui-btn-clickable dimmed" style="font-size: 10px;">[⚙ Config]</button>
+            </div>
+          </div>
+          <div class="tree-item"><span class="item-indicator"> </span><span class="item-text">🎨 design-review</span></div>
+          <div class="acp-session-detail">
+            Tools: <span style="color: var(--cyan);">browser, image_gen</span><br>
+            Status: <span style="color: var(--yellow); font-weight: bold;">● active</span>
+            <div class="acp-card-actions">
+              <button class="tui-btn-clickable dimmed" style="font-size: 10px;">[↻ Restart]</button>
+              <button class="tui-btn-clickable dimmed" style="font-size: 10px;">[■ Stop]</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- LibreChat: Skills panel -->
+        <div class="sidebar-panel" id="panel-skills">
+          <div class="sidebar-header">⚡ SKILLS</div>
+          <div class="tree-item"><span class="item-indicator">▸</span><span class="item-text">[x] code-review</span></div>
+          <div class="skill-detail">Pre-commit review: security, quality gates</div>
+          <div class="tree-item"><span class="item-indicator"> </span><span class="item-text">[x] debugging</span></div>
+          <div class="skill-detail">4-phase root cause analysis</div>
+          <div class="tree-item"><span class="item-indicator"> </span><span class="item-text">[x] test-driven</span></div>
+          <div class="skill-detail">RED-GREEN-REFACTOR cycle</div>
+          <div class="tree-item"><span class="item-indicator"> </span><span class="item-text">[ ] plan-mode</span></div>
+          <div class="skill-detail">Markdown plans, no execution</div>
+          <div class="sidebar-tree-sep">──────────────────────────────</div>
+          <div style="display: flex; padding: 4px 1.5ch; gap: 4px;">
+            <button class="tui-btn-clickable" style="font-size: 10px; padding: 2px 8px;">[+] Create</button>
+            <button class="tui-btn-clickable" style="font-size: 10px; padding: 2px 8px;">[⬆] Upload</button>
+          </div>
+        </div>
+
+        <!-- LibreChat: Settings panel -->
+        <div class="sidebar-panel" id="panel-settings">
+          <div class="sidebar-header">⚙ SETTINGS</div>
+          <div class="settings-group">
+            <div class="settings-label">GENERAL</div>
+            <div class="tui-checkbox"><span class="checkbox-box">☑</span><span class="checkbox-label">CRT scanlines</span></div>
+            <div class="tui-checkbox"><span class="checkbox-box">☑</span><span class="checkbox-label">Send on Enter</span></div>
+            <div class="tui-checkbox"><span class="checkbox-box">☐</span><span class="checkbox-label">Auto-scroll streaming</span></div>
+          </div>
+          <div class="settings-group">
+            <div class="settings-label">THEME</div>
+            <div style="display: flex; gap: 4px; padding: 2px 1.5ch; flex-wrap: wrap;">
+              <button class="tui-btn-clickable theme-btn" data-theme="" style="font-size: 10px; padding: 2px 6px;">Tokyo</button>
+              <button class="tui-btn-clickable theme-btn" data-theme="theme-catppuccin" style="font-size: 10px; padding: 2px 6px;">Catppuccin</button>
+              <button class="tui-btn-clickable theme-btn" data-theme="theme-nord" style="font-size: 10px; padding: 2px 6px;">Nord</button>
+              <button class="tui-btn-clickable theme-btn" data-theme="theme-dracula" style="font-size: 10px; padding: 2px 6px;">Dracula</button>
+              <button class="tui-btn-clickable theme-btn" data-theme="theme-github" style="font-size: 10px; padding: 2px 6px;">GitHub</button>
+              <button class="tui-btn-clickable theme-btn" data-theme="theme-rosepine" style="font-size: 10px; padding: 2px 6px;">Rosé Pine</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Vertical Split 2 -->
+      <div class="divider-v"></div>
+
+      <!-- CENTER CHAT CANVAS -->
+      <div class="chat-column">
+        
+        <!-- CHAT CANVAS 1: Rust JSON Parsing -->
+        <div class="chat-canvas active" id="canvas-chat-1">
+          
+          <!-- User message -->
+          <div class="message-container user-message">
+            <div class="message-header-row user-row">
+              <div class="message-header">
+                <span class="message-bar-user">You</span>
+                <span class="message-timestamp">14:30</span>
+              </div>
+              <div class="avatar-box avatar-user">Y</div>
+            </div>
+            <div class="message-text">how do I parse JSON in Rust?</div>
+          </div>
+
+          <!-- Assistant message -->
+          <div class="message-container">
+            <div class="message-header-row">
+              <div class="avatar-box avatar-dev">🤖</div>
+              <div class="message-header">
+                <span class="message-bar-assistant">▌ HyprCollab 🤖 Dev Agent</span>
+                <span class="message-timestamp">14:30</span>
+              </div>
+            </div>
+            <div class="message-text">Use serde_json for parsing:</div>
+            
+            <!-- Code Block (Box Border) -->
+            <div class="tui-box">
+              <div class="tui-border-h">
+                <span>╭─ src/main.rs </span>
+                <span class="tui-border-fill">────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────</span>
+                <span>╮</span>
+              </div>
+              <div class="tui-box-row">
+                <span>│</span>
+                <div class="tui-box-content"><span class="line-num">1</span><span class="keyword">fn</span> <span class="function">main</span>() {
+<span class="line-num">2</span>    <span class="keyword">let</span> v: Value =
+<span class="line-num">3</span>        from_str(s)?;
+<span class="line-num">4</span>}</div>
+                <span>│</span>
+              </div>
+              <div class="tui-border-h">
+                <span>╰</span>
+                <span class="tui-border-fill">────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────</span>
+                <span>╯</span>
+              </div>
+              <div class="artifact-actions" style="padding-left: 2ch;">
+                <button class="tui-btn-clickable primary" onclick="previewFile('main.rs')">[Preview]</button>
+                <button class="tui-btn-clickable" onclick="copyMockContent('main-rs')">[Copy]</button>
+                <button class="tui-btn-clickable" onclick="saveMockArtifact('src/main.rs')">[Save]</button>
+              </div>
+            </div>
+
+            <!-- Collapsible Tool Output -->
+            <div class="tui-box border-cyan">
+              <div class="tui-border-h" onclick="toggleCollapsible(this.parentNode)">
+                <span>╭─ tool: file_read </span>
+                <span class="tui-border-fill">───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────</span>
+                <span class="tui-collapsible-header-btn">[Click to expand]</span>
+                <span>╮</span>
+              </div>
+              <div class="tui-box-row">
+                <span>│</span>
+                <div class="tui-box-content" style="color: var(--cyan);">src/main.rs (12 lines read)</div>
+                <span>│</span>
+              </div>
+              <div class="tui-collapsible-body">
+                <div class="tui-box-row" style="border-top: 1px dashed var(--border);">
+                  <span>│</span>
+                  <div class="tui-box-content comment"># File content read:
+use serde_json::{Value, from_str};
+
+fn main() -&gt; Result&lt;(), serde_json::Error&gt; {
+    let s = r#"{"name": "HyprCollab", "version": "0.1.0"}"#;
+    let v: Value = from_str(s)?;
+    println!("App: {}", v["name"]);
+    Ok(())
+}</div>
+                  <span>│</span>
+                </div>
+              </div>
+              <div class="tui-border-h">
+                <span>╰</span>
+                <span class="tui-border-fill">────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────</span>
+                <span>╯</span>
+              </div>
+              <div class="artifact-actions" style="padding-left: 2ch; padding-bottom: 4px;">
+                <button class="tui-btn-clickable primary" onclick="previewFile('main.rs')">[Preview]</button>
+                <button class="tui-btn-clickable" onclick="copyMockContent('main-rs-full')">[Copy]</button>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- User message -->
+          <div class="message-container user-message">
+            <div class="message-header-row user-row">
+              <div class="message-header">
+                <span class="message-bar-user">You</span>
+                <span class="message-timestamp">14:31</span>
+              </div>
+              <div class="avatar-box avatar-user">Y</div>
+            </div>
+            <div class="message-text">what about error handling?</div>
+          </div>
+
+          <!-- Assistant message -->
+          <div class="message-container">
+            <div class="message-header-row">
+              <div class="avatar-box avatar-dev">🤖</div>
+              <div class="message-header">
+                <span class="message-bar-assistant">▌ HyprCollab 🤖 Dev Agent</span>
+                <span class="message-timestamp">14:31</span>
+              </div>
+            </div>
+            <div class="message-text">Use Result&lt;T, E&gt; for handling:</div>
+            
+            <div class="tui-box">
+              <div class="tui-border-h">
+                <span>╭─ src/error.rs </span>
+                <span class="tui-border-fill">────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────</span>
+                <span>╮</span>
+              </div>
+              <div class="tui-box-row">
+                <span>│</span>
+                <div class="tui-box-content"><span class="line-num">1</span><span class="keyword">type</span> <span class="type">Result</span>&lt;T&gt; =
+<span class="line-num">2</span>    std::result::Result
+<span class="line-num">3</span>    &lt;T, AppError&gt;;</div>
+                <span>│</span>
+              </div>
+              <div class="tui-border-h">
+                <span>╰</span>
+                <span class="tui-border-fill">────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────</span>
+                <span>╯</span>
+              </div>
+              <div class="artifact-actions" style="padding-left: 2ch;">
+                <button class="tui-btn-clickable primary" onclick="previewFile('error.rs')">[Preview]</button>
+                <button class="tui-btn-clickable" onclick="copyMockContent('error-rs')">[Copy]</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- CHAT CANVAS 2: Hyprland Config -->
+        <div class="chat-canvas" id="canvas-chat-2">
+          
+          <div class="message-container user-message">
+            <div class="message-header-row user-row">
+              <div class="message-header">
+                <span class="message-bar-user">You</span>
+                <span class="message-timestamp">18:12</span>
+              </div>
+              <div class="avatar-box avatar-user">Y</div>
+            </div>
+            <div class="message-text">Hey, my waybar is not showing the workspaces module on workspace 2. It only displays when I switch to it. How can I fix this in hyprland.conf?</div>
+          </div>
+
+          <div class="message-container">
+            <div class="message-header-row">
+              <div class="avatar-box avatar-luna">🎨</div>
+              <div class="message-header">
+                <span class="message-bar-luna">▌ HyprCollab 🎨 Designer Agent</span>
+                <span class="message-timestamp">18:13</span>
+              </div>
+            </div>
+            <div class="message-text">This happens when workspace 2 is dynamically created and destroyed when empty. To make workspaces persistent, you should define them with workspace rules in your `hyprland.conf` file. Let's inspect the active monitors list to verify workspace mapping.</div>
+            
+            <!-- Tool Call Shell command -->
+            <div class="tui-box border-cyan">
+              <div class="tui-border-h" onclick="toggleCollapsible(this.parentNode)">
+                <span>╭─ tool: shell_command </span>
+                <span class="tui-border-fill">───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────</span>
+                <span class="tui-collapsible-header-btn">[Click to expand]</span>
+                <span>╮</span>
+              </div>
+              <div class="tui-box-row">
+                <span>│</span>
+                <div class="tui-box-content" style="color: var(--cyan);">hyprctl monitors</div>
+                <span>│</span>
+              </div>
+              <div class="tui-collapsible-body">
+                <div class="tui-box-row" style="border-top: 1px dashed var(--border);">
+                  <span>│</span>
+                  <div class="tui-box-content comment">Monitor eDP-1 (ID 0):
+	1920x1080@144.00301Hz at 0x0
+	active workspace: 1 (1)
+	special workspace: 0 ()
+	reserved: [0, 30, 0, 0]</div>
+                  <span>│</span>
+                </div>
+              </div>
+              <div class="tui-border-h">
+                <span>╰</span>
+                <span class="tui-border-fill">────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────</span>
+                <span>╯</span>
+              </div>
+            </div>
+
+            <div class="message-text">Modify your config file to declare workspaces persistent:</div>
+
+            <div class="tui-box">
+              <div class="tui-border-h">
+                <span>╭─ ~/.config/hypr/hyprland.conf </span>
+                <span class="tui-border-fill">────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────</span>
+                <span>╮</span>
+              </div>
+              <div class="tui-box-row">
+                <span>│</span>
+                <div class="tui-box-content"><span class="line-num">1</span><span class="comment"># Persistent Workspaces Rules</span>
+<span class="line-num">2</span>workspace = 1, persistent:true
+<span class="line-num">3</span>workspace = 2, persistent:true
+<span class="line-num">4</span>workspace = 3, persistent:true</div>
+                <span>│</span>
+              </div>
+              <div class="tui-border-h">
+                <span>╰</span>
+                <span class="tui-border-fill">────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────</span>
+                <span>╯</span>
+              </div>
+            </div>
+
+            <!-- Artifact Waybar config -->
+            <div class="tui-box border-accent">
+              <div class="tui-border-h">
+                <span>╭─ artifact: config </span>
+                <span class="tui-border-fill">────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────</span>
+                <span>╮</span>
+              </div>
+              <div class="tui-box-row">
+                <span>│</span>
+                <div class="tui-box-content"><span class="keyword">Generated waybar config modification</span>
+Updates your "hyprland/workspaces" block in waybar config to show persistent workspaces.</div>
+                <span>│</span>
+              </div>
+              <div class="tui-border-h">
+                <span>╰</span>
+                <span class="tui-border-fill">────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────</span>
+                <span>╯</span>
+              </div>
+              <div class="artifact-actions" style="padding-left: 2ch; padding-bottom: 6px;">
+                <button class="tui-btn-clickable primary" onclick="previewFile('config.jsonc')">[Preview]</button>
+                <button class="tui-btn-clickable" onclick="copyMockContent('waybar-config')">[Copy]</button>
+                <button class="tui-btn-clickable" onclick="saveMockArtifact('~/.config/waybar/config')">[Save]</button>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- CHAT CANVAS 3: API Integration (Active / Streaming) -->
+        <div class="chat-canvas" id="canvas-chat-3">
+          
+          <div class="message-container user-message">
+            <div class="message-header-row user-row">
+              <div class="message-header">
+                <span class="message-bar-user">You</span>
+                <span class="message-timestamp">22:01</span>
+              </div>
+              <div class="avatar-box avatar-user">Y</div>
+            </div>
+            <div class="message-text">how can I integrate with the z.ai API in Python?</div>
+          </div>
+
+          <div class="message-container" id="streaming-message-container">
+            <div class="message-header-row">
+              <div class="avatar-box avatar-dev">🤖</div>
+              <div class="message-header">
+                <span class="message-bar-assistant">▌ HyprCollab 🤖 Dev Agent</span>
+                <span class="message-timestamp" id="streaming-time">22:01</span>
+              </div>
+            </div>
+            <div class="message-text" id="streaming-text"></div>
+          </div>
+
+        </div>
+
+        <!-- CONNECTED MODEL STATUS BAR -->
+        <div class="chat-status-bar">
+          <div class="tui-border-h">
+            <span class="tui-border-char">├</span>
+            <span class="tui-border-fill">────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────</span>
+            <span class="tui-border-char">┤</span>
+          </div>
+          <div class="chat-status-content">
+            <span class="status-dot green">●</span>
+            <span class="status-model" id="stat-model">gemini-3.5-flash</span>
+            <span class="status-sep">│</span>
+            <span class="status-val" id="stat-tokens">1.2k</span> tokens
+            <span class="status-sep">│</span>
+            <span class="status-val" id="stat-latency">142ms</span> latency
+            <span class="status-sep">│</span>
+            <span class="status-val" id="stat-clock">22:03</span>
+          </div>
+          <div class="tui-border-h">
+            <span class="tui-border-char">├</span>
+            <span class="tui-border-fill">────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────</span>
+            <span class="tui-border-char">┤</span>
+          </div>
+        </div>
+
+        <!-- INPUT ROW WITH ACTIONS -->
+        <div class="chat-input-row">
+          
+          <!-- Commands Autosuggest Dropdown -->
+          <div class="commands-dropdown" id="suggest-dropdown">
+            <div class="tui-border-h">
+              <span>╭─ commands </span>
+              <span class="tui-border-fill">──────────────────────────────────────────────────────────────────────────</span>
+              <span>╮</span>
+            </div>
+            <div class="dropdown-item active" data-cmd="/agent">
+              <span class="dropdown-item-cmd">▸ /agent</span>
+              <span class="dropdown-item-desc">Switch active persona</span>
+            </div>
+            <div class="dropdown-item" data-cmd="/model">
+              <span class="dropdown-item-cmd">  /model</span>
+              <span class="dropdown-item-desc">Change model</span>
+            </div>
+            <div class="dropdown-item" data-cmd="/help">
+              <span class="dropdown-item-cmd">  /help</span>
+              <span class="dropdown-item-desc">Open keybinds modal</span>
+            </div>
+            <div class="tui-border-h">
+              <span>╰</span>
+              <span class="tui-border-fill">──────────────────────────────────────────────────────────────────────────</span>
+              <span>╯</span>
+            </div>
+          </div>
+
+          <span class="prompt-char">&gt;</span>
+          <div class="input-container" onclick="focusInput()">
+            <span class="input-text-typed" id="typed-text"></span>
+            <span class="input-placeholder" id="input-placeholder">Type message here... (Press 'i' to enter INSERT mode)</span>
+            <span class="input-cursor">▍</span>
+            <input type="text" class="hidden-input" id="terminal-input" disabled autocomplete="off" />
+          </div>
+          <div class="input-actions-group">
+            <div class="tui-tooltip-container">
+              <button class="tui-btn-clickable" id="btn-attach" onclick="triggerAttach()">[📎]</button>
+              <div class="tui-btn-tooltip">
+╭─────────────────╮
+│ 📎 Attach File  │
+╰─────────────────╯
+              </div>
+            </div>
+            <div class="tui-tooltip-container">
+              <button class="tui-btn-clickable" id="btn-voice" onclick="triggerVoice()">[🎤]</button>
+              <div class="tui-btn-tooltip">
+╭─────────────────╮
+│ 🎤 Voice Input  │
+╰─────────────────╯
+              </div>
+            </div>
+            <div class="tui-tooltip-container">
+              <button class="tui-btn-clickable primary" id="btn-send" onclick="triggerSend()">[▶ Send]</button>
+              <div class="tui-btn-tooltip">
+╭─────────────────╮
+│ Send message    │
+│ Shortcut: Enter │
+╰─────────────────╯
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Collapsible Preview Panel divider -->
+      <div class="divider-v preview-junction-v"></div>
+
+      <!-- RIGHT SIDEBAR: FILE PREVIEW PANEL -->
+      <div class="preview-column" id="preview-column">
+        <div class="preview-panel-header">
+          <span id="preview-filename">FILE PREVIEW</span>
+          <button class="tui-btn-clickable dimmed" onclick="collapsePreviewPanel()" style="min-width: unset; width: 26px; height: 20px; font-size: 9px; padding: 0;">[◀]</button>
+        </div>
+        <div class="preview-panel-content">
+          <!-- Empty State -->
+          <div class="preview-empty-state" id="preview-empty">
+            No file selected.<br>Click [Preview] on a file or artifact card to view contents.
+          </div>
+          <!-- Code File Viewer State -->
+          <div id="preview-file-content" style="display: none; height: 100%; flex-direction: column;">
+            <div class="preview-code-body" id="preview-code-body"></div>
+          </div>
+          <!-- Image Viewer State -->
+          <div id="preview-image-content" style="display: none; text-align: center;">
+            <div class="preview-image-placeholder">
+              <span>🖼 IMAGE PLACEHOLDER</span>
+              <span id="preview-img-dims" style="font-size: 10px; margin-top: 4px;">Dimensions: 512 x 512</span>
+            </div>
+          </div>
+        </div>
+        <div class="preview-metadata-footer" id="preview-footer" style="display: none;">
+          <div class="preview-footer-info">
+            <span id="preview-info-lines">Lines: --</span>
+            <span id="preview-info-lang">Lang: Text</span>
+          </div>
+          <div class="preview-footer-actions">
+            <button class="tui-btn-clickable primary" style="flex: 1;" onclick="copyPreviewFile()">[Copy]</button>
+            <button class="tui-btn-clickable" style="flex: 1;" onclick="openPreviewFile()">[Open]</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 5. BOTTOM STATUS LINE SEPARATOR ROW -->
+    <div class="tui-border-h" id="bottom-sep-row">
+      <span class="tui-border-char">├</span>
+      <span class="tui-border-fill activity-bar-sep-cell">──</span>
+      <span class="tui-border-char">┴</span>
+      <span class="tui-border-fill sidebar-sep-cell">──────</span>
+      <span class="tui-border-char">┴</span>
+      <span class="tui-border-fill chat-sep-cell">────────────────────────────────────────────────────────────────────────────────────────────────────────────</span>
+      <span class="tui-border-char">┤</span>
+    </div>
+
+    <!-- 6. NVIM STATUS BAR -->
+    <div class="tui-status-bar-line">
+      <div class="status-left">
+        <div class="status-mode-pill" id="mode-pill">NORMAL</div>
+        <div class="status-keybinds">
+          <span class="key-indicator">&lt;leader&gt;h</span> help │ 
+          <span class="key-indicator">&lt;C-p&gt;</span> toggle preview │ 
+          <span class="key-indicator">&lt;C-w&gt;h/l</span> focus │ 
+          <span class="key-indicator">&lt;leader&gt;t</span> themes │
+          <span class="key-indicator">1-6</span> view tabs │
+          <span class="key-indicator">i</span> insert
+        </div>
+        <div class="status-command-prompt" id="command-prompt">:</div>
+      </div>
+      <div class="status-right">
+        <span class="status-right-mode" id="status-right-mode">NORMAL</span>
+        <span class="status-right-encoding">utf-8</span>
+      </div>
+    </div>
+
+    <!-- 7. BOTTOM BORDER ROW -->
+    <div class="tui-border-h">
+      <span class="tui-border-char">╰</span>
+      <span class="tui-border-fill">────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────</span>
+      <span class="tui-border-char">╯</span>
+    </div>
+
+  </div>
+
+  <!-- FLOATING MODAL: Help menu -->
+  <div class="tui-modal-overlay" id="help-modal">
+    <div class="tui-modal">
+      <div class="tui-border-h">
+        <span>╭─ help </span>
+        <span class="tui-border-fill">──────────────────────────────────────────────</span>
+        <span>╮</span>
+      </div>
+      <div class="tui-modal-row">
+        <span>│</span>
+        <div class="tui-modal-content">
+          <div style="font-weight: bold; color: var(--accent); margin-bottom: 8px;">HyprCollab UI Manual & Keybinds</div>
+          <div class="help-grid">
+            <span class="help-key">j / k</span> <span class="help-desc">Navigate items in the Navigator sidebar</span>
+            <span class="help-key">Enter</span> <span class="help-desc">Select active chat, persona, or toggle skill</span>
+            <span class="help-key">1 - 6</span> <span class="help-desc">Switch Activity Bar view (Chats, Projs, etc.)</span>
+            <span class="help-key">i</span> <span class="help-desc">Enter INSERT mode (focus terminal input)</span>
+            <span class="help-key">Esc</span> <span class="help-desc">Return to NORMAL mode / Close active modal</span>
+            <span class="help-key">:</span> <span class="help-desc">Enter COMMAND mode (execute command bar)</span>
+            <span class="help-key">&lt;C-w&gt;h</span> <span class="help-desc">Focus Left Navigator panel</span>
+            <span class="help-key">&lt;C-w&gt;l</span> <span class="help-desc">Focus Chat Input panel</span>
+            <span class="help-key">&lt;C-p&gt;</span> <span class="help-desc">Toggle Right Preview Panel</span>
+            <span class="help-key">Space + t</span> <span class="help-desc">Open Theme Selector window (&lt;leader&gt;t)</span>
+            <span class="help-key">Space + h</span> <span class="help-desc">Open Help Window manual (&lt;leader&gt;h)</span>
+            <span class="help-key">q</span> <span class="help-desc">Close any open floating modal window</span>
+            <span class="help-key">/</span> <span class="help-desc">Type commands auto-dropdown (in INSERT)</span>
+          </div>
+          <div style="margin-top: 10px; color: var(--text-dim); font-size: 11px; text-align: center;">Press [q] or [Esc] to exit help window.</div>
+        </div>
+        <span>│</span>
+      </div>
+      <div class="tui-border-h">
+        <span>╰</span>
+        <span class="tui-border-fill">──────────────────────────────────────────────</span>
+        <span>╯</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLOATING MODAL: Theme Selector -->
+  <div class="tui-modal-overlay" id="theme-modal">
+    <div class="tui-modal">
+      <div class="tui-border-h">
+        <span>╭─ themes </span>
+        <span class="tui-border-fill">────────────────────────────────────────────</span>
+        <span>╮</span>
+      </div>
+      <div class="tui-modal-row">
+        <span>│</span>
+        <div class="tui-modal-content">
+          <div style="font-weight: bold; color: var(--accent); margin-bottom: 8px;">Select Color Theme</div>
+          <div id="theme-list">
+            <div class="theme-list-item active" data-theme="tokyonight">
+              <span class="item-indicator">▸</span> Tokyo Night (Default)
+            </div>
+            <div class="theme-list-item" data-theme="catppuccin">
+              <span class="item-indicator"> </span> Catppuccin Mocha
+            </div>
+            <div class="theme-list-item" data-theme="nord">
+              <span class="item-indicator"> </span> Nord Theme
+            </div>
+            <div class="theme-list-item" data-theme="dracula">
+              <span class="item-indicator"> </span> Dracula Theme
+            </div>
+            <div class="theme-list-item" data-theme="github">
+              <span class="item-indicator"> </span> GitHub Dark
+            </div>
+            <div class="theme-list-item" data-theme="rosepine">
+              <span class="item-indicator"> </span> Rosé Pine
+            </div>
+          </div>
+          <div style="margin-top: 10px; color: var(--text-dim); font-size: 11px; text-align: center;">Press j/k to navigate, Enter to select theme.</div>
+        </div>
+        <span>│</span>
+      </div>
+      <div class="tui-border-h">
+        <span>╰</span>
+        <span class="tui-border-fill">────────────────────────────────────────────</span>
+        <span>╯</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- ===== INTERACTIVE JAVASCRIPT HANDLERS ===== -->
+  <script>
+    // App State Management
+    const state = {
+      mode: 'NORMAL', // NORMAL, INSERT, COMMAND, CHAT
+      activeTab: 'chats', // chats, projects, personas, acp, skills, settings
+      activeChat: 'chat-1',
+      activeFocus: 'chat-input', // sidebar, chat-input, modal-theme, modal-help
+      isPreviewVisible: false,
+      currentTheme: 'tokyonight',
+      sidebarItems: [], // List of items for j/k navigation in current panel
+      activeSidebarIndex: 0,
+      themeItems: [],
+      activeThemeIndex: 0,
+      typingTimer: null,
+      leaderPressed: false,
+      commandBuffer: '',
+      lastKeyPressed: '',
+      previewFile: null
+    };
+
+    // Autocomplete dropdown lists
+    const slashCommands = [
+      { cmd: '/agent', desc: 'Switch active persona' },
+      { cmd: '/model', desc: 'Change the connected model' },
+      { cmd: '/help', desc: 'Show keybindings manual' }
+    ];
+    let selectedDropdownIndex = 0;
+
+    // Mock Files for preview panel
+    const mockFiles = {
+      'main.rs': {
+        lang: 'Rust',
+        lines: 10,
+        content: `<span class="line-num">1</span><span class="keyword">use</span> serde_json::{Value, from_str};
+<span class="line-num">2</span>
+<span class="line-num">3</span><span class="keyword">fn</span> <span class="function">main</span>() -> <span class="type">Result</span>&lt;(), serde_json::Error&gt; {
+<span class="line-num">4</span>    <span class="keyword">let</span> s = <span class="string">r#"{"name": "HyprCollab", "version": "0.1.0"}"#</span>;
+<span class="line-num">5</span>    <span class="keyword">let</span> v: Value = <span class="function">from_str</span>(s)?;
+<span class="line-num">6</span>    <span class="function">println!</span>(<span class="string">"App: {}"</span>, v[<span class="string">"name"</span>]);
+<span class="line-num">7</span>    <span class="type">Ok</span>(())
+<span class="line-num">8</span>}`
+      },
+      'error.rs': {
+        lang: 'Rust',
+        lines: 3,
+        content: `<span class="line-num">1</span><span class="keyword">pub type</span> <span class="type">Result</span>&lt;T&gt; =
+<span class="line-num">2</span>    std::result::Result
+<span class="line-num">3</span>    &lt;T, AppError&gt;;`
+      },
+      'config.jsonc': {
+        lang: 'JSONC',
+        lines: 8,
+        content: `<span class="line-num">1</span><span class="comment">// Waybar Workspaces Config</span>
+<span class="line-num">2</span><span class="string">"hyprland/workspaces"</span>: {
+<span class="line-num">3</span>    <span class="string">"format"</span>: <span class="string">"{name}"</span>,
+<span class="line-num">4</span>    <span class="string">"on-click"</span>: <span class="string">"activate"</span>,
+<span class="line-num">5</span>    <span class="string">"persistent-workspaces"</span>: {
+<span class="line-num">6</span>        <span class="string">"*"</span>: <span class="number">3</span>
+<span class="line-num">7</span>    }
+<span class="line-num">8</span>}`
+      },
+      'client.py': {
+        lang: 'Python',
+        lines: 7,
+        content: `<span class="line-num">1</span><span class="keyword">from</span> z_ai <span class="keyword">import</span> Client
+<span class="line-num">2</span>
+<span class="line-num">3</span>client = Client()
+<span class="line-num">4</span>res = client.chat(
+<span class="line-num">5</span>    prompt=<span class="string">"Hello"</span>
+<span class="line-num">6</span>)
+<span class="line-num">7</span><span class="function">print</span>(res)`
+      }
+    };
+
+    // Typewriter contents for Chat 3
+    const chat3TypewriterText = `To integrate with the z.ai API, you can use the official \`z-ai-sdk\` in Python. Here is a simple implementation:
+
+Let me trigger the z.ai SDK preview on the right...`;
+
+    // DOM Elements Cache
+    const body = document.body;
+    const appContainer = document.querySelector('.crt-overlay').parentNode.querySelector('.app-container');
+    const terminalInput = document.getElementById('terminal-input');
+    const typedText = document.getElementById('typed-text');
+    const inputPlaceholder = document.getElementById('input-placeholder');
+    const modePill = document.getElementById('mode-pill');
+    const statusRightMode = document.getElementById('status-right-mode');
+    const suggestDropdown = document.getElementById('suggest-dropdown');
+    
+    // Status Bar Elements
+    const statModel = document.getElementById('stat-model');
+    const statTokens = document.getElementById('stat-tokens');
+    const statLatency = document.getElementById('stat-latency');
+    const statClock = document.getElementById('stat-clock');
+    
+    // Preview Panel Elements
+    const previewColumn = document.getElementById('preview-column');
+    const previewFilename = document.getElementById('preview-filename');
+    const previewEmpty = document.getElementById('preview-empty');
+    const previewFileContent = document.getElementById('preview-file-content');
+    const previewCodeBody = document.getElementById('preview-code-body');
+    const previewImageContent = document.getElementById('preview-image-content');
+    const previewFooter = document.getElementById('preview-footer');
+    const previewInfoLines = document.getElementById('preview-info-lines');
+    const previewInfoLang = document.getElementById('preview-info-lang');
+
+    // Initialize list navigation helper
+    function initializeSidebarList() {
+      const activePanel = document.querySelector(`.sidebar-panel.active`);
+      if (activePanel) {
+        state.sidebarItems = Array.from(activePanel.querySelectorAll('.tree-item'));
+        
+        let foundActive = false;
+        state.sidebarItems.forEach((item, index) => {
+          if (item.classList.contains('active')) {
+            state.activeSidebarIndex = index;
+            foundActive = true;
+          }
+          item.classList.remove('active-nav');
+        });
+        
+        if (!foundActive && state.sidebarItems.length > 0) {
+          state.activeSidebarIndex = 0;
+          state.sidebarItems[0].classList.add('active-nav');
+        } else if (state.sidebarItems.length > 0) {
+          state.sidebarItems[state.activeSidebarIndex].classList.add('active-nav');
+        }
+      } else {
+        state.sidebarItems = [];
+        state.activeSidebarIndex = 0;
+      }
+    }
+
+    function initializeThemeList() {
+      state.themeItems = Array.from(document.querySelectorAll('#theme-list .theme-list-item'));
+      state.themeItems.forEach((item, index) => {
+        if (item.classList.contains('active')) {
+          state.activeThemeIndex = index;
+        }
+        item.classList.remove('active-nav');
+      });
+      if (state.themeItems.length > 0) {
+        state.themeItems[state.activeThemeIndex].classList.add('active-nav');
+      }
+    }
+
+    // Switch Sidebar Tab Panel
+    function switchPanel(tabName) {
+      if (!tabName) return;
+      state.activeTab = tabName;
+      
+      // Sync Activity bar icons
+      document.querySelectorAll('.activity-bar .activity-item').forEach(item => {
+        if (item.getAttribute('data-tab') === tabName) {
+          item.classList.add('active');
+        } else {
+          item.classList.remove('active');
+        }
+      });
+      
+      // Hide all panels, show matching
+      document.querySelectorAll('.sidebar-column .sidebar-panel').forEach(panel => {
+        if (panel.id === 'panel-' + tabName) {
+          panel.classList.add('active');
+        } else {
+          panel.classList.remove('active');
+        }
+      });
+
+      // Clear chats unread badge if clicking chats
+      if (tabName === 'chats') {
+        const dot = document.getElementById('chats-unread-dot');
+        if (dot) dot.style.display = 'none';
+        
+        const newBadge = document.querySelector('[data-item-target="chat-3"] .item-badge-unread');
+        if (newBadge) newBadge.style.display = 'none';
+      }
+      
+      initializeSidebarList();
+      triggerToast('✓ View switched to ' + tabName.toUpperCase());
+    }
+
+    // Set TUI mode
+    function setMode(newMode) {
+      state.mode = newMode;
+      body.className = '';
+      body.classList.add('mode-' + newMode.toLowerCase());
+      body.classList.add('theme-' + state.currentTheme);
+      
+      // Sync font state
+      if (document.getElementById('checkbox-nerdfont') && document.getElementById('checkbox-nerdfont').textContent === '[ ]') {
+        body.classList.add('no-nerd-font');
+      }
+      
+      modePill.textContent = newMode;
+      statusRightMode.textContent = newMode;
+      document.getElementById('header-mode-text').textContent = newMode;
+
+      if (newMode === 'INSERT') {
+        terminalInput.removeAttribute('disabled');
+        terminalInput.focus();
+        inputPlaceholder.style.opacity = '0';
+        typedText.textContent = terminalInput.value;
+      } else {
+        terminalInput.setAttribute('disabled', 'true');
+        terminalInput.blur();
+        if (terminalInput.value === '') {
+          inputPlaceholder.style.opacity = '1';
+        }
+        suggestDropdown.classList.remove('visible');
+      }
+
+      if (newMode === 'COMMAND') {
+        document.getElementById('command-prompt').textContent = ':';
+        document.getElementById('command-prompt').style.display = 'flex';
+        state.commandBuffer = '';
+      } else {
+        document.getElementById('command-prompt').style.display = 'none';
+      }
+    }
+
+    // Modal windows controllers
+    function showModal(modalId) {
+      closeModals();
+      const modal = document.getElementById(modalId);
+      if (modal) {
+        modal.classList.add('visible');
+        if (modalId === 'theme-modal') {
+          state.activeFocus = 'modal-theme';
+          initializeThemeList();
+        } else if (modalId === 'help-modal') {
+          state.activeFocus = 'modal-help';
+        }
+      }
+    }
+
+    function closeModals() {
+      document.querySelectorAll('.tui-modal-overlay').forEach(el => {
+        el.classList.remove('visible');
+      });
+      state.activeFocus = 'chat-input';
+      if (state.mode === 'COMMAND') {
+        setMode('NORMAL');
+      }
+    }
+
+    // Expand / collapse tool output boxes
+    function toggleCollapsible(element) {
+      element.classList.toggle('expanded');
+      const headerBtn = element.querySelector('.tui-collapsible-header-btn');
+      if (headerBtn) {
+        if (element.classList.contains('expanded')) {
+          headerBtn.textContent = '[Click to collapse]';
+        } else {
+          headerBtn.textContent = '[Click to expand]';
+        }
+      }
+    }
+
+    // TUI Toast Notifications
+    function triggerToast(message) {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = 'toast-box';
+      
+      toast.innerHTML = `
+        <div class="tui-border-h">
+          <span class="tui-border-char">╭─</span>
+          <span class="tui-border-fill"> notification ────────────────</span>
+          <span class="tui-border-char">╮</span>
+        </div>
+        <div class="tui-modal-row">
+          <span style="color: var(--border);">│</span>
+          <div class="tui-box-content toast-text">${message}</div>
+          <span style="color: var(--border);">│</span>
+        </div>
+        <div class="tui-border-h">
+          <span class="tui-border-char">╰</span>
+          <span class="tui-border-fill">──────────────────────────────</span>
+          <span class="tui-border-char">╯</span>
+        </div>
+      `;
+      
+      container.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.classList.add('fade-out');
+        setTimeout(() => {
+          if (toast.parentNode === container) {
+            container.removeChild(toast);
+          }
+        }, 300);
+      }, 3000);
+    }
+
+    // Preview File in Collapsible Right Sidebar
+    function previewFile(filename) {
+      state.previewFile = filename;
+      state.isPreviewVisible = true;
+      appContainer.classList.remove('preview-collapsed');
+      
+      previewFilename.textContent = `预览: ${filename}`;
+      previewEmpty.style.display = 'none';
+      
+      const fileData = mockFiles[filename];
+      if (fileData) {
+        previewImageContent.style.display = 'none';
+        previewFileContent.style.display = 'flex';
+        previewCodeBody.innerHTML = fileData.content;
+        
+        previewFooter.style.display = 'flex';
+        previewInfoLines.textContent = `Lines: ${fileData.lines}`;
+        previewInfoLang.textContent = `Lang: ${fileData.lang}`;
+      } else {
+        // Fallback or Image placeholder (e.g. logo.png)
+        previewFileContent.style.display = 'none';
+        previewImageContent.style.display = 'block';
+        previewFooter.style.display = 'none';
+        
+        const dims = document.getElementById('preview-img-dims');
+        if (dims) dims.textContent = `Dimensions: 512 x 512 (Format: PNG)`;
+      }
+      
+      triggerToast(`✓ File previewed: ${filename}`);
+    }
+
+    // Toggle Preview Panel Collapsed State
+    function togglePreviewPanel() {
+      state.isPreviewVisible = !state.isPreviewVisible;
+      if (state.isPreviewVisible) {
+        appContainer.classList.remove('preview-collapsed');
+        if (!state.previewFile) {
+          previewFile('main.rs'); // Load default file if none selected
+        }
+        triggerToast('✓ File preview panel expanded');
+      } else {
+        appContainer.classList.add('preview-collapsed');
+        triggerToast('✓ File preview panel collapsed');
+      }
+    }
+
+    function collapsePreviewPanel() {
+      state.isPreviewVisible = false;
+      appContainer.classList.add('preview-collapsed');
+      triggerToast('✓ File preview panel collapsed');
+    }
+
+    function copyPreviewFile() {
+      if (state.previewFile) {
+        triggerToast(`✓ Copied content of ${state.previewFile} to clipboard`);
+      }
+    }
+
+    function openPreviewFile() {
+      if (state.previewFile) {
+        triggerToast(`✓ Opening ${state.previewFile} in active editor...`);
+      }
+    }
+
+    function copyMockContent(id) {
+      triggerToast(`✓ Copied block contents to clipboard`);
+    }
+
+    function saveMockArtifact(filepath) {
+      triggerToast(`✓ Saved file: ${filepath}`);
+    }
+
+    // control ACP session status
+    function controlAcp(sessionName, action) {
+      const statusEl = document.getElementById(`acp-${sessionName}-status`);
+      if (action === 'start') {
+        statusEl.style.color = 'var(--yellow)';
+        statusEl.textContent = '● active';
+        triggerToast(`✓ ACP Session [${sessionName}] started`);
+      } else if (action === 'stop') {
+        statusEl.style.color = 'var(--text-dim)';
+        statusEl.textContent = '● offline';
+        triggerToast(`✓ ACP Session [${sessionName}] stopped`);
+      } else if (action === 'restart') {
+        statusEl.style.color = 'var(--yellow)';
+        statusEl.textContent = '● active';
+        triggerToast(`✓ ACP Session [${sessionName}] restarted`);
+      }
+    }
+
+    // Rename, delete, and pin chats in sidebar
+    function renameChat(chatId, e) {
+      e.stopPropagation();
+      const newName = prompt('Enter new chat name:');
+      if (newName) {
+        const item = document.querySelector(`[data-item-target="${chatId}"] .item-text`);
+        if (item) {
+          item.textContent = newName;
+          triggerToast(`✓ Chat renamed to: ${newName}`);
+        }
+      }
+    }
+
+    function deleteChat(chatId, e) {
+      e.stopPropagation();
+      if (confirm('Delete this conversation?')) {
+        const item = document.querySelector(`[data-item-target="${chatId}"]`);
+        if (item) {
+          item.style.display = 'none';
+          triggerToast('✓ Conversation deleted');
+        }
+      }
+    }
+
+    function pinChat(chatId, e) {
+      e.stopPropagation();
+      triggerToast('✓ Conversation pinned to top');
+    }
+
+    // Switch Active Chat buffer
+    function switchChat(chatId) {
+      state.activeChat = chatId;
+      
+      // Sync Sidebar lists active states
+      document.querySelectorAll('#panel-chats .tree-item').forEach((item) => {
+        const itemTarget = item.getAttribute('data-item-target');
+        if (itemTarget === chatId) {
+          item.classList.add('active');
+          item.querySelector('.item-indicator').textContent = '▸';
+          state.activeSidebarIndex = state.sidebarItems.indexOf(item);
+        } else {
+          item.classList.remove('active');
+          item.querySelector('.item-indicator').textContent = ' ';
+        }
+      });
+      
+      // Swap Chat Canvas display
+      document.querySelectorAll('.chat-canvas').forEach(canvas => {
+        if (canvas.id === 'canvas-' + chatId) {
+          canvas.classList.add('active');
+          canvas.scrollTop = canvas.scrollHeight;
+        } else {
+          canvas.classList.remove('active');
+        }
+      });
+
+      // Special behaviors per chat
+      if (chatId === 'chat-3') {
+        startChat3Typing();
+      } else {
+        statModel.textContent = 'gemini-3.5-flash';
+        statTokens.textContent = '1.2k';
+        statLatency.textContent = '142ms';
+        if (state.typingTimer) {
+          clearInterval(state.typingTimer);
+          state.typingTimer = null;
+        }
+      }
+      
+      triggerToast('✓ Buffer ' + chatId.replace('chat-', '') + ' selected');
+    }
+
+    // Switch Theme
+    function selectTheme(themeName) {
+      state.currentTheme = themeName;
+      body.className = '';
+      body.classList.add('mode-' + state.mode.toLowerCase());
+      body.classList.add('theme-' + themeName);
+      
+      if (document.getElementById('checkbox-nerdfont') && document.getElementById('checkbox-nerdfont').textContent === '[ ]') {
+        body.classList.add('no-nerd-font');
+      }
+      
+      document.querySelectorAll('#theme-list .theme-list-item').forEach((item, index) => {
+        if (item.getAttribute('data-theme') === themeName) {
+          item.classList.add('active');
+          item.querySelector('.item-indicator').textContent = '▸';
+          state.activeThemeIndex = index;
+        } else {
+          item.classList.remove('active');
+          item.querySelector('.item-indicator').textContent = ' ';
+        }
+      });
+      
+      triggerToast('✓ Theme changed to ' + themeName);
+    }
+
+    // Typewriter Simulation for Chat 3
+    function startChat3Typing() {
+      const streamingText = document.getElementById('streaming-text');
+      streamingText.innerHTML = '';
+      
+      statModel.textContent = 'gemini-3.5-flash';
+      statTokens.textContent = '0';
+      statLatency.textContent = '110ms';
+      setMode('CHAT');
+      previewFile('client.py'); // Open file preview side-bar automatically
+
+      let charIndex = 0;
+      if (state.typingTimer) {
+        clearInterval(state.typingTimer);
+      }
+
+      state.typingTimer = setInterval(() => {
+        if (charIndex < chat3TypewriterText.length) {
+          const char = chat3TypewriterText[charIndex];
+          if (char === '\n') {
+            streamingText.innerHTML += '<br>';
+          } else {
+            streamingText.innerHTML += char;
+          }
+          charIndex++;
+          statTokens.textContent = Math.floor(charIndex * 1.5);
+          statLatency.textContent = (110 + Math.floor(Math.random() * 20)) + 'ms';
+          
+          const canvas = document.getElementById('canvas-chat-3');
+          canvas.scrollTop = canvas.scrollHeight;
+        } else {
+          clearInterval(state.typingTimer);
+          state.typingTimer = null;
+          setMode('NORMAL');
+          triggerToast('✓ Stream output completed');
+        }
+      }, 15);
+    }
+
+    // Autocomplete drop-down logic
+    function showAutcompleteDropdown(textVal) {
+      if (textVal.startsWith('/')) {
+        suggestDropdown.classList.add('visible');
+        const filter = textVal.split(' ')[0];
+        const items = suggestDropdown.querySelectorAll('.dropdown-item');
+        let matched = false;
+        
+        items.forEach((item, idx) => {
+          const cmd = item.getAttribute('data-cmd');
+          if (cmd.startsWith(filter)) {
+            item.style.display = 'flex';
+            if (!matched) {
+              selectedDropdownIndex = idx;
+              matched = true;
+            }
+          } else {
+            item.style.display = 'none';
+          }
+        });
+        
+        updateDropdownSelection();
+      } else {
+        suggestDropdown.classList.remove('visible');
+      }
+    }
+
+    function updateDropdownSelection() {
+      const items = suggestDropdown.querySelectorAll('.dropdown-item');
+      items.forEach((item, idx) => {
+        if (idx === selectedDropdownIndex) {
+          item.classList.add('active');
+          item.querySelector('.dropdown-item-cmd').textContent = '▸ ' + item.getAttribute('data-cmd');
+        } else {
+          item.classList.remove('active');
+          item.querySelector('.dropdown-item-cmd').textContent = '  ' + item.getAttribute('data-cmd');
+        }
+      });
+    }
+
+    // Input submission
+    function executeMessage(content) {
+      if (content.trim() === '') return;
+      
+      if (content.startsWith('/')) {
+        const cmd = content.split(' ')[0];
+        if (cmd === '/help') {
+          showModal('help-modal');
+        } else if (cmd === '/theme') {
+          showModal('theme-modal');
+        } else if (cmd === '/model') {
+          triggerToast('🤖 Changed model to Claude 3.5 Sonnet');
+          statModel.textContent = 'claude-3.5-son';
+        } else if (cmd === '/agent') {
+          switchPanel('personas');
+        } else {
+          triggerToast('Command executed: ' + cmd);
+        }
+      } else {
+        triggerToast('Message sent! Processing response...');
+        
+        const activeCanvas = document.querySelector('.chat-canvas.active');
+        
+        // Append User Message with right avatar alignment
+        const userMsg = document.createElement('div');
+        userMsg.className = 'message-container user-message';
+        userMsg.innerHTML = `
+          <div class="message-header-row user-row">
+            <div class="message-header">
+              <span class="message-bar-user">You</span>
+              <span class="message-timestamp">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+            </div>
+            <div class="avatar-box avatar-user">Y</div>
+          </div>
+          <div class="message-text">${content}</div>
+        `;
+        activeCanvas.appendChild(userMsg);
+        
+        // Append Mock response
+        setTimeout(() => {
+          const assistMsg = document.createElement('div');
+          assistMsg.className = 'message-container';
+          assistMsg.innerHTML = `
+            <div class="message-header-row">
+              <div class="avatar-box avatar-dev">🤖</div>
+              <div class="message-header">
+                <span class="message-bar-assistant">▌ HyprCollab 🤖 Dev Agent</span>
+                <span class="message-timestamp">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+              </div>
+            </div>
+            <div class="message-text">Mock Response: Message successfully received on HyprCollab channel. Ready for coding execution loop...</div>
+          `;
+          activeCanvas.appendChild(assistMsg);
+          activeCanvas.scrollTop = activeCanvas.scrollHeight;
+        }, 1000);
+      }
+      
+      terminalInput.value = '';
+      typedText.textContent = '';
+      setMode('NORMAL');
+    }
+
+    // Execute colon command lines
+    function executeCommandPrompt(cmdStr) {
+      if (cmdStr === 'help' || cmdStr === 'h') {
+        showModal('help-modal');
+      } else if (cmdStr.startsWith('theme ') || cmdStr.startsWith('t ')) {
+        const theme = cmdStr.split(' ')[1];
+        if (theme) selectTheme(theme);
+      } else if (cmdStr === 'q') {
+        closeModals();
+      } else if (cmdStr === 'preview' || cmdStr === 'p') {
+        togglePreviewPanel();
+      } else if (cmdStr === '1' || cmdStr === 'chats') {
+        switchPanel('chats');
+      } else if (cmdStr === '2' || cmdStr === 'projects') {
+        switchPanel('projects');
+      } else if (cmdStr === '3' || cmdStr === 'personas') {
+        switchPanel('personas');
+      } else if (cmdStr === '4' || cmdStr === 'acp') {
+        switchPanel('acp');
+      } else if (cmdStr === '5' || cmdStr === 'skills') {
+        switchPanel('skills');
+      } else if (cmdStr === '6' || cmdStr === 'settings') {
+        switchPanel('settings');
+      } else {
+        triggerToast('Command not found: :' + cmdStr);
+      }
+      setMode('NORMAL');
+    }
+
+    // Select active navigator sidebar tree item
+    function selectSidebarItem(item) {
+      state.sidebarItems.forEach(el => {
+        el.classList.remove('active-nav');
+        el.querySelector('.item-indicator').textContent = ' ';
+      });
+      
+      item.classList.add('active-nav');
+      item.querySelector('.item-indicator').textContent = '▸';
+      
+      const targetType = item.getAttribute('data-item-type');
+      const targetVal = item.getAttribute('data-item-target');
+      
+      if (targetType === 'chat') {
+        switchChat(targetVal);
+      } else if (targetType === 'project-node') {
+        triggerToast('✓ Project folder: ' + targetVal);
+      } else if (targetType === 'project-file') {
+        const filename = item.querySelector('.item-text').textContent.replace(/[├│└──\s]/g, '').trim();
+        previewFile(filename);
+      } else if (targetType === 'persona') {
+        triggerToast('✓ Persona focused');
+      } else if (targetType === 'acp-session') {
+        triggerToast('✓ ACP Session details focused');
+      } else if (targetType === 'skill') {
+        toggleSkillItem(item);
+      }
+    }
+
+    function toggleSkillItem(item) {
+      const textEl = item.querySelector('.item-text');
+      if (textEl) {
+        const isEnabled = textEl.textContent.includes('[x]');
+        if (isEnabled) {
+          textEl.textContent = textEl.textContent.replace('[x]', '[ ]');
+          triggerToast('✓ Disabled skill: ' + textEl.textContent.replace('[ ]', '').trim());
+        } else {
+          textEl.textContent = textEl.textContent.replace('[ ]', '[x]');
+          triggerToast('✓ Enabled skill: ' + textEl.textContent.replace('[x]', '').trim());
+        }
+      }
+    }
+
+    // Checkbox toggles
+    function toggleCrtSetting() {
+      const box = document.getElementById('checkbox-crt');
+      const isEnabled = box.textContent === '[x]';
+      if (isEnabled) {
+        box.textContent = '[ ]';
+        document.getElementById('crt-screen').classList.add('disabled');
+        triggerToast('✓ CRT scanline overlay disabled');
+      } else {
+        box.textContent = '[x]';
+        document.getElementById('crt-screen').classList.remove('disabled');
+        triggerToast('✓ CRT scanline overlay enabled');
+      }
+    }
+
+    function toggleNerdFontSetting() {
+      const box = document.getElementById('checkbox-nerdfont');
+      const isEnabled = box.textContent === '[x]';
+      if (isEnabled) {
+        box.textContent = '[ ]';
+        document.body.classList.add('no-nerd-font');
+        triggerToast('✓ Nerd Fonts disabled (using fallback)');
+      } else {
+        box.textContent = '[x]';
+        document.body.classList.remove('no-nerd-font');
+        triggerToast('✓ Nerd Fonts enabled');
+      }
+    }
+
+    function saveSystemSettings() {
+      const provider = document.getElementById('setting-provider').value;
+      const model = document.getElementById('setting-model').value;
+      statModel.textContent = model;
+      triggerToast('✓ Saved Settings! Connected model: ' + model);
+    }
+
+    function focusInput() {
+      setMode('INSERT');
+    }
+
+    function triggerAttach() {
+      triggerToast('📎 Attachment modal opened');
+    }
+
+    function triggerVoice() {
+      triggerToast('🎤 Voice input listening (Push to Talk)...');
+    }
+
+    function triggerSend() {
+      executeMessage(terminalInput.value);
+    }
+
+    // Keyboard bindings handlers
+    window.addEventListener('keydown', function(e) {
+      if (document.activeElement && (
+        (document.activeElement.tagName === 'INPUT' && document.activeElement.id !== 'terminal-input') ||
+        document.activeElement.tagName === 'SELECT' ||
+        document.activeElement.tagName === 'TEXTAREA'
+      )) {
+        if (e.key === 'Escape') {
+          document.activeElement.blur();
+          setMode('NORMAL');
+        }
+        return;
+      }
+
+      // 1. If currently in INSERT mode
+      if (state.mode === 'INSERT') {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          setMode('NORMAL');
+          return;
+        }
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (suggestDropdown.classList.contains('visible')) {
+            const activeItem = suggestDropdown.querySelectorAll('.dropdown-item')[selectedDropdownIndex];
+            if (activeItem && activeItem.style.display !== 'none') {
+              const cmdText = activeItem.getAttribute('data-cmd');
+              terminalInput.value = cmdText + ' ';
+              typedText.textContent = cmdText + ' ';
+              suggestDropdown.classList.remove('visible');
+              return;
+            }
+          }
+          executeMessage(terminalInput.value);
+          return;
+        }
+        if (suggestDropdown.classList.contains('visible')) {
+          if (e.key === 'ArrowDown' || (e.ctrlKey && e.key === 'j')) {
+            e.preventDefault();
+            const items = Array.from(suggestDropdown.querySelectorAll('.dropdown-item')).filter(el => el.style.display !== 'none');
+            selectedDropdownIndex = (selectedDropdownIndex + 1) % items.length;
+            updateDropdownSelection();
+            return;
+          }
+          if (e.key === 'ArrowUp' || (e.ctrlKey && e.key === 'k')) {
+            e.preventDefault();
+            const items = Array.from(suggestDropdown.querySelectorAll('.dropdown-item')).filter(el => el.style.display !== 'none');
+            selectedDropdownIndex = (selectedDropdownIndex - 1 + items.length) % items.length;
+            updateDropdownSelection();
+            return;
+          }
+        }
+        return;
+      }
+
+      // 2. If in COMMAND mode
+      if (state.mode === 'COMMAND') {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          setMode('NORMAL');
+          return;
+        }
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          executeCommandPrompt(state.commandBuffer);
+          return;
+        }
+        if (e.key === 'Backspace') {
+          e.preventDefault();
+          state.commandBuffer = state.commandBuffer.slice(0, -1);
+          document.getElementById('command-prompt').textContent = ':' + state.commandBuffer;
+          return;
+        }
+        if (e.key.length === 1) {
+          e.preventDefault();
+          state.commandBuffer += e.key;
+          document.getElementById('command-prompt').textContent = ':' + state.commandBuffer;
+          return;
+        }
+        return;
+      }
+
+      // 3. Modal navigations
+      if (state.activeFocus === 'modal-theme') {
+        if (e.key === 'Escape' || e.key === 'q') {
+          e.preventDefault();
+          closeModals();
+          return;
+        }
+        if (e.key === 'j' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          state.activeThemeIndex = (state.activeThemeIndex + 1) % state.themeItems.length;
+          state.themeItems.forEach((item, index) => {
+            if (index === state.activeThemeIndex) {
+              item.classList.add('active-nav');
+              item.querySelector('.item-indicator').textContent = '▸';
+            } else {
+              item.classList.remove('active-nav');
+              item.querySelector('.item-indicator').textContent = ' ';
+            }
+          });
+          return;
+        }
+        if (e.key === 'k' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          state.activeThemeIndex = (state.activeThemeIndex - 1 + state.themeItems.length) % state.themeItems.length;
+          state.themeItems.forEach((item, index) => {
+            if (index === state.activeThemeIndex) {
+              item.classList.add('active-nav');
+              item.querySelector('.item-indicator').textContent = '▸';
+            } else {
+              item.classList.remove('active-nav');
+              item.querySelector('.item-indicator').textContent = ' ';
+            }
+          });
+          return;
+        }
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const targetTheme = state.themeItems[state.activeThemeIndex].getAttribute('data-theme');
+          selectTheme(targetTheme);
+          closeModals();
+          return;
+        }
+        return;
+      }
+
+      if (state.activeFocus.startsWith('modal-')) {
+        if (e.key === 'Escape' || e.key === 'q' || e.key === 'Enter') {
+          e.preventDefault();
+          closeModals();
+        }
+        return;
+      }
+
+      // 4. GLOBAL HOTKEYS in NORMAL mode
+      if (e.key === '1') { e.preventDefault(); switchPanel('chats'); return; }
+      if (e.key === '2') { e.preventDefault(); switchPanel('projects'); return; }
+      if (e.key === '3') { e.preventDefault(); switchPanel('personas'); return; }
+      if (e.key === '4') { e.preventDefault(); switchPanel('acp'); return; }
+      if (e.key === '5') { e.preventDefault(); switchPanel('skills'); return; }
+      if (e.key === '6') { e.preventDefault(); switchPanel('settings'); return; }
+
+      // Ctrl+p toggles file preview panel
+      if (e.ctrlKey && e.key === 'p') {
+        e.preventDefault();
+        togglePreviewPanel();
+        return;
+      }
+
+      // Ctrl+w h/l focuses pane
+      if (e.ctrlKey && e.key === 'w') {
+        e.preventDefault();
+        state.leaderPressed = 'ctrl-w';
+        return;
+      }
+      if (state.leaderPressed === 'ctrl-w') {
+        state.leaderPressed = false;
+        if (e.key === 'h') {
+          e.preventDefault();
+          state.activeFocus = 'sidebar';
+          triggerToast('Focus panel: Navigator Sidebar');
+          return;
+        }
+        if (e.key === 'l') {
+          e.preventDefault();
+          state.activeFocus = 'chat-input';
+          triggerToast('Focus panel: Chat Canvas');
+          return;
+        }
+      }
+
+      // Space leader keys
+      if (e.key === ' ') {
+        e.preventDefault();
+        state.leaderPressed = 'space';
+        return;
+      }
+      if (state.leaderPressed === 'space') {
+        state.leaderPressed = false;
+        if (e.key === 't') {
+          e.preventDefault();
+          showModal('theme-modal');
+          return;
+        }
+        if (e.key === 'h') {
+          e.preventDefault();
+          showModal('help-modal');
+          return;
+        }
+        if (e.key === 's') {
+          e.preventDefault();
+          switchPanel('settings');
+          return;
+        }
+      }
+
+      state.leaderPressed = false;
+
+      // Enter INSERT / COMMAND mode
+      if (e.key === 'i') {
+        e.preventDefault();
+        setMode('INSERT');
+        return;
+      }
+
+      if (e.key === ':') {
+        e.preventDefault();
+        setMode('COMMAND');
+        return;
+      }
+
+      // sidebar lists controls
+      if (e.key === 'j' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (state.sidebarItems.length > 0) {
+          state.sidebarItems[state.activeSidebarIndex].classList.remove('active-nav');
+          state.activeSidebarIndex = (state.activeSidebarIndex + 1) % state.sidebarItems.length;
+          
+          const targetEl = state.sidebarItems[state.activeSidebarIndex];
+          targetEl.classList.add('active-nav');
+          targetEl.scrollIntoView({ block: 'nearest' });
+        }
+        return;
+      }
+
+      if (e.key === 'k' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (state.sidebarItems.length > 0) {
+          state.sidebarItems[state.activeSidebarIndex].classList.remove('active-nav');
+          state.activeSidebarIndex = (state.activeSidebarIndex - 1 + state.sidebarItems.length) % state.sidebarItems.length;
+          
+          const targetEl = state.sidebarItems[state.activeSidebarIndex];
+          targetEl.classList.add('active-nav');
+          targetEl.scrollIntoView({ block: 'nearest' });
+        }
+        return;
+      }
+
+      if (e.key === 'g') {
+        if (state.lastKeyPressed === 'g') {
+          e.preventDefault();
+          if (state.sidebarItems.length > 0) {
+            state.sidebarItems[state.activeSidebarIndex].classList.remove('active-nav');
+            state.activeSidebarIndex = 0;
+            state.sidebarItems[0].classList.add('active-nav');
+            state.sidebarItems[0].scrollIntoView({ block: 'nearest' });
+          }
+          state.lastKeyPressed = '';
+          return;
+        }
+        state.lastKeyPressed = 'g';
+        return;
+      }
+
+      if (e.key === 'G') {
+        e.preventDefault();
+        if (state.sidebarItems.length > 0) {
+          state.sidebarItems[state.activeSidebarIndex].classList.remove('active-nav');
+          const lastIdx = state.sidebarItems.length - 1;
+          state.activeSidebarIndex = lastIdx;
+          state.sidebarItems[lastIdx].classList.add('active-nav');
+          state.sidebarItems[lastIdx].scrollIntoView({ block: 'nearest' });
+        }
+        return;
+      }
+
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (state.sidebarItems.length > 0) {
+          selectSidebarItem(state.sidebarItems[state.activeSidebarIndex]);
+        }
+        return;
+      }
+
+      state.lastKeyPressed = e.key;
+    });
+
+    // Hidden input events
+    terminalInput.addEventListener('input', function(e) {
+      typedText.textContent = terminalInput.value;
+      showAutcompleteDropdown(terminalInput.value);
+    });
+
+    // Click delegations
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('.dropdown-item')) {
+        const item = e.target.closest('.dropdown-item');
+        const cmdVal = item.getAttribute('data-cmd');
+        terminalInput.value = cmdVal + ' ';
+        typedText.textContent = cmdVal + ' ';
+        suggestDropdown.classList.remove('visible');
+        terminalInput.focus();
+        return;
+      }
+      
+      if (e.target.closest('.activity-bar .activity-item')) {
+        const item = e.target.closest('.activity-bar .activity-item');
+        const tabName = item.getAttribute('data-tab');
+        switchPanel(tabName);
+        return;
+      }
+
+      if (e.target.closest('.sidebar-column .tree-item')) {
+        const sidebarEl = e.target.closest('.sidebar-column .tree-item');
+        state.sidebarItems[state.activeSidebarIndex].classList.remove('active-nav');
+        state.activeSidebarIndex = state.sidebarItems.indexOf(sidebarEl);
+        selectSidebarItem(sidebarEl);
+        return;
+      }
+
+      if (e.target.closest('#theme-list .theme-list-item')) {
+        const themeEl = e.target.closest('#theme-list .theme-list-item');
+        selectTheme(themeEl.getAttribute('data-theme'));
+        closeModals();
+        return;
+      }
+
+      if (e.target.closest('.status-keybinds') || e.target.closest('.status-mode-pill')) {
+        showModal('help-modal');
+        return;
+      }
+
+      if (state.mode === 'INSERT' && 
+          !e.target.closest('.tui-modal') && 
+          !e.target.closest('.sidebar-column') && 
+          !e.target.closest('.activity-bar') && 
+          !e.target.closest('.input-actions-group') &&
+          !e.target.closest('.preview-column') &&
+          !e.target.closest('.artifact-actions') &&
+          !e.target.closest('.tui-collapsible')) {
+        terminalInput.focus();
+      }
+    });
+
+    // Clock
+    function updateClock() {
+      const now = new Date();
+      statClock.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    }
+    
+    // Nerd Fonts detection
+    function detectNerdFont() {
+      const text = "\uf035b";
+      const testSpan = document.createElement("span");
+      testSpan.style.fontSize = "72px";
+      testSpan.style.position = "absolute";
+      testSpan.style.visibility = "hidden";
+      testSpan.style.fontFamily = "monospace";
+      testSpan.textContent = text;
+      document.body.appendChild(testSpan);
+      
+      const widthMonospace = testSpan.getBoundingClientRect().width;
+      testSpan.style.fontFamily = "'JetBrainsMono Nerd Font', monospace";
+      const widthNerd = testSpan.getBoundingClientRect().width;
+      document.body.removeChild(testSpan);
+      
+      const hasNerdFont = (widthNerd !== widthMonospace && widthNerd > 0);
+      const checkboxBox = document.getElementById('checkbox-nerdfont');
+      
+      if (!hasNerdFont) {
+        body.classList.add('no-nerd-font');
+        if (checkboxBox) checkboxBox.textContent = '[ ]';
+      } else {
+        body.classList.remove('no-nerd-font');
+        if (checkboxBox) checkboxBox.textContent = '[x]';
+      }
+    }
+
+    // Initializations
+    window.onload = function() {
+      detectNerdFont();
+      initializeSidebarList();
+      initializeThemeList();
+      updateClock();
+      setInterval(updateClock, 30000);
+      
+      triggerToast('✓ Welcome to HyprCollab v0.1.0 (v4 FINAL)');
+      triggerToast('💡 Press [i] for Insert, [Esc] to exit');
+      triggerToast('💡 Use keys [1]-[6] to navigate panels');
+    };
+  </script>
+</body>
+</html>

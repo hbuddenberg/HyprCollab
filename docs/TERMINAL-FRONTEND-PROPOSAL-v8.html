@@ -1,0 +1,4755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HyprCollab — Terminal TUI Frontend (v8)</title>
+  <meta name="description" content="HyprCollab TUI frontend proposal v8 built from scratch. Inspired by Neovim/LazyVim, Bubble Tea, and lazygit. Uses pure Unicode box-drawing character borders and monospace layouts.">
+  <meta name="theme-color" content="#1e1e2e">
+  
+  <!-- JetBrains Mono from Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    /* ===== RESET & BASE STYLES ===== */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+      font-family: 'JetBrains Mono', monospace !important;
+    }
+
+    input, textarea, select, button {
+      border: none !important;
+      outline: none !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+      background: transparent;
+      color: inherit;
+      font-family: inherit;
+      font-size: inherit;
+    }
+
+    :root {
+      /* Theme 1: Catppuccin Mocha */
+      --bg-base: #1e1e2e;
+      --bg-surface0: #313244;
+      --bg-surface1: #45475a;
+      --bg-mantle: #11111b;
+      --text: #cdd6f4;
+      --subtext0: #a6adc8;
+      --overlay0: #6c7086;
+      --accent: #89b4fa; /* blue */
+      --green: #a6e3a1;
+      --yellow: #f9e2af;
+      --red: #f38ba8;
+      --mauve: #cba6f7;
+      --teal: #94e2d5;
+      --peach: #fab387;
+    }
+
+    body.theme-tokyonight {
+      --bg-base: #1a1b26;
+      --bg-surface0: #24283b;
+      --bg-surface1: #3b4261;
+      --bg-mantle: #16161f;
+      --text: #c0caf5;
+      --subtext0: #a9b1d6;
+      --overlay0: #565f89;
+      --accent: #7aa2f7;
+      --green: #9ece6a;
+      --yellow: #e0af68;
+      --red: #f7768e;
+      --mauve: #bb9af7;
+      --teal: #73daca;
+      --peach: #ff9e64;
+    }
+
+    body.theme-nord {
+      --bg-base: #2e3440;
+      --bg-surface0: #3b4252;
+      --bg-surface1: #4c566a;
+      --bg-mantle: #242933;
+      --text: #eceff4;
+      --subtext0: #d8dee9;
+      --overlay0: #616e88;
+      --accent: #88c0d0;
+      --green: #a3be8c;
+      --yellow: #ebcb8b;
+      --red: #bf616a;
+      --mauve: #b48ead;
+      --teal: #8fbcbb;
+      --peach: #d08770;
+    }
+
+    body.theme-dracula {
+      --bg-base: #282a36;
+      --bg-surface0: #1e1f29;
+      --bg-surface1: #44475a;
+      --bg-mantle: #191a21;
+      --text: #f8f8f2;
+      --subtext0: #f8f8f2;
+      --overlay0: #6272a4;
+      --accent: #ff79c6;
+      --green: #50fa7b;
+      --yellow: #f1fa8c;
+      --red: #ff5555;
+      --mauve: #bd93f9;
+      --teal: #8be9fd;
+      --peach: #ffb86c;
+    }
+
+    body.theme-github {
+      --bg-base: #0d1117;
+      --bg-surface0: #161b22;
+      --bg-surface1: #30363d;
+      --bg-mantle: #010409;
+      --text: #c9d1d9;
+      --subtext0: #8b949e;
+      --overlay0: #58a6ff;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --yellow: #d29922;
+      --red: #f85149;
+      --mauve: #bc8cff;
+      --teal: #39d2c0;
+      --peach: #f0883e;
+    }
+
+    body.theme-rosepine {
+      --bg-base: #191724;
+      --bg-surface0: #1f1d2e;
+      --bg-surface1: #26233a;
+      --bg-mantle: #12101a;
+      --text: #e0def4;
+      --subtext0: #908caa;
+      --overlay0: #6e6a86;
+      --accent: #ebbcba;
+      --green: #31748f;
+      --yellow: #f6c177;
+      --red: #eb6f92;
+      --mauve: #c4a7e7;
+      --teal: #9ccfd8;
+      --peach: #ea9a97;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.2;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* ===== OUTER TERMINAL CHROME WRAPPER ===== */
+    .window-chrome {
+      display: flex;
+      flex-direction: column;
+      width: 100vw;
+      height: 100vh;
+      background-color: var(--bg-base);
+      overflow: hidden;
+    }
+
+    .chrome-middle {
+      display: flex;
+      flex-direction: row;
+      flex-grow: 1;
+      overflow: hidden;
+      align-items: stretch;
+    }
+
+    .chrome-left, .chrome-right {
+      flex-shrink: 0;
+      color: var(--bg-surface1);
+    }
+
+    .app-container {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ===== UNICODE CHARACTER BORDERS ===== */
+    .border-h {
+      display: flex;
+      white-space: nowrap;
+      overflow: hidden;
+      color: var(--bg-surface1);
+      font-size: 13px;
+      line-height: 1.2;
+      flex-shrink: 0;
+      user-select: none;
+    }
+
+    .border-h-fill {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: clip;
+      letter-spacing: -0.05px;
+    }
+
+    .border-h-fill::before {
+      content: "────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────";
+      display: block;
+    }
+
+    .divider-v {
+      position: relative;
+      width: 1ch;
+      flex-shrink: 0;
+      align-self: stretch;
+      color: var(--bg-surface1);
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .divider-v::before {
+      content: "│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│";
+      display: block;
+      white-space: pre;
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    .divider-v.resizable {
+      cursor: col-resize;
+      pointer-events: auto;
+    }
+
+    .divider-v.resizable:hover {
+      color: var(--accent);
+    }
+
+    /* Thicker visual separation */
+    .divider-v-double {
+      position: relative;
+      width: 1ch;
+      flex-shrink: 0;
+      align-self: stretch;
+      color: var(--bg-surface1);
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .divider-v-double::before {
+      content: "║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║";
+      display: block;
+      white-space: pre;
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    .divider-v-double.resizable {
+      cursor: col-resize;
+      pointer-events: auto;
+    }
+
+    .divider-v-double.resizable:hover {
+      color: var(--accent);
+    }
+
+    /* ===== WORKSPACE ROW ===== */
+    .tui-workspace-row {
+      display: flex;
+      flex-grow: 1;
+      overflow: hidden;
+    }
+
+    /* ===== ACTIVITY BAR (LEFT EDGE - 6ch) ===== */
+    .activity-bar {
+      width: 6ch;
+      background-color: var(--bg-mantle);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1ch 0;
+      flex-shrink: 0;
+    }
+
+    .activity-items {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      gap: 1.2ch;
+      align-items: center;
+    }
+
+    .activity-item {
+      width: 100%;
+      height: 3.5ch;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding-left: 1ch;
+      cursor: pointer;
+      position: relative;
+      color: var(--subtext0);
+    }
+
+    .activity-item:hover {
+      color: var(--text);
+      background-color: var(--bg-surface0);
+    }
+
+    .activity-item.active {
+      color: var(--accent);
+      background-color: var(--bg-surface0);
+    }
+
+    .activity-indicator {
+      width: 1.5ch;
+      flex-shrink: 0;
+      color: var(--accent);
+      font-weight: bold;
+    }
+
+    .activity-item:not(.active) .activity-indicator {
+      visibility: hidden;
+    }
+
+    .activity-icon {
+      font-size: 14px;
+      margin-left: 0.5ch;
+    }
+
+    .activity-fallback {
+      font-size: 13px;
+      margin-left: 0.5ch;
+    }
+
+    /* Badges */
+    .activity-badge {
+      position: absolute;
+      top: 0.2ch;
+      right: 0.5ch;
+      color: var(--red);
+      font-size: 9px;
+      font-weight: bold;
+      pointer-events: none;
+    }
+
+    /* Tooltips */
+    .tui-tooltip-container {
+      position: relative;
+    }
+
+    .tui-btn-tooltip {
+      display: none;
+      position: absolute;
+      bottom: 120%;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: var(--bg-surface0);
+      color: var(--text);
+      font-size: 11px;
+      white-space: pre;
+      z-index: 10000;
+      pointer-events: none;
+    }
+
+    .activity-item:hover .tui-btn-tooltip {
+      display: block;
+    }
+
+    /* ===== SIDEBAR COLUMN (35ch wide) ===== */
+    .sidebar-column {
+      width: 35ch;
+      background-color: var(--bg-mantle);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow-y: auto;
+    }
+
+    .sidebar-column::-webkit-scrollbar,
+    .chat-canvas-wrapper::-webkit-scrollbar,
+    .preview-panel-content::-webkit-scrollbar {
+      width: 1ch;
+    }
+    .sidebar-column::-webkit-scrollbar-track,
+    .chat-canvas-wrapper::-webkit-scrollbar-track,
+    .preview-panel-content::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .sidebar-column::-webkit-scrollbar-thumb,
+    .chat-canvas-wrapper::-webkit-scrollbar-thumb,
+    .preview-panel-content::-webkit-scrollbar-thumb {
+      background: var(--bg-surface1);
+    }
+    .sidebar-column::-webkit-scrollbar-thumb:hover,
+    .chat-canvas-wrapper::-webkit-scrollbar-thumb:hover,
+    .preview-panel-content::-webkit-scrollbar-thumb:hover {
+      background: var(--text);
+    }
+
+    .sidebar-panel {
+      display: none;
+      flex-direction: column;
+      height: 100%;
+      padding: 1ch 0;
+    }
+
+    .sidebar-panel.active {
+      display: flex;
+    }
+
+    .sidebar-header {
+      font-weight: bold;
+      color: var(--accent);
+      padding: 0 1.5ch;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.5ch;
+    }
+
+    .sidebar-header-underline {
+      padding: 0 1.5ch;
+      color: var(--bg-surface1);
+      margin-bottom: 1ch;
+    }
+
+    .sidebar-search-box {
+      padding: 0 1.5ch 1ch;
+    }
+
+    /* TUI Section Separator Header inside sidebars */
+    .sidebar-section-header {
+      padding: 0.4ch 1.5ch;
+      color: var(--overlay0);
+      font-weight: bold;
+      display: flex;
+      white-space: nowrap;
+      overflow: hidden;
+      user-select: none;
+    }
+    .sidebar-section-header::after {
+      content: " ───────────────────────";
+      display: inline-block;
+      flex-grow: 1;
+      overflow: hidden;
+    }
+
+    /* Tree/Item layout */
+    .tree-folder {
+      display: flex;
+      align-items: center;
+      padding: 0.4ch 1.5ch;
+      cursor: pointer;
+      color: var(--subtext0);
+      font-weight: bold;
+    }
+    .tree-folder:hover {
+      color: var(--text);
+    }
+    .folder-indicator {
+      width: 2ch;
+      color: var(--accent);
+    }
+    .tree-folder-contents {
+      display: flex;
+      flex-direction: column;
+    }
+    .tree-folder-contents.collapsed {
+      display: none;
+    }
+
+    .tree-item {
+      display: flex;
+      flex-direction: column;
+      padding: 0.6ch 1.5ch;
+      cursor: pointer;
+      color: var(--subtext0);
+      position: relative;
+      border-bottom: 1px transparent;
+    }
+
+    .tree-item-primary-row {
+      display: flex;
+      align-items: center;
+      width: 100%;
+    }
+
+    .tree-item-secondary-row {
+      font-size: 11px;
+      color: var(--overlay0);
+      padding-left: 2ch;
+      margin-top: 0.2ch;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .tree-item:hover {
+      color: var(--text);
+    }
+
+    .tree-item.active {
+      color: var(--text);
+      font-weight: bold;
+    }
+
+    /* Navigational active element overlay style */
+    .tree-item.active-nav {
+      background-color: var(--text);
+      color: var(--bg-base);
+    }
+    .tree-item.active-nav .item-indicator {
+      color: var(--bg-base);
+    }
+    .tree-item.active-nav .tree-item-secondary-row {
+      color: var(--bg-surface1);
+    }
+
+    .item-indicator {
+      width: 2ch;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .item-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex-grow: 1;
+    }
+
+    .item-badge-unread {
+      color: var(--red);
+      font-weight: bold;
+      margin-left: 0.5ch;
+    }
+
+    .item-time {
+      margin-left: auto;
+      font-size: 11px;
+    }
+
+    .chat-item-actions {
+      display: none;
+      position: absolute;
+      right: 1ch;
+      top: 0.5ch;
+      gap: 0.5ch;
+      background-color: inherit;
+      padding-left: 1ch;
+      z-index: 5;
+    }
+    
+    .tree-item:hover .chat-item-actions {
+      display: flex;
+    }
+
+    .tree-item.active-nav .chat-item-actions {
+      background-color: var(--text);
+      color: var(--bg-base);
+    }
+
+    .chat-action-btn {
+      color: var(--accent);
+      font-weight: bold;
+    }
+    .tree-item.active-nav .chat-action-btn {
+      color: var(--bg-base);
+    }
+
+    .tree-item.sub-depth-1 { padding-left: 3.5ch; }
+
+    .panel-detail-box {
+      padding: 0.2ch 1.5ch 0.8ch 3.5ch;
+      color: var(--overlay0);
+      font-size: 11px;
+      line-height: 1.3;
+      white-space: pre-wrap;
+    }
+
+    .panel-action-row {
+      display: flex;
+      padding: 1ch 1.5ch;
+      gap: 1ch;
+    }
+
+    .settings-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8ch;
+      padding: 1ch 1.5ch;
+    }
+
+    .settings-label {
+      font-size: 11px;
+      font-weight: bold;
+      color: var(--accent);
+      letter-spacing: 0.5px;
+    }
+
+    .tui-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 1ch;
+      cursor: pointer;
+      color: var(--text);
+      font-size: 12px;
+      height: 2.5ch;
+    }
+    .tui-checkbox:hover .checkbox-label {
+      color: var(--accent);
+    }
+    .checkbox-box {
+      color: var(--accent);
+      font-weight: bold;
+    }
+
+    /* Theme list item */
+    .theme-list-item {
+      display: flex;
+      align-items: center;
+      padding: 0.5ch 1ch;
+      cursor: pointer;
+      color: var(--subtext0);
+    }
+    .theme-list-item:hover {
+      color: var(--text);
+    }
+    .theme-list-item.active {
+      color: var(--text);
+      font-weight: bold;
+    }
+    .theme-list-item.active-nav {
+      background-color: var(--text);
+      color: var(--bg-base);
+    }
+    .theme-list-item.active-nav .item-indicator {
+      color: var(--bg-base);
+    }
+
+    /* Box drawing wrapper for text inputs */
+    .tui-input-box {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      margin-bottom: 0.8ch;
+    }
+    .tui-input-middle {
+      display: flex;
+      align-items: center;
+      height: 3ch;
+      background-color: var(--bg-surface0);
+      color: var(--bg-surface1);
+    }
+    .tui-input-middle:focus-within {
+      color: var(--accent);
+    }
+    .tui-input-box:focus-within .border-h {
+      color: var(--accent);
+    }
+    .tui-input-middle span {
+      padding: 0 0.8ch;
+    }
+    .tui-input-element {
+      flex-grow: 1;
+      background: transparent;
+      color: var(--text);
+      height: 100%;
+      padding: 0 1ch;
+    }
+
+    .tui-select-element {
+      flex-grow: 1;
+      background: transparent;
+      color: var(--text);
+      height: 100%;
+      cursor: pointer;
+      padding: 0 1ch;
+      appearance: none;
+    }
+    .tui-select-element option {
+      background-color: var(--bg-surface0);
+      color: var(--text);
+    }
+
+    /* ===== STUNNING BOX-DRAWN BUTTONS ===== */
+    .tui-btn-box {
+      display: inline-flex;
+      flex-direction: column;
+      cursor: pointer;
+      user-select: none;
+      background-color: transparent;
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.2;
+    }
+    
+    .tui-btn-box:hover {
+      background-color: var(--text);
+      color: var(--bg-base);
+    }
+    
+    .tui-btn-box.primary {
+      color: var(--accent);
+    }
+    
+    .tui-btn-box.primary:hover {
+      background-color: var(--accent);
+      color: var(--bg-base);
+    }
+    
+    .tui-btn-box.red-accent {
+      color: var(--red);
+    }
+    
+    .tui-btn-box.red-accent:hover {
+      background-color: var(--red);
+      color: var(--bg-base);
+    }
+    
+    .tui-btn-box.dimmed {
+      color: var(--overlay0);
+    }
+    
+    .tui-btn-box.dimmed:hover {
+      background-color: var(--overlay0);
+      color: var(--bg-base);
+    }
+
+    .btn-border-h {
+      display: flex;
+      white-space: nowrap;
+      overflow: hidden;
+      line-height: 0.8;
+      flex-shrink: 0;
+    }
+
+    .btn-border-h-fill {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: clip;
+    }
+
+    .btn-border-h-fill::before {
+      content: "────────────────────────────────";
+      display: block;
+    }
+
+    .btn-middle {
+      display: flex;
+      align-items: center;
+      height: 2.2ch;
+    }
+
+    .btn-text {
+      padding: 0 1.2ch;
+      white-space: nowrap;
+      font-weight: bold;
+    }
+
+    .btn-border-h, .btn-middle span {
+      transition: color 0.1s ease;
+    }
+
+    /* ===== CENTER CHAT COLUMN ===== */
+    .chat-column {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background-color: var(--bg-base);
+      overflow: hidden;
+    }
+
+    /* Fixed top status bar */
+    .chat-status-bar-top {
+      background-color: var(--bg-base);
+      color: var(--subtext0);
+    }
+
+    .chat-canvas-wrapper {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 1.5ch 2ch;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chat-canvas {
+      display: none;
+      flex-direction: column;
+      gap: 1.5ch;
+      width: 100%;
+    }
+
+    .chat-canvas.active {
+      display: flex;
+    }
+
+    /* ===== CHAT HEADER (Main Area Top) ===== */
+    .chat-header-container {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 1.5ch;
+      width: 100%;
+      background-color: var(--bg-surface0);
+      color: var(--text);
+    }
+    
+    .chat-header-middle {
+      display: flex;
+      align-items: stretch;
+    }
+    
+    .chat-header-left-edge, .chat-header-right-edge {
+      position: relative;
+      overflow: hidden;
+      width: 1ch;
+      color: var(--bg-surface1);
+      user-select: none;
+      flex-shrink: 0;
+    }
+    
+    .chat-header-left-edge::before, .chat-header-right-edge::before {
+      content: "│\n│\n│\n│\n│\n│";
+      display: block;
+      white-space: pre;
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      text-align: center;
+    }
+    
+    .chat-header-content {
+      flex-grow: 1;
+      padding: 1ch 2ch;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .chat-header-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4ch;
+    }
+    
+    .chat-header-title-row {
+      display: flex;
+      align-items: center;
+      gap: 1.5ch;
+    }
+    
+    .chat-header-persona-avatar {
+      font-size: 16px;
+    }
+    
+    .chat-header-persona-name {
+      font-weight: bold;
+      font-size: 14px;
+    }
+    
+    .chat-header-model-pill {
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: bold;
+    }
+    
+    .chat-header-details-row {
+      font-size: 11px;
+      color: var(--subtext0);
+    }
+    
+    .chat-header-tags-row {
+      display: flex;
+      gap: 1ch;
+      margin-top: 0.4ch;
+    }
+    
+    .chat-header-tag {
+      color: var(--mauve);
+      font-size: 11px;
+    }
+
+    /* ===== BOX DRAWING MESSAGES ===== */
+    .message-box {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+    }
+
+    .message-box.assistant-accent {
+      --msg-accent: var(--accent);
+    }
+    
+    .message-box.assistant-dev-accent {
+      --msg-accent: var(--mauve);
+    }
+    
+    .message-box.assistant-luna-accent {
+      --msg-accent: var(--yellow);
+    }
+    
+    .message-box.assistant-atlas-accent {
+      --msg-accent: var(--teal);
+    }
+
+    .message-box.assistant-sage-accent {
+      --msg-accent: var(--peach);
+    }
+
+    .message-box.user-accent {
+      --msg-accent: var(--accent);
+    }
+
+    .message-box .border-h {
+      color: var(--msg-accent, var(--bg-surface1));
+    }
+
+    .message-middle {
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+    }
+
+    .message-left-edge, .message-right-edge {
+      position: relative;
+      overflow: hidden;
+      width: 1ch;
+      color: var(--msg-accent, var(--bg-surface1));
+      user-select: none;
+      line-height: 1.4;
+      flex-shrink: 0;
+    }
+
+    .message-left-edge::before, .message-right-edge::before {
+      content: "│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│";
+      display: block;
+      white-space: pre;
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      text-align: center;
+    }
+
+    .message-content {
+      flex-grow: 1;
+      padding: 0.5ch 2ch;
+      white-space: pre-wrap;
+      line-height: 1.4;
+      word-break: break-word;
+      color: var(--text);
+    }
+
+    /* Code block inside message */
+    .code-block-box {
+      display: flex;
+      flex-direction: column;
+      margin: 1ch 0;
+      width: 100%;
+      max-width: 80ch;
+    }
+
+    .code-block-middle {
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      background-color: var(--bg-surface0);
+    }
+
+    .code-block-left-edge, .code-block-right-edge {
+      position: relative;
+      overflow: hidden;
+      width: 1ch;
+      color: var(--bg-surface1);
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .code-block-left-edge::before, .code-block-right-edge::before {
+      content: "│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│";
+      display: block;
+      white-space: pre;
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      text-align: center;
+    }
+
+    .code-block-content {
+      flex-grow: 1;
+      padding: 0.5ch 2ch;
+      white-space: pre-wrap;
+      line-height: 1.4;
+      font-size: 12px;
+      color: var(--text);
+      overflow-x: auto;
+    }
+
+    .artifact-actions {
+      display: flex;
+      gap: 1ch;
+      padding: 0.5ch 2ch;
+      background-color: var(--bg-surface0);
+    }
+
+    /* Tool Call Box */
+    .tool-box {
+      display: flex;
+      flex-direction: column;
+      margin: 1ch 0;
+      width: 100%;
+      max-width: 80ch;
+    }
+
+    .tool-box.border-cyan {
+      --border-color: var(--teal);
+    }
+    .tool-box.border-accent {
+      --border-color: var(--accent);
+    }
+
+    .tool-box .border-h {
+      color: var(--border-color, var(--bg-surface1));
+    }
+    .tool-box .border-h span {
+      cursor: pointer;
+    }
+
+    .tool-middle {
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      background-color: var(--bg-surface0);
+    }
+
+    .tool-left-edge, .tool-right-edge {
+      position: relative;
+      overflow: hidden;
+      width: 1ch;
+      color: var(--border-color, var(--bg-surface1));
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .tool-left-edge::before, .tool-right-edge::before {
+      content: "│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│";
+      display: block;
+      white-space: pre;
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      text-align: center;
+    }
+
+    .tool-content {
+      flex-grow: 1;
+      padding: 0.5ch 2ch;
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    .tool-collapsible-body {
+      display: none;
+      flex-direction: column;
+    }
+    
+    .tool-box.expanded .tool-collapsible-body {
+      display: flex;
+    }
+
+    .tool-collapsible-header-btn {
+      color: var(--accent);
+      font-weight: bold;
+      padding-left: 2ch;
+    }
+
+    /* ===== EMBEDDED TERMINAL PANEL (v8) ===== */
+    .terminal-embed-box {
+      display: flex;
+      flex-direction: column;
+      margin: 1ch 0;
+      width: 100%;
+      max-width: 85ch;
+    }
+    
+    .terminal-embed-box .border-h {
+      color: var(--green);
+    }
+    
+    .terminal-embed-middle {
+      display: flex;
+      align-items: stretch;
+      background-color: var(--bg-mantle);
+    }
+    
+    .terminal-embed-left-edge, .terminal-embed-right-edge {
+      position: relative;
+      overflow: hidden;
+      width: 1ch;
+      color: var(--green);
+      user-select: none;
+      flex-shrink: 0;
+    }
+    
+    .terminal-embed-left-edge::before, .terminal-embed-right-edge::before {
+      content: "│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│";
+      display: block;
+      white-space: pre;
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      text-align: center;
+    }
+    
+    .terminal-embed-content {
+      flex-grow: 1;
+      padding: 1ch 2ch;
+      color: var(--text);
+      font-size: 12px;
+      overflow-x: auto;
+      white-space: pre;
+      line-height: 1.3;
+    }
+    
+    .terminal-embed-collapsible-body {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .terminal-embed-box.collapsed .terminal-embed-collapsible-body {
+      display: none;
+    }
+    
+    .terminal-embed-controls {
+      display: flex;
+      gap: 1ch;
+      margin-left: auto;
+      padding-right: 2ch;
+    }
+    
+    .terminal-embed-control-btn {
+      color: var(--accent);
+      cursor: pointer;
+      font-weight: bold;
+    }
+    
+    .terminal-embed-control-btn:hover {
+      color: var(--text);
+    }
+
+    /* Syntax Highlighting CSS */
+    .line-num {
+      color: var(--overlay0);
+      margin-right: 1.5ch;
+      display: inline-block;
+      width: 3ch;
+      text-align: right;
+      user-select: none;
+    }
+    .keyword { color: var(--mauve); font-weight: bold; }
+    .function { color: var(--accent); }
+    .type { color: var(--yellow); }
+    .string { color: var(--green); }
+    .comment { color: var(--overlay0); font-style: italic; }
+    .number { color: var(--peach); }
+    .tag { color: var(--red); }
+    .attr { color: var(--peach); }
+
+    /* Alignment */
+    .message-container.user-msg-align {
+      align-self: flex-end;
+      width: 90%;
+      max-width: 80ch;
+    }
+
+    .message-container.assistant-msg-align {
+      align-self: flex-start;
+      width: 100%;
+    }
+
+    /* ===== INPUT AREA (BOTTOM v8 style) ===== */
+    .chat-input-area {
+      flex-shrink: 0;
+      background-color: var(--bg-base);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    
+    .input-middle-content {
+      display: flex;
+      align-items: stretch;
+    }
+    
+    .input-left-edge, .input-right-edge {
+      position: relative;
+      overflow: hidden;
+      width: 1ch;
+      color: var(--bg-surface1);
+      user-select: none;
+      flex-shrink: 0;
+    }
+    
+    .input-left-edge::before, .input-right-edge::before {
+      content: "│\n│\n│\n│\n│\n│\n│\n│\n│\n│";
+      display: block;
+      white-space: pre;
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      text-align: center;
+    }
+    
+    .input-center-body {
+      flex-grow: 1;
+      padding: 0.5ch 2ch 1ch 2ch;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2ch;
+    }
+    
+    .input-prompt-line {
+      display: flex;
+      align-items: center;
+      height: 3ch;
+    }
+    
+    .input-actions-row {
+      display: flex;
+      gap: 1.5ch;
+      align-items: center;
+    }
+
+    /* Auto-suggest dropdown container */
+    .commands-dropdown {
+      display: none;
+      flex-direction: column;
+      position: absolute;
+      bottom: 9ch;
+      left: 2ch;
+      width: 55ch;
+      background-color: var(--bg-surface0);
+      z-index: 5000;
+    }
+
+    .commands-dropdown.visible {
+      display: flex;
+    }
+
+    .dropdown-middle {
+      display: flex;
+      align-items: stretch;
+    }
+
+    .dropdown-left-edge, .dropdown-right-edge {
+      position: relative;
+      overflow: hidden;
+      width: 1ch;
+      color: var(--bg-surface1);
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .dropdown-left-edge::before, .dropdown-right-edge::before {
+      content: "│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│";
+      display: block;
+      white-space: pre;
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      text-align: center;
+    }
+
+    .dropdown-content {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      max-height: 30ch;
+      overflow-y: auto;
+    }
+
+    .dropdown-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5ch 2ch;
+      cursor: pointer;
+      color: var(--subtext0);
+    }
+    
+    .dropdown-item.active {
+      background-color: var(--text);
+      color: var(--bg-base);
+    }
+
+    .dropdown-item-cmd {
+      font-weight: bold;
+    }
+
+    /* Prompt Line elements */
+    .prompt-arrow {
+      color: var(--accent);
+      font-weight: bold;
+      margin-right: 1.5ch;
+      user-select: none;
+    }
+
+    .input-container {
+      flex-grow: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+      height: 100%;
+      cursor: text;
+    }
+
+    .input-typed {
+      color: var(--text);
+      white-space: pre;
+    }
+
+    .input-placeholder {
+      color: var(--overlay0);
+      position: absolute;
+      left: 0;
+      pointer-events: none;
+    }
+
+    .cursor-block {
+      color: var(--accent);
+      font-weight: bold;
+      animation: cursor-blink 1s infinite steps(2);
+      user-select: none;
+      margin-left: 1px;
+    }
+
+    @keyframes cursor-blink {
+      0% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    .actual-input {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      z-index: 5;
+    }
+
+    /* ===== RIGHT PANEL — DUAL MODE (v8) ===== */
+    .preview-column {
+      width: 45ch;
+      background-color: var(--bg-mantle);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .preview-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5ch 1.5ch;
+      height: 3.5ch;
+      color: var(--accent);
+      font-weight: bold;
+    }
+
+    .preview-panel-dual-tabs {
+      display: flex;
+      background-color: var(--bg-surface0);
+      padding: 0.4ch 1.5ch 0;
+      gap: 1ch;
+    }
+    
+    .panel-mode-tab {
+      padding: 0.5ch 1.5ch;
+      cursor: pointer;
+      color: var(--overlay0);
+      font-weight: bold;
+    }
+    
+    .panel-mode-tab.active {
+      background-color: var(--bg-base);
+      color: var(--text);
+      border-bottom: 2px solid transparent; /* fake */
+    }
+
+    .preview-panel-subtabs-row {
+      display: flex;
+      gap: 1ch;
+      padding: 0.5ch 1.5ch;
+      background-color: var(--bg-surface0);
+    }
+
+    .preview-panel-content {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 1ch 1.5ch;
+      background-color: var(--bg-base);
+    }
+
+    /* Preview mode viewports */
+    .preview-mode-viewport {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    
+    .preview-empty-state {
+      color: var(--overlay0);
+      text-align: center;
+      padding-top: 5ch;
+    }
+
+    .preview-code-body {
+      white-space: pre;
+      font-size: 12px;
+      line-height: 1.4;
+      color: var(--text);
+    }
+
+    .preview-render-body {
+      white-space: pre-wrap;
+      font-size: 12px;
+      line-height: 1.4;
+      color: var(--text);
+      display: none;
+    }
+
+    .preview-metadata-footer {
+      display: flex;
+      flex-direction: column;
+      padding: 1ch 1.5ch;
+      background-color: var(--bg-surface0);
+      gap: 1ch;
+    }
+
+    .preview-footer-info {
+      display: flex;
+      justify-content: space-between;
+      color: var(--subtext0);
+      font-size: 11px;
+    }
+
+    .preview-footer-actions {
+      display: flex;
+      gap: 1ch;
+    }
+    
+    /* Info mode viewports */
+    .info-mode-viewport {
+      display: none;
+      flex-direction: column;
+      gap: 2ch;
+    }
+    
+    .info-box-details {
+      display: flex;
+      flex-direction: column;
+      gap: 1ch;
+    }
+    
+    .info-detail-line {
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px dashed var(--bg-surface1);
+      padding-bottom: 0.4ch;
+    }
+    
+    .info-detail-label {
+      color: var(--overlay0);
+    }
+    
+    .info-detail-value {
+      font-weight: bold;
+      color: var(--text);
+    }
+
+    /* ===== CREATE / CONFIGURE FORM MAIN VIEW (v8) ===== */
+    .main-form-view {
+      display: none;
+      flex-direction: column;
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 1.5ch 2ch;
+      background-color: var(--bg-base);
+    }
+    
+    .form-header-row {
+      display: flex;
+      align-items: center;
+      gap: 2ch;
+      margin-bottom: 2.5ch;
+    }
+    
+    .form-avatar-box {
+      width: 8ch;
+      height: 6ch;
+      background-color: var(--bg-surface0);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .form-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: var(--accent);
+    }
+    
+    .form-section-group {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      max-width: 80ch;
+      margin-bottom: 2ch;
+    }
+    
+    .form-section-middle {
+      display: flex;
+      align-items: stretch;
+    }
+    
+    .form-section-left-edge, .form-section-right-edge {
+      position: relative;
+      overflow: hidden;
+      width: 1ch;
+      color: var(--bg-surface1);
+      user-select: none;
+      flex-shrink: 0;
+    }
+    
+    .form-section-left-edge::before, .form-section-right-edge::before {
+      content: "│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│";
+      display: block;
+      white-space: pre;
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      text-align: center;
+    }
+    
+    .form-section-content {
+      flex-grow: 1;
+      padding: 1ch 2ch;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5ch;
+    }
+    
+    .form-row {
+      display: flex;
+      align-items: center;
+      width: 100%;
+    }
+    
+    .form-label {
+      width: 16ch;
+      color: var(--subtext0);
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+    
+    .form-input-container {
+      flex-grow: 1;
+      max-width: 40ch;
+    }
+    
+    .form-textarea-middle {
+      display: flex;
+      align-items: stretch;
+      background-color: var(--bg-surface0);
+      height: 12ch;
+      color: var(--bg-surface1);
+    }
+    .form-textarea-middle:focus-within {
+      color: var(--accent);
+    }
+    .form-textarea-box:focus-within .border-h {
+      color: var(--accent);
+    }
+    
+    .form-textarea-box {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+    }
+    
+    .form-textarea-element {
+      flex-grow: 1;
+      height: 100%;
+      resize: none;
+      padding: 0.5ch 1ch;
+      color: var(--text);
+    }
+
+    /* ===== NVIM STATUS BAR BOTTOM ===== */
+    .tui-status-bar-line {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 2ch;
+      background-color: var(--bg-surface0);
+      color: var(--text);
+      font-size: 12px;
+      padding: 0 1.5ch;
+      flex-shrink: 0;
+      user-select: none;
+    }
+
+    .status-left {
+      display: flex;
+      align-items: center;
+      gap: 2ch;
+      flex-grow: 1;
+      overflow: hidden;
+    }
+
+    .status-mode-pill {
+      background-color: var(--accent);
+      color: var(--bg-base);
+      font-weight: bold;
+      padding: 0 1ch;
+    }
+
+    body.mode-insert .status-mode-pill {
+      background-color: var(--green);
+    }
+    body.mode-command .status-mode-pill {
+      background-color: var(--yellow);
+    }
+    body.mode-chat .status-mode-pill {
+      background-color: var(--mauve);
+    }
+
+    .status-keybinds {
+      color: var(--subtext0);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .key-indicator {
+      color: var(--accent);
+      font-weight: bold;
+    }
+
+    .status-command-prompt {
+      display: none;
+      color: var(--yellow);
+      font-weight: bold;
+    }
+
+    .status-right {
+      display: flex;
+      align-items: center;
+      gap: 1.5ch;
+      color: var(--subtext0);
+      flex-shrink: 0;
+    }
+
+    /* ===== FLOATING MODALS ===== */
+    .tui-modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0, 0, 0, 0.4);
+      z-index: 10000;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .tui-modal-overlay.visible {
+      display: flex;
+    }
+
+    .tui-modal {
+      display: flex;
+      flex-direction: column;
+      background-color: var(--bg-base);
+      width: 60ch;
+      max-width: 90vw;
+    }
+
+    .tui-modal-middle {
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+    }
+
+    .tui-modal-left-edge, .tui-modal-right-edge {
+      position: relative;
+      overflow: hidden;
+      width: 1ch;
+      color: var(--bg-surface1);
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .tui-modal-left-edge::before, .tui-modal-right-edge::before {
+      content: "│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│\n│";
+      display: block;
+      white-space: pre;
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      text-align: center;
+    }
+
+    .tui-modal-content {
+      flex-grow: 1;
+      padding: 1ch 2ch;
+      color: var(--text);
+    }
+
+    /* Help grid layout */
+    .help-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5ch;
+      margin-top: 1ch;
+    }
+
+    .help-row {
+      display: flex;
+      justify-content: flex-start;
+    }
+
+    .help-key {
+      width: 14ch;
+      color: var(--accent);
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+
+    .help-desc {
+      color: var(--subtext0);
+    }
+
+    /* ===== TOAST NOTIFICATIONS ===== */
+    .toast-container {
+      position: fixed;
+      bottom: 4ch;
+      right: 4ch;
+      display: flex;
+      flex-direction: column;
+      gap: 1ch;
+      z-index: 20000;
+      pointer-events: none;
+    }
+
+    .toast-box {
+      display: flex;
+      flex-direction: column;
+      width: 40ch;
+      background-color: var(--bg-surface0);
+      pointer-events: auto;
+    }
+
+    .toast-middle {
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+    }
+
+    .toast-left-edge, .toast-right-edge {
+      position: relative;
+      overflow: hidden;
+      width: 1ch;
+      color: var(--bg-surface1);
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .toast-left-edge::before, .toast-right-edge::before {
+      content: "│\n│\n│\n│\n│";
+      display: block;
+      white-space: pre;
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      text-align: center;
+    }
+
+    .toast-content {
+      flex-grow: 1;
+      padding: 0.5ch 2ch;
+      font-size: 11px;
+      color: var(--text);
+    }
+
+    .toast-box.fade-out {
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .app-container.preview-collapsed .preview-column,
+    .app-container.preview-collapsed .preview-divider-v {
+      display: none !important;
+    }
+    
+    /* Typing indicator flash/pulse minimal styling */
+    @keyframes typing-pulse {
+      0% { opacity: 0.4; }
+      50% { opacity: 1; }
+      100% { opacity: 0.4; }
+    }
+    .typing-pulse-text {
+      animation: typing-pulse 1.2s infinite ease-in-out;
+      color: var(--green);
+    }
+  </style>
+</head>
+<body class="theme-catppuccin mode-normal">
+
+  <!-- WINDOW CHROME WRAPPER -->
+  <div class="window-chrome">
+    
+    <!-- Title Bar Border (Top) -->
+    <div class="border-h chrome-top">
+      <span>╭─ HyprCollab ─ ~/dev/hyprcollab ─ bash ─ <span id="chrome-term-size">190x50</span> </span>
+      <span class="border-h-fill"></span>
+      <span>╮</span>
+    </div>
+
+    <!-- Middle Window Content Area -->
+    <div class="chrome-middle">
+      
+      <!-- Left chrome frame element -->
+      <div class="divider-v chrome-left"></div>
+
+      <!-- Main Application Container -->
+      <div class="app-container">
+        
+        <!-- Workspace Layout Row -->
+        <div class="tui-workspace-row">
+          
+          <!-- 1. Activity Bar (Leftmost Edge) -->
+          <nav class="activity-bar">
+            <div class="activity-items">
+              
+              <!-- Tab 1: Chats -->
+              <div class="activity-item active" data-tab="chats" id="act-chats">
+                <span class="activity-indicator">▸</span>
+                <span class="activity-icon" data-nf="󰭹" data-emoji="💬">󰭹</span>
+                <span class="activity-badge" id="chats-unread-dot">●</span>
+                <div class="tui-btn-tooltip">
+╭─────────────────╮
+│ 💬 Chats        │
+│ Shortcut: 1     │
+╰─────────────────╯
+                </div>
+              </div>
+
+              <!-- Tab 2: Files -->
+              <div class="activity-item" data-tab="files" id="act-files">
+                <span class="activity-indicator">▸</span>
+                <span class="activity-icon" data-nf="📂" data-emoji="📁">📂</span>
+                <div class="tui-btn-tooltip">
+╭─────────────────╮
+│ 📂 Files        │
+│ Shortcut: 2     │
+╰─────────────────╯
+                </div>
+              </div>
+
+              <!-- Tab 3: Personas -->
+              <div class="activity-item" data-tab="personas" id="act-personas">
+                <span class="activity-indicator">▸</span>
+                <span class="activity-icon" data-nf="🎭" data-emoji="🎭">🎭</span>
+                <div class="tui-btn-tooltip">
+╭─────────────────╮
+│ 🎭 Personas     │
+│ Shortcut: 3     │
+╰─────────────────╯
+                </div>
+              </div>
+
+              <!-- Tab 4: Agents -->
+              <div class="activity-item" data-tab="agents" id="act-agents">
+                <span class="activity-indicator">▸</span>
+                <span class="activity-icon" data-nf="🔧" data-emoji="🤖">🔧</span>
+                <span class="activity-badge" id="agents-badge">1</span>
+                <div class="tui-btn-tooltip">
+╭─────────────────╮
+│ 🔧 Agents & ACP │
+│ Shortcut: 4     │
+╰─────────────────╯
+                </div>
+              </div>
+
+              <!-- Tab 5: Skills -->
+              <div class="activity-item" data-tab="skills" id="act-skills">
+                <span class="activity-indicator">▸</span>
+                <span class="activity-icon" data-nf="⚡" data-emoji="⚡">⚡</span>
+                <div class="tui-btn-tooltip">
+╭─────────────────╮
+│ ⚡ Skills       │
+│ Shortcut: 5     │
+╰─────────────────╯
+                </div>
+              </div>
+
+              <!-- Tab 6: MCP Servers -->
+              <div class="activity-item" data-tab="mcp" id="act-mcp">
+                <span class="activity-indicator">▸</span>
+                <span class="activity-icon" data-nf="" data-emoji="🔌"></span>
+                <div class="tui-btn-tooltip">
+╭─────────────────╮
+│ 🔌 MCP Servers   │
+│ Shortcut: 6     │
+╰─────────────────╯
+                </div>
+              </div>
+
+              <!-- Tab 7: Memories -->
+              <div class="activity-item" data-tab="memories" id="act-memories">
+                <span class="activity-indicator">▸</span>
+                <span class="activity-icon" data-nf="🧠" data-emoji="🧠">🧠</span>
+                <div class="tui-btn-tooltip">
+╭─────────────────╮
+│ 🧠 Memories     │
+│ Shortcut: 7     │
+╰─────────────────╯
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Bottom of Activity Bar: NerdFont toggle & Settings -->
+            <div class="activity-items">
+              <!-- NFC / Emoji Toggle -->
+              <div class="activity-item" id="act-nfc-toggle" onclick="toggleEmojiNerdFontMode()" style="padding-left: 0.5ch;">
+                <span class="activity-indicator" style="display: none;">▸</span>
+                <span class="activity-icon" style="margin-left: 1ch;">🔀</span>
+                <div class="tui-btn-tooltip">
+╭─────────────────╮
+│ 🔀 Toggle Emoji/ │
+│    Nerd Fonts   │
+╰─────────────────╯
+                </div>
+              </div>
+              
+              <!-- Settings Tab -->
+              <div class="activity-item" data-tab="settings" id="act-settings">
+                <span class="activity-indicator">▸</span>
+                <span class="activity-icon" data-nf="⚙" data-emoji="⚙">⚙</span>
+                <div class="tui-btn-tooltip">
+╭─────────────────╮
+│ ⚙ Settings      │
+│ Shortcut: 8     │
+╰─────────────────╯
+                </div>
+              </div>
+            </div>
+          </nav>
+
+          <!-- Divider 1 (Simple Line) -->
+          <div class="divider-v"></div>
+
+          <!-- 2. Sidebar Column (Navigator) -->
+          <div class="sidebar-column" id="left-sidebar">
+            
+            <!-- PANEL: Chats (tab="chats") -->
+            <div class="sidebar-panel active" id="panel-chats">
+              <div class="sidebar-header">💬 CHATS</div>
+              <div class="sidebar-header-underline">──────────────────────────────</div>
+              
+              <div class="sidebar-search-box">
+                <div class="tui-input-box">
+                  <div class="border-h">
+                    <span>┌</span>
+                    <span class="border-h-fill"></span>
+                    <span>┐</span>
+                  </div>
+                  <div class="tui-input-middle">
+                    <span>/</span>
+                    <input type="text" class="tui-input-element" placeholder="Search chats...">
+                  </div>
+                  <div class="border-h">
+                    <span>└</span>
+                    <span class="border-h-fill"></span>
+                    <span>┘</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Section: PINNED -->
+              <div class="sidebar-section-header">PINNED</div>
+              
+              <div class="tree-item active" data-item-type="chat" data-item-target="chat-1">
+                <div class="tree-item-primary-row">
+                  <span class="item-indicator">▸</span>
+                  <span class="item-text">Rust refactor</span>
+                  <span class="item-badge-unread">●</span>
+                  <span class="item-time">14:32</span>
+                </div>
+                <div class="tree-item-secondary-row">
+                  <span>🎭 Dr.Schema · 3 new</span>
+                </div>
+                <div class="chat-item-actions">
+                  <span class="chat-action-btn" onclick="renameChat('chat-1', event)">[✏]</span>
+                  <span class="chat-action-btn" onclick="deleteChat('chat-1', event)">[✖]</span>
+                </div>
+              </div>
+
+              <div class="tree-item" data-item-type="chat" data-item-target="chat-2">
+                <div class="tree-item-primary-row">
+                  <span class="item-indicator"> </span>
+                  <span class="item-text">UI brainstorm</span>
+                  <span class="item-time">18:13</span>
+                </div>
+                <div class="tree-item-secondary-row">
+                  <span>🎨 Luna · Design loop</span>
+                </div>
+                <div class="chat-item-actions">
+                  <span class="chat-action-btn" onclick="renameChat('chat-2', event)">[✏]</span>
+                  <span class="chat-action-btn" onclick="deleteChat('chat-2', event)">[✖]</span>
+                </div>
+              </div>
+
+              <!-- Section: TODAY -->
+              <div class="sidebar-section-header">TODAY</div>
+              
+              <div class="tree-item" data-item-type="chat" data-item-target="chat-3">
+                <div class="tree-item-primary-row">
+                  <span class="item-indicator"> </span>
+                  <span class="item-text">Debug session</span>
+                  <span class="item-time">11:43</span>
+                </div>
+                <div class="tree-item-secondary-row">
+                  <span>🤖 Dev · Thread panic</span>
+                </div>
+                <div class="chat-item-actions">
+                  <span class="chat-action-btn" onclick="renameChat('chat-3', event)">[✏]</span>
+                  <span class="chat-action-btn" onclick="deleteChat('chat-3', event)">[✖]</span>
+                </div>
+              </div>
+
+              <div class="tree-item" data-item-type="chat" data-item-target="chat-4">
+                <div class="tree-item-primary-row">
+                  <span class="item-indicator"> </span>
+                  <span class="item-text">API integration</span>
+                  <span class="item-time">22:01</span>
+                </div>
+                <div class="tree-item-secondary-row">
+                  <span>🌐 Atlas · z.ai endpoints</span>
+                </div>
+                <div class="chat-item-actions">
+                  <span class="chat-action-btn" onclick="renameChat('chat-4', event)">[✏]</span>
+                  <span class="chat-action-btn" onclick="deleteChat('chat-4', event)">[✖]</span>
+                </div>
+              </div>
+
+              <!-- Section: YESTERDAY -->
+              <div class="sidebar-section-header">YESTERDAY</div>
+              
+              <div class="tree-item" data-item-type="chat" data-item-target="chat-5">
+                <div class="tree-item-primary-row">
+                  <span class="item-indicator"> </span>
+                  <span class="item-text">Docs sprint</span>
+                  <span class="item-time">Yesterday</span>
+                </div>
+                <div class="tree-item-secondary-row">
+                  <span>📚 Sage · v8 draft</span>
+                </div>
+                <div class="chat-item-actions">
+                  <span class="chat-action-btn" onclick="renameChat('chat-5', event)">[✏]</span>
+                  <span class="chat-action-btn" onclick="deleteChat('chat-5', event)">[✖]</span>
+                </div>
+              </div>
+
+              <div style="flex-grow: 1;"></div>
+              
+              <div class="sidebar-header-underline">──────────────────────────────</div>
+              <div class="panel-action-row">
+                <div class="tui-btn-box" onclick="showFormView('persona')">
+                  <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+                  <div class="btn-middle"><span>│</span><span class="btn-text">╭+╯ Create Persona</span><span>│</span></div>
+                  <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- PANEL: Files (tab="files") -->
+            <div class="sidebar-panel" id="panel-files">
+              <div class="sidebar-header">📁 FILES &amp; KNOWLEDGE</div>
+              <div class="sidebar-header-underline">──────────────────────────────</div>
+              
+              <div class="sidebar-section-header">Workspace Files</div>
+              <div class="tree-item" data-item-type="project-file" data-file-target="parser.rs"><div class="tree-item-primary-row"><span class="item-indicator"> </span><span class="item-text">src/parser.rs</span></div></div>
+              <div class="tree-item" data-item-type="project-file" data-file-target="main.rs"><div class="tree-item-primary-row"><span class="item-indicator"> </span><span class="item-text">src/main.rs</span></div></div>
+              <div class="tree-item" data-item-type="project-file" data-file-target="worker.rs"><div class="tree-item-primary-row"><span class="item-indicator"> </span><span class="item-text">src/worker.rs</span></div></div>
+              <div class="tree-item" data-item-type="project-file" data-file-target="client.py"><div class="tree-item-primary-row"><span class="item-indicator"> </span><span class="item-text">client.py</span></div></div>
+              <div class="tree-item" data-item-type="project-file" data-file-target="architecture.mermaid"><div class="tree-item-primary-row"><span class="item-indicator"> </span><span class="item-text">architecture.mermaid</span></div></div>
+              <div class="tree-item" data-item-type="project-file" data-file-target="proposal.md"><div class="tree-item-primary-row"><span class="item-indicator"> </span><span class="item-text">proposal.md</span></div></div>
+
+              <div style="flex-grow: 1;"></div>
+              <div class="sidebar-header-underline">──────────────────────────────</div>
+              <div class="panel-action-row">
+                <div class="tui-btn-box" onclick="triggerAttach()">
+                  <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+                  <div class="btn-middle"><span>│</span><span class="btn-text">╭+╯ Upload File</span><span>│</span></div>
+                  <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- PANEL: Personas (tab="personas") -->
+            <div class="sidebar-panel" id="panel-personas">
+              <div class="sidebar-header">🎭 PERSONAS</div>
+              <div class="sidebar-header-underline">──────────────────────────────</div>
+              
+              <div class="tree-item active" data-item-type="persona" data-target-persona="Dev">
+                <div class="tree-item-primary-row">
+                  <span class="item-indicator">▸</span>
+                  <span class="item-text">🤖 Dev</span>
+                </div>
+                <div class="panel-detail-box">Rust expert · code-helper
+Model: claude-3.5-sonnet</div>
+              </div>
+
+              <div class="tree-item" data-item-type="persona" data-target-persona="Luna">
+                <div class="tree-item-primary-row">
+                  <span class="item-indicator"> </span>
+                  <span class="item-text">🎨 Luna</span>
+                </div>
+                <div class="panel-detail-box">UI/UX designer · design-review
+Model: gpt-4o</div>
+              </div>
+
+              <div class="tree-item" data-item-type="persona" data-target-persona="Atlas">
+                <div class="tree-item-primary-row">
+                  <span class="item-indicator"> </span>
+                  <span class="item-text">🌐 Atlas</span>
+                </div>
+                <div class="panel-detail-box">API routing · systems-architect
+Model: deepseek-r1</div>
+              </div>
+
+              <div class="tree-item" data-item-type="persona" data-target-persona="Sage">
+                <div class="tree-item-primary-row">
+                  <span class="item-indicator"> </span>
+                  <span class="item-text">📚 Sage</span>
+                </div>
+                <div class="panel-detail-box">Docs analyst · writing-coach
+Model: gemini-2.5-pro</div>
+              </div>
+
+              <div style="flex-grow: 1;"></div>
+              <div class="sidebar-header-underline">──────────────────────────────</div>
+              <div class="panel-action-row">
+                <div class="tui-btn-box" onclick="showFormView('persona')">
+                  <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+                  <div class="btn-middle"><span>│</span><span class="btn-text">╭+╯ Create Persona</span><span>│</span></div>
+                  <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- PANEL: Agents (tab="agents") -->
+            <div class="sidebar-panel" id="panel-agents">
+              <div class="sidebar-header">🔧 AGENTS &amp; ACP</div>
+              <div class="sidebar-header-underline">──────────────────────────────</div>
+              
+              <div class="tree-item active" data-item-type="acp-session">
+                <div class="tree-item-primary-row">
+                  <span class="item-indicator">▸</span>
+                  <span class="item-text">🤖 code-helper</span>
+                </div>
+                <div class="panel-detail-box">
+Tools: <span style="color: var(--teal);">terminal, files, browser</span>
+MCP: <span style="color: var(--green);">3 servers</span>
+Status: <span id="acp-code-helper-status" style="color: var(--green); font-weight: bold;">● ready</span>
+<div style="display: flex; gap: 1.5ch; margin-top: 0.8ch;">
+  <div class="tui-btn-box primary" onclick="controlAcp('code-helper', 'start')">
+    <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+    <div class="btn-middle"><span>│</span><span class="btn-text">Run</span><span>│</span></div>
+    <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+  </div>
+  <div class="tui-btn-box dimmed" onclick="controlAcp('code-helper', 'stop')">
+    <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+    <div class="btn-middle"><span>│</span><span class="btn-text">Stop</span><span>│</span></div>
+    <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+  </div>
+</div>
+                </div>
+              </div>
+
+              <div style="flex-grow: 1;"></div>
+              <div class="sidebar-header-underline">──────────────────────────────</div>
+              <div class="panel-action-row">
+                <div class="tui-btn-box" onclick="showFormView('agent')">
+                  <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+                  <div class="btn-middle"><span>│</span><span class="btn-text">⚙ Configure Agent</span><span>│</span></div>
+                  <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- PANEL: Skills (tab="skills") -->
+            <div class="sidebar-panel" id="panel-skills">
+              <div class="sidebar-header">⚡ SKILLS</div>
+              <div class="sidebar-header-underline">──────────────────────────────</div>
+              
+              <div class="tree-item" data-item-type="skill">
+                <div class="tree-item-primary-row"><span class="item-indicator">▸</span><span class="item-text">[x] code-review</span></div>
+                <div class="panel-detail-box">Pre-commit review: quality gates</div>
+              </div>
+              <div class="tree-item" data-item-type="skill">
+                <div class="tree-item-primary-row"><span class="item-indicator"> </span><span class="item-text">[x] debugging</span></div>
+                <div class="panel-detail-box">4-phase root cause analysis</div>
+              </div>
+              <div class="tree-item" data-item-type="skill">
+                <div class="tree-item-primary-row"><span class="item-indicator"> </span><span class="item-text">[ ] plan-mode</span></div>
+                <div class="panel-detail-box">Markdown plans, no execution</div>
+              </div>
+
+              <div style="flex-grow: 1;"></div>
+              <div class="sidebar-header-underline">──────────────────────────────</div>
+              <div class="panel-action-row">
+                <div class="tui-btn-box" onclick="showFormView('skill')">
+                  <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+                  <div class="btn-middle"><span>│</span><span class="btn-text">⚡ Create Skill</span><span>│</span></div>
+                  <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- PANEL: MCP Servers (tab="mcp") -->
+            <div class="sidebar-panel" id="panel-mcp">
+              <div class="sidebar-header">🔌 MCP SERVERS</div>
+              <div class="sidebar-header-underline">──────────────────────────────</div>
+              
+              <div class="tree-item" data-item-type="mcp-server">
+                <div class="tree-item-primary-row"><span class="item-indicator">▸</span><span class="item-text">● sqlite-mcp</span></div>
+                <div class="panel-detail-box">SQLite direct DB access
+Status: <span style="color: var(--green);">● online</span> (port 3010)</div>
+              </div>
+              <div class="tree-item" data-item-type="mcp-server">
+                <div class="tree-item-primary-row"><span class="item-indicator"> </span><span class="item-text">● github-mcp</span></div>
+                <div class="panel-detail-box">GitHub API integration
+Status: <span style="color: var(--green);">● online</span></div>
+              </div>
+              <div class="tree-item" data-item-type="mcp-server">
+                <div class="tree-item-primary-row"><span class="item-indicator"> </span><span class="item-text">● filesystem-mcp</span></div>
+                <div class="panel-detail-box">Local sandbox file system
+Status: <span style="color: var(--green);">● online</span></div>
+              </div>
+
+              <div style="flex-grow: 1;"></div>
+              <div class="sidebar-header-underline">──────────────────────────────</div>
+              <div class="panel-action-row">
+                <div class="tui-btn-box" onclick="showFormView('mcp')">
+                  <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+                  <div class="btn-middle"><span>│</span><span class="btn-text">🔌 Add Server</span><span>│</span></div>
+                  <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- PANEL: Memories (tab="memories") -->
+            <div class="sidebar-panel" id="panel-memories">
+              <div class="sidebar-header">🧠 MEMORIES</div>
+              <div class="sidebar-header-underline">──────────────────────────────</div>
+              
+              <div class="tree-item"><div class="tree-item-primary-row"><span class="item-indicator">▸</span><span class="item-text">● user_name: hbuddenberg</span></div></div>
+              <div class="tree-item"><div class="tree-item-primary-row"><span class="item-indicator"> </span><span class="item-text">● fav_editor: neovim</span></div></div>
+              <div class="tree-item"><div class="tree-item-primary-row"><span class="item-indicator"> </span><span class="item-text">● target_os: arch linux</span></div></div>
+              <div class="tree-item"><div class="tree-item-primary-row"><span class="item-indicator"> </span><span class="item-text">● main_language: rust</span></div></div>
+
+              <div style="flex-grow: 1;"></div>
+              <div class="sidebar-header-underline">──────────────────────────────</div>
+              <div class="panel-action-row">
+                <div class="tui-btn-box" onclick="triggerToast('Memory added')">
+                  <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+                  <div class="btn-middle"><span>│</span><span class="btn-text">🧠 Add Fact</span><span>│</span></div>
+                  <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- PANEL: Settings (tab="settings") -->
+            <div class="sidebar-panel" id="panel-settings">
+              <div class="sidebar-header">⚙ SETTINGS</div>
+              <div class="sidebar-header-underline">──────────────────────────────</div>
+              
+              <div class="settings-group">
+                <div class="settings-label">GENERAL</div>
+                <div class="tui-checkbox" onclick="toggleSendOnEnter()">
+                  <span class="checkbox-box" id="checkbox-send-enter">[x]</span>
+                  <span class="checkbox-label">Send on Enter</span>
+                </div>
+                <div class="tui-checkbox" id="settings-nerdfont-checkbox" onclick="toggleEmojiNerdFontMode()">
+                  <span class="checkbox-box" id="checkbox-nerdfont">[x]</span>
+                  <span class="checkbox-label">Nerd Fonts Mode</span>
+                </div>
+              </div>
+
+              <div class="settings-group">
+                <div class="settings-label">THEMES LIST</div>
+                <div style="display: flex; flex-direction: column; gap: 0.5ch;">
+                  <div class="theme-list-item active" onclick="selectTheme('catppuccin')"><span class="item-indicator">▸</span> Catppuccin Mocha</div>
+                  <div class="theme-list-item" onclick="selectTheme('tokyonight')"><span class="item-indicator"> </span> Tokyo Night</div>
+                  <div class="theme-list-item" onclick="selectTheme('nord')"><span class="item-indicator"> </span> Nord Theme</div>
+                  <div class="theme-list-item" onclick="selectTheme('dracula')"><span class="item-indicator"> </span> Dracula Theme</div>
+                  <div class="theme-list-item" onclick="selectTheme('github')"><span class="item-indicator"> </span> GitHub Dark</div>
+                  <div class="theme-list-item" onclick="selectTheme('rosepine')"><span class="item-indicator"> </span> Rosé Pine</div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Divider 2 (Thicker double border between Sidebar and Main, Resizable) -->
+          <div class="divider-v-double resizable" id="resize-left"></div>
+
+          <!-- 3. Center Chat Canvas Column / Form View Wrapper -->
+          <div class="chat-column">
+            
+            <!-- Nvim Status Bar Fixed at top of chat canvas -->
+            <div class="chat-status-bar-top border-h">
+              <span>── <span id="status-top-mode">NORMAL</span> │ <span id="status-top-model">gpt-4o</span> │ <span id="status-top-tokens">12,433</span> tok │ <span id="status-top-latency">42s</span> ───</span>
+              <span class="border-h-fill"></span>
+              <span>───</span>
+            </div>
+
+            <!-- Scrollable Chats Area -->
+            <div class="chat-canvas-wrapper" id="chat-canvas-wrapper">
+              
+              <!-- Chat Header Box (v8) -->
+              <div class="chat-header-container">
+                <div class="border-h">
+                  <span>╭─ Chat Context </span>
+                  <span class="border-h-fill"></span>
+                  <span>╮</span>
+                </div>
+                <div class="chat-header-middle">
+                  <div class="chat-header-left-edge"></div>
+                  <div class="chat-header-content">
+                    <div class="chat-header-info">
+                      <div class="chat-header-title-row">
+                        <span class="chat-header-persona-avatar" id="header-avatar">🎭</span>
+                        <span class="chat-header-persona-name" id="header-name">Dr.Schema</span>
+                        <span class="chat-header-model-pill" id="header-model">● GPT-4o</span>
+                      </div>
+                      <div class="chat-header-details-row">
+                        <span id="header-title">Rust refactor</span> · <span id="header-msg-count">47 msgs</span> · <span id="header-time-info">Started 2h ago</span>
+                      </div>
+                      <div class="chat-header-tags-row" id="header-tags">
+                        <span class="chat-header-tag">#rust</span>
+                        <span class="chat-header-tag">#parser</span>
+                        <span class="chat-header-tag">#refactor</span>
+                      </div>
+                    </div>
+                    <!-- Box-drawn Info Button -->
+                    <div class="tui-btn-box" onclick="switchToInfoTab()">
+                      <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+                      <div class="btn-middle"><span>│</span><span class="btn-text">🛈 Info</span><span>│</span></div>
+                      <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+                    </div>
+                  </div>
+                  <div class="chat-header-right-edge"></div>
+                </div>
+                <div class="border-h">
+                  <span>╰</span>
+                  <span class="border-h-fill"></span>
+                  <span>╯</span>
+                </div>
+              </div>
+
+              <!-- CHAT 1: Rust refactor -->
+              <div class="chat-canvas active" id="canvas-chat-1">
+                <div class="message-container user-msg-align">
+                  <div class="message-box user-accent">
+                    <div class="border-h"><span>╭─ You ─ 14:30 </span><span class="border-h-fill"></span><span>╮</span></div>
+                    <div class="message-middle">
+                      <div class="message-left-edge"></div>
+                      <div class="message-content">Refactor the JSON parser to use serde_json and verify it passes tests.</div>
+                      <div class="message-right-edge"></div>
+                    </div>
+                    <div class="border-h"><span>╰</span><span class="border-h-fill"></span><span>╯</span></div>
+                  </div>
+                </div>
+
+                <div class="message-container assistant-msg-align">
+                  <div class="message-box assistant-dev-accent">
+                    <div class="border-h"><span>╭─ 🎭 Dr.Schema ─ 14:30 </span><span class="border-h-fill"></span><span>╮</span></div>
+                    <div class="message-middle">
+                      <div class="message-left-edge"></div>
+                      <div class="message-content">Here's the refactored code for `src/parser.rs` using `serde_json`. Let's review the code structure:
+
+<div class="code-block-box">
+  <div class="border-h"><span>┌─ Rust ─ src/parser.rs </span><span class="border-h-fill"></span><span>┐</span></div>
+  <div class="code-block-middle">
+    <div class="code-block-left-edge"></div>
+    <div class="code-block-content"><span class="line-num">1</span><span class="keyword">use</span> serde::{Deserialize, Serialize};
+<span class="line-num">2</span><span class="keyword">use</span> serde_json::Result;
+<span class="line-num">3</span>
+<span class="line-num">4</span><span class="attr">#[derive(Serialize, Deserialize, Debug)]</span>
+<span class="line-num">5</span><span class="keyword">pub struct</span> <span class="type">Config</span> {
+<span class="line-num">6</span>    <span class="keyword">pub</span> version: <span class="type">String</span>,
+<span class="line-num">7</span>    <span class="keyword">pub</span> workspaces: <span class="type">Vec</span>&lt;<span class="type">String</span>&gt;,
+<span class="line-num">8</span>}
+<span class="line-num">9</span>
+<span class="line-num">10</span><span class="keyword">pub fn</span> <span class="function">parse_config</span>(data: &amp;<span class="type">str</span>) -&gt; Result&lt;<span class="type">Config</span>&gt; {
+<span class="line-num">11</span>    serde_json::from_str(data)
+<span class="line-num">12</span>}</div>
+    <div class="code-block-right-edge"></div>
+  </div>
+  <div class="border-h"><span>└</span><span class="border-h-fill"></span><span>┘</span></div>
+  <div class="artifact-actions">
+    <div class="tui-btn-box primary" onclick="previewFile('parser.rs')">
+      <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+      <div class="btn-middle"><span>│</span><span class="btn-text">Code</span><span>│</span></div>
+      <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+    </div>
+    <div class="tui-btn-box dimmed" onclick="copyMockContent('parser.rs')">
+      <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+      <div class="btn-middle"><span>│</span><span class="btn-text">Copy</span><span>│</span></div>
+      <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+    </div>
+  </div>
+</div>
+
+I am now running the test suite to verify the logic.</div>
+                      <div class="message-right-edge"></div>
+                    </div>
+                    <div class="border-h"><span>╰</span><span class="border-h-fill"></span><span>╯</span></div>
+                  </div>
+                </div>
+
+                <div class="message-container assistant-msg-align">
+                  <!-- Collapsible Embedded Terminal (v8) -->
+                  <div class="terminal-embed-box" id="term-1">
+                    <div class="border-h" onclick="toggleTerminalBox('term-1')">
+                      <span>╭─ ▾ Terminal ─ cargo test --workspace </span>
+                      <span class="border-h-fill"></span>
+                      <div class="terminal-embed-controls">
+                        <span class="terminal-embed-control-btn" onclick="triggerToast('Re-running cargo test...'); event.stopPropagation();">[▶]</span>
+                        <span class="terminal-embed-control-btn" onclick="togglePreviewPanel(); event.stopPropagation();">[⤢]</span>
+                        <span class="terminal-embed-control-btn" onclick="closeTerminalBox('term-1'); event.stopPropagation();">[✕]</span>
+                      </div>
+                      <span>╮</span>
+                    </div>
+                    <div class="terminal-embed-middle">
+                      <div class="terminal-embed-left-edge"></div>
+                      <div class="terminal-embed-collapsible-body">
+                        <div class="terminal-embed-content">$ cargo test --workspace
+   Compiling hyprcollab v0.8.0
+    Finished test profile [unoptimized + debuginfo] target(s) in 1.45s
+     Running unittests src/main.rs
+
+running 12 tests
+test parser::tests::test_parse_valid ... ok
+test parser::tests::test_parse_invalid ... ok
+test scheduler::tests::test_worker_queue ... ok
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+
+── Process exited with code 0 ──</div>
+                      </div>
+                      <div class="terminal-embed-right-edge"></div>
+                    </div>
+                    <div class="border-h"><span>╰</span><span class="border-h-fill"></span><span>╯</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- CHAT 2: UI brainstorm -->
+              <div class="chat-canvas" id="canvas-chat-2">
+                <div class="message-container user-msg-align">
+                  <div class="message-box user-accent">
+                    <div class="border-h"><span>╭─ You ─ 18:12 </span><span class="border-h-fill"></span><span>╮</span></div>
+                    <div class="message-middle">
+                      <div class="message-left-edge"></div>
+                      <div class="message-content">Can you sketch a flow block layout representing the multi-agent orchestration?</div>
+                      <div class="message-right-edge"></div>
+                    </div>
+                    <div class="border-h"><span>╰</span><span class="border-h-fill"></span><span>╯</span></div>
+                  </div>
+                </div>
+
+                <div class="message-container assistant-msg-align">
+                  <div class="message-box assistant-luna-accent">
+                    <div class="border-h"><span>╭─ 🎨 Luna ─ 18:13 </span><span class="border-h-fill"></span><span>╮</span></div>
+                    <div class="message-middle">
+                      <div class="message-left-edge"></div>
+                      <div class="message-content">Here is the architecture layout diagram in Mermaid script. It outlines how the central orchestrator router coordinates between the different agents:
+
+<div class="code-block-box">
+  <div class="border-h"><span>┌─ Mermaid ─ architecture.mermaid </span><span class="border-h-fill"></span><span>┐</span></div>
+  <div class="code-block-middle">
+    <div class="code-block-left-edge"></div>
+    <div class="code-block-content"><span class="line-num">1</span>graph TD
+<span class="line-num">2</span>  User[User Request] --&gt; Router[Orchestrator Router]
+<span class="line-num">3</span>  Router --&gt; Dev[Dev Agent]
+<span class="line-num">4</span>  Router --&gt; Luna[Luna UI Agent]
+<span class="line-num">5</span>  Dev --&gt; ACP[ACP CLI Tool]
+<span class="line-num">6</span>  Luna --&gt; ACP</div>
+    <div class="code-block-right-edge"></div>
+  </div>
+  <div class="border-h"><span>└</span><span class="border-h-fill"></span><span>┘</span></div>
+  <div class="artifact-actions">
+    <div class="tui-btn-box primary" onclick="previewFile('architecture.mermaid')">
+      <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+      <div class="btn-middle"><span>│</span><span class="btn-text">Preview Flow</span><span>│</span></div>
+      <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+    </div>
+  </div>
+</div></div>
+                      <div class="message-right-edge"></div>
+                    </div>
+                    <div class="border-h"><span>╰</span><span class="border-h-fill"></span><span>╯</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- CHAT 3: Debug session -->
+              <div class="chat-canvas" id="canvas-chat-3">
+                <div class="message-container user-msg-align">
+                  <div class="message-box user-accent">
+                    <div class="border-h"><span>╭─ You ─ 11:42 </span><span class="border-h-fill"></span><span>╮</span></div>
+                    <div class="message-middle">
+                      <div class="message-left-edge"></div>
+                      <div class="message-content">The worker tests are failing due to a panic join relation error. Let's look at the failing trace.</div>
+                      <div class="message-right-edge"></div>
+                    </div>
+                    <div class="border-h"><span>╰</span><span class="border-h-fill"></span><span>╯</span></div>
+                  </div>
+                </div>
+
+                <div class="message-container assistant-msg-align">
+                  <div class="message-box assistant-dev-accent">
+                    <div class="border-h"><span>╭─ 🤖 Dev ─ 11:43 </span><span class="border-h-fill"></span><span>╮</span></div>
+                    <div class="message-middle">
+                      <div class="message-left-edge"></div>
+                      <div class="message-content">Understood. Let's inspect the stdout logs from the target worker thread test suite to identify the exact source file location.</div>
+                      <div class="message-right-edge"></div>
+                    </div>
+                    <div class="border-h"><span>╰</span><span class="border-h-fill"></span><span>╯</span></div>
+                  </div>
+                </div>
+
+                <div class="message-container assistant-msg-align">
+                  <div class="terminal-embed-box" id="term-2">
+                    <div class="border-h" onclick="toggleTerminalBox('term-2')">
+                      <span>╭─ ▾ Terminal ─ cargo test --test worker_tests </span>
+                      <span class="border-h-fill"></span>
+                      <div class="terminal-embed-controls">
+                        <span class="terminal-embed-control-btn" onclick="triggerToast('Re-running worker tests...'); event.stopPropagation();">[▶]</span>
+                        <span class="terminal-embed-control-btn" onclick="togglePreviewPanel(); event.stopPropagation();">[⤢]</span>
+                        <span class="terminal-embed-control-btn" onclick="closeTerminalBox('term-2'); event.stopPropagation();">[✕]</span>
+                      </div>
+                      <span>╮</span>
+                    </div>
+                    <div class="terminal-embed-middle">
+                      <div class="terminal-embed-left-edge"></div>
+                      <div class="terminal-embed-collapsible-body">
+                        <div class="terminal-embed-content">$ cargo test --test worker_tests
+   Compiling hyprcollab v0.8.0
+    Finished test profile [unoptimized] target(s) in 0.9s
+     Running tests/worker_tests.rs
+
+thread 'worker::test_panic_handler' panicked at 'join relation not found: thread 19 collapsed', src/worker.rs:42:15
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored;
+
+── Process exited with code 101 ──</div>
+                      </div>
+                      <div class="terminal-embed-right-edge"></div>
+                    </div>
+                    <div class="border-h"><span>╰</span><span class="border-h-fill"></span><span>╯</span></div>
+                  </div>
+                </div>
+
+                <div class="message-container assistant-msg-align">
+                  <div class="message-box assistant-dev-accent">
+                    <div class="border-h"><span>╭─ 🤖 Dev ─ 11:44 </span><span class="border-h-fill"></span><span>╮</span></div>
+                    <div class="message-middle">
+                      <div class="message-left-edge"></div>
+                      <div class="message-content">The failure is caused by thread handles collapsing before joint completion. I've updated `src/worker.rs` to use `tokio::task::JoinSet` which prevents join deadlock leaks:
+
+<div class="code-block-box">
+  <div class="border-h"><span>┌─ Rust ─ src/worker.rs </span><span class="border-h-fill"></span><span>┐</span></div>
+  <div class="code-block-middle">
+    <div class="code-block-left-edge"></div>
+    <div class="code-block-content"><span class="line-num">1</span><span class="keyword">use</span> tokio::task::JoinSet;
+<span class="line-num">2</span>
+<span class="line-num">3</span><span class="keyword">pub async fn</span> <span class="function">execute_workers</span>() {
+<span class="line-num">4</span>    <span class="keyword">let mut</span> set = JoinSet::new();
+<span class="line-num">5</span>    <span class="keyword">for</span> i <span class="keyword">in</span> 0..10 {
+<span class="line-num">6</span>        set.spawn(<span class="keyword">async move</span> { i });
+<span class="line-num">7</span>    }
+<span class="line-num">8</span>    <span class="keyword">while let Some</span>(res) = set.join_next().<span class="keyword">await</span> {
+<span class="line-num">9</span>        <span class="comment">// Clean joint termination handling</span>
+<span class="line-num">10</span>    }
+<span class="line-num">11</span>}</div>
+    <div class="code-block-right-edge"></div>
+  </div>
+  <div class="border-h"><span>└</span><span class="border-h-fill"></span><span>┘</span></div>
+  <div class="artifact-actions">
+    <div class="tui-btn-box primary" onclick="previewFile('worker.rs')">
+      <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+      <div class="btn-middle"><span>│</span><span class="btn-text">Code</span><span>│</span></div>
+      <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+    </div>
+  </div>
+</div></div>
+                      <div class="message-right-edge"></div>
+                    </div>
+                    <div class="border-h"><span>╰</span><span class="border-h-fill"></span><span>╯</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- CHAT 4: API integration -->
+              <div class="chat-canvas" id="canvas-chat-4">
+                <div class="message-container user-msg-align">
+                  <div class="message-box user-accent">
+                    <div class="border-h"><span>╭─ You ─ 22:00 </span><span class="border-h-fill"></span><span>╮</span></div>
+                    <div class="message-middle">
+                      <div class="message-left-edge"></div>
+                      <div class="message-content">How do I connect to the z.ai model API in Python?</div>
+                      <div class="message-right-edge"></div>
+                    </div>
+                    <div class="border-h"><span>╰</span><span class="border-h-fill"></span><span>╯</span></div>
+                  </div>
+                </div>
+
+                <div class="message-container assistant-msg-align">
+                  <div class="message-box assistant-atlas-accent">
+                    <div class="border-h"><span>╭─ 🌐 Atlas ─ 22:01 </span><span class="border-h-fill"></span><span>╮</span></div>
+                    <div class="message-middle">
+                      <div class="message-left-edge"></div>
+                      <div class="message-content">To connect to the API, import the client SDK and establish a session channel:
+
+<div class="code-block-box">
+  <div class="border-h"><span>┌─ Python ─ client.py </span><span class="border-h-fill"></span><span>┐</span></div>
+  <div class="code-block-middle">
+    <div class="code-block-left-edge"></div>
+    <div class="code-block-content"><span class="line-num">1</span><span class="keyword">from</span> z_ai <span class="keyword">import</span> Client
+<span class="line-num">2</span>
+<span class="line-num">3</span>client = Client()
+<span class="line-num">4</span>res = client.chat(
+<span class="line-num">5</span>    prompt=<span class="string">"Hello from client.py!"</span>
+<span class="line-num">6</span>)
+<span class="line-num">7</span><span class="function">print</span>(res)</div>
+    <div class="code-block-right-edge"></div>
+  </div>
+  <div class="border-h"><span>└</span><span class="border-h-fill"></span><span>┘</span></div>
+  <div class="artifact-actions">
+    <div class="tui-btn-box primary" onclick="previewFile('client.py')">
+      <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+      <div class="btn-middle"><span>│</span><span class="btn-text">Code</span><span>│</span></div>
+      <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+    </div>
+  </div>
+</div></div>
+                      <div class="message-right-edge"></div>
+                    </div>
+                    <div class="border-h"><span>╰</span><span class="border-h-fill"></span><span>╯</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- CHAT 5: Docs sprint -->
+              <div class="chat-canvas" id="canvas-chat-5">
+                <div class="message-container user-msg-align">
+                  <div class="message-box user-accent">
+                    <div class="border-h"><span>╭─ You ─ 10:05 </span><span class="border-h-fill"></span><span>╮</span></div>
+                    <div class="message-middle">
+                      <div class="message-left-edge"></div>
+                      <div class="message-content">Can you draft the markdown proposal description for the v8 release?</div>
+                      <div class="message-right-edge"></div>
+                    </div>
+                    <div class="border-h"><span>╰</span><span class="border-h-fill"></span><span>╯</span></div>
+                  </div>
+                </div>
+
+                <div class="message-container assistant-msg-align">
+                  <div class="message-box assistant-sage-accent">
+                    <div class="border-h"><span>╭─ 📚 Sage ─ 10:06 </span><span class="border-h-fill"></span><span>╮</span></div>
+                    <div class="message-middle">
+                      <div class="message-left-edge"></div>
+                      <div class="message-content">Here is the compiled feature proposal summary for release v8. You can preview the rendered markdown output in the Right Panel.
+
+<div class="code-block-box">
+  <div class="border-h"><span>┌─ Markdown ─ proposal.md </span><span class="border-h-fill"></span><span>┐</span></div>
+  <div class="code-block-middle">
+    <div class="code-block-left-edge"></div>
+    <div class="code-block-content"><span class="line-num">1</span># HyprCollab v8 Proposal
+<span class="line-num">2</span>
+<span class="line-num">3</span>- **Advanced Chat Header** details
+<span class="line-num">4</span>- **Embedded Terminal Panels** (cargo test logs)
+<span class="line-num">5</span>- **Activity Bar toggling** Nerd Fonts &amp; Emojis
+<span class="line-num">6</span>- **Full Form configuring** inside main view
+<span class="line-num">7</span>- **Dual Mode Right Panel** (Preview + Info)</div>
+    <div class="code-block-right-edge"></div>
+  </div>
+  <div class="border-h"><span>└</span><span class="border-h-fill"></span><span>┘</span></div>
+  <div class="artifact-actions">
+    <div class="tui-btn-box primary" onclick="previewFile('proposal.md')">
+      <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+      <div class="btn-middle"><span>│</span><span class="btn-text">Preview Document</span><span>│</span></div>
+      <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+    </div>
+  </div>
+</div></div>
+                      <div class="message-right-edge"></div>
+                    </div>
+                    <div class="border-h"><span>╰</span><span class="border-h-fill"></span><span>╯</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Typing Indicator (simulated generator state) -->
+              <div class="message-container assistant-msg-align" id="streaming-message-container" style="display: none;">
+                <div class="message-box assistant-accent">
+                  <div class="border-h">
+                    <span>╭─ 🤖 Dev ─ typing </span>
+                    <span class="border-h-fill"></span>
+                    <span>╮</span>
+                  </div>
+                  <div class="message-middle">
+                    <div class="message-left-edge"></div>
+                    <div class="message-content">
+                      <span id="streaming-text"></span><span class="cursor-block">█</span>
+                    </div>
+                    <div class="message-right-edge"></div>
+                  </div>
+                  <div class="border-h">
+                    <span>╰</span>
+                    <span class="border-h-fill"></span>
+                    <span>╯</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- ===== CREATE/CONFIGURE FORM VIEW (v8) ===== -->
+            <div class="main-form-view" id="main-form-view">
+              
+              <!-- Form Top Row -->
+              <div class="form-header-row">
+                <div class="form-avatar-box">
+                  <div class="border-h"><span>┌</span><span class="border-h-fill"></span><span>┐</span></div>
+                  <div class="btn-middle"><span>👤</span></div>
+                  <div class="border-h"><span>└</span><span class="border-h-fill"></span><span>┘</span></div>
+                </div>
+                <div class="form-title" id="form-view-title">Create New Persona</div>
+              </div>
+
+              <!-- Form Sections -->
+              <div id="form-view-container">
+                <!-- Content injected dynamically based on context -->
+              </div>
+              
+              <!-- Form Buttons -->
+              <div style="display: flex; gap: 2ch; margin-top: 2ch;">
+                <div class="tui-btn-box primary" onclick="saveFormView()">
+                  <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+                  <div class="btn-middle"><span>│</span><span class="btn-text">✓ Save Settings</span><span>│</span></div>
+                  <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+                </div>
+                <div class="tui-btn-box red-accent" onclick="closeFormView()">
+                  <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+                  <div class="btn-middle"><span>│</span><span class="btn-text">✕ Cancel</span><span>│</span></div>
+                  <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- 4. Input Area (Fixed at bottom of chat canvas) -->
+            <div class="chat-input-area">
+              
+              <!-- Slash Commands Dropdown Menu -->
+              <div class="commands-dropdown" id="suggest-dropdown">
+                <div class="border-h">
+                  <span>┌─ Commands </span>
+                  <span class="border-h-fill"></span>
+                  <span>┐</span>
+                </div>
+                <div class="dropdown-middle">
+                  <div class="dropdown-left-edge"></div>
+                  <div class="dropdown-content" id="dropdown-items-container">
+                    <!-- Dynamic matches -->
+                  </div>
+                  <div class="dropdown-right-edge"></div>
+                </div>
+                <div class="border-h">
+                  <span>└</span>
+                  <span class="border-h-fill"></span>
+                  <span>┘</span>
+                </div>
+              </div>
+
+              <!-- Input status divider -->
+              <div class="input-status-line border-h">
+                <span>── <span id="input-status-mode">NORMAL</span> │ &lt;C-s&gt; send │ &lt;C-p&gt; preview │ &lt;C-/&gt; help </span>
+                <span class="border-h-fill"></span>
+                <span>──</span>
+              </div>
+
+              <!-- Input prompt box -->
+              <div class="input-middle-content">
+                <div class="input-left-edge"></div>
+                <div class="input-center-body">
+                  <div class="input-prompt-line">
+                    <span class="prompt-arrow">&gt;</span>
+                    <div class="input-container" onclick="focusInput()">
+                      <span class="input-placeholder" id="input-placeholder">Type a message... / for commands_</span>
+                      <span class="input-typed" id="typed-text"></span>
+                      <span class="cursor-block" id="cursor-character">_</span>
+                      <input type="text" class="actual-input" id="terminal-input" disabled autocomplete="off" />
+                    </div>
+                  </div>
+                  
+                  <div class="input-actions-row">
+                    <div class="tui-btn-box" id="btn-attach" onclick="triggerAttach()">
+                      <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+                      <div class="btn-middle"><span>│</span><span class="btn-text">📎 Attach</span><span>│</span></div>
+                      <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+                    </div>
+                    <div class="tui-btn-box" id="btn-voice" onclick="triggerVoice()">
+                      <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+                      <div class="btn-middle"><span>│</span><span class="btn-text">🎤 Voice</span><span>│</span></div>
+                      <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+                    </div>
+                    <div class="tui-btn-box" id="btn-term" onclick="triggerUserTerminal()">
+                      <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+                      <div class="btn-middle"><span>│</span><span class="btn-text">🖥️ Term</span><span>│</span></div>
+                      <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+                    </div>
+                    <div class="tui-btn-box" id="btn-persona-picker" onclick="triggerPersonaPicker()">
+                      <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+                      <div class="btn-middle"><span>│</span><span class="btn-text">👤 Persona</span><span>│</span></div>
+                      <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+                    </div>
+                    <div class="tui-btn-box primary" id="btn-send-msg" onclick="triggerSend()">
+                      <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+                      <div class="btn-middle"><span>│</span><span class="btn-text">▶ Send</span><span>│</span></div>
+                      <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="input-right-edge"></div>
+              </div>
+              
+              <div class="border-h">
+                <span>╰</span>
+                <span class="border-h-fill"></span>
+                <span>╯</span>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Divider 3 (Double border between Main Chat and Right Panel, Resizable) -->
+          <div class="divider-v-double resizable" id="resize-right" style="display: none;"></div>
+
+          <!-- 5. Right Preview Column (collapsible) -->
+          <div class="preview-column" id="preview-column" style="display: none;">
+            
+            <!-- Tab selector top headers -->
+            <div class="preview-panel-dual-tabs">
+              <div class="panel-mode-tab active" id="tab-mode-preview" onclick="switchRightPanelMode('preview')">Preview</div>
+              <div class="panel-mode-tab" id="tab-mode-info" onclick="switchRightPanelMode('info')">Info</div>
+            </div>
+            
+            <div class="preview-panel-header border-h">
+              <span>── <span id="preview-filename">FILE PREVIEW</span> </span>
+              <span class="border-h-fill"></span>
+              <button class="tui-btn-clickable dimmed" onclick="collapsePreviewPanel()">[✕]</button>
+            </div>
+            
+            <!-- Sub-tabs for Preview mode -->
+            <div class="preview-panel-subtabs-row" id="preview-subtabs">
+              <div class="tui-btn-box primary" id="tab-preview-code" onclick="switchPreviewSubtab('code')">
+                <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+                <div class="btn-middle"><span>│</span><span class="btn-text">Code</span><span>│</span></div>
+                <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+              </div>
+              <div class="tui-btn-box" id="tab-preview-render" onclick="switchPreviewSubtab('render')">
+                <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+                <div class="btn-middle"><span>│</span><span class="btn-text">Render</span><span>│</span></div>
+                <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+              </div>
+              <div class="tui-btn-box" id="tab-preview-mermaid" onclick="switchPreviewSubtab('mermaid')">
+                <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+                <div class="btn-middle"><span>│</span><span class="btn-text">Mermaid</span><span>│</span></div>
+                <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+              </div>
+            </div>
+
+            <!-- Content viewport -->
+            <div class="preview-panel-content">
+              
+              <!-- MODE 1: Preview Viewports -->
+              <div class="preview-mode-viewport" id="preview-viewport-mode">
+                <div class="preview-empty-state" id="preview-empty">
+                  No file selected. Click [Code] on a file or code block.
+                </div>
+                <div class="preview-code-body" id="preview-code-body"></div>
+                <div class="preview-render-body" id="preview-render-body"></div>
+              </div>
+              
+              <!-- MODE 2: Info Viewport -->
+              <div class="info-mode-viewport" id="info-viewport-mode">
+                <div class="form-section-group">
+                  <div class="border-h"><span>╭─ Chat Details </span><span class="border-h-fill"></span><span>╮</span></div>
+                  <div class="form-section-middle">
+                    <div class="form-section-left-edge"></div>
+                    <div class="form-section-content">
+                      <div class="info-box-details" id="chat-info-details-box">
+                        <!-- Injected details -->
+                      </div>
+                    </div>
+                    <div class="form-section-right-edge"></div>
+                  </div>
+                  <div class="border-h"><span>╰</span><span class="border-h-fill"></span><span>╯</span></div>
+                </div>
+                
+                <div style="display: flex; gap: 1ch; justify-content: flex-start; padding: 0 1ch;">
+                  <div class="tui-btn-box" onclick="triggerToast('Copied logs!')">
+                    <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+                    <div class="btn-middle"><span>│</span><span class="btn-text">📋 Copy Logs</span><span>│</span></div>
+                    <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+                  </div>
+                  <div class="tui-btn-box" onclick="triggerToast('Conversation exported!')">
+                    <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+                    <div class="btn-middle"><span>│</span><span class="btn-text">📤 Export</span><span>│</span></div>
+                    <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Metadata footer (only for file preview) -->
+            <div class="preview-metadata-footer" id="preview-footer" style="display: none;">
+              <div class="preview-footer-info">
+                <span id="preview-info-lines">Lines: --</span>
+                <span id="preview-info-lang">Lang: Text</span>
+              </div>
+              <div class="preview-footer-actions">
+                <div class="tui-btn-box primary" onclick="copyPreviewFile()">
+                  <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+                  <div class="btn-middle"><span>│</span><span class="btn-text">Copy</span><span>│</span></div>
+                  <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+                </div>
+                <div class="tui-btn-box" onclick="openPreviewFile()">
+                  <div class="btn-border-h"><span>╭</span><span class="btn-border-h-fill"></span><span>╮</span></div>
+                  <div class="btn-middle"><span>│</span><span class="btn-text">Edit</span><span>│</span></div>
+                  <div class="btn-border-h"><span>╰</span><span class="btn-border-h-fill"></span><span>╯</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Horizontal separator row above bottom nvim bar -->
+        <div class="border-h" id="bottom-sep-row">
+          <span>├</span>
+          <span class="border-h-fill" style="flex: 0 0 6ch;"></span>
+          <span>┼</span>
+          <span class="border-h-fill" style="flex: 0 0 35ch;" id="sep-sidebar-flex"></span>
+          <span>┼</span>
+          <span class="border-h-fill"></span>
+          <span class="preview-connector" style="display: none;">┼</span>
+          <span class="border-h-fill preview-connector" style="flex: 0 0 45ch; display: none;" id="sep-preview-flex"></span>
+          <span>┤</span>
+        </div>
+
+        <!-- 6. NVIM Status Bar Line (Bottom Edge) -->
+        <div class="tui-status-bar-line">
+          <div class="status-left">
+            <div class="status-mode-pill" id="mode-pill">NORMAL</div>
+            <div class="status-keybinds">
+              <span class="key-indicator">&lt;leader&gt;h</span> help │ 
+              <span class="key-indicator">&lt;C-p&gt;</span> toggle preview │ 
+              <span class="key-indicator">&lt;C-w&gt;h/l</span> focus │ 
+              <span class="key-indicator">&lt;leader&gt;t</span> themes │
+              <span class="key-indicator">1-8</span> tabs │
+              <span class="key-indicator">i</span> insert
+            </div>
+            <div class="status-command-prompt" id="command-prompt">:</div>
+          </div>
+          <div class="status-right">
+            <span class="status-right-mode" id="status-right-mode">NORMAL</span>
+            <span class="status-right-encoding">utf-8</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right chrome frame element -->
+      <div class="divider-v chrome-right"></div>
+
+    </div>
+
+    <!-- Bottom Chrome Border -->
+    <div class="border-h chrome-bottom">
+      <span>╰</span>
+      <span class="border-h-fill"></span>
+      <span>╯</span>
+    </div>
+
+  </div>
+
+  <!-- FLOATING MODAL: Help Menu -->
+  <div class="tui-modal-overlay" id="help-modal">
+    <div class="tui-modal">
+      <div class="border-h">
+        <span>╭─ help </span>
+        <span class="border-h-fill"></span>
+        <span>╮</span>
+      </div>
+      <div class="tui-modal-middle">
+        <div class="tui-modal-left-edge"></div>
+        <div class="tui-modal-content">
+          <div style="font-weight: bold; color: var(--accent); margin-bottom: 1ch;">HyprCollab TUI UI Manual & Keybinds</div>
+          <div class="help-grid">
+            <div class="help-row"><span class="help-key">j / k</span><span class="help-desc">Navigate list items in focused view</span></div>
+            <div class="help-row"><span class="help-key">Enter</span><span class="help-desc">Select active chat/item, or toggle checkbox</span></div>
+            <div class="help-row"><span class="help-key">1 - 8</span><span class="help-desc">Switch Activity Bar tab views</span></div>
+            <div class="help-row"><span class="help-key">i</span><span class="help-desc">Enter INSERT mode (focus terminal input)</span></div>
+            <div class="help-row"><span class="help-key">Esc</span><span class="help-desc">Exit INSERT / COMMAND mode or close active modal</span></div>
+            <div class="help-row"><span class="help-key">:</span><span class="help-desc">Enter COMMAND mode (execute command prompt)</span></div>
+            <div class="help-row"><span class="help-key">&lt;C-w&gt;h</span><span class="help-desc">Focus Left Navigator panel</span></div>
+            <div class="help-row"><span class="help-key">&lt;C-w&gt;l</span><span class="help-desc">Focus Chat Input panel</span></div>
+            <div class="help-row"><span class="help-key">&lt;C-p&gt;</span><span class="help-desc">Toggle Right Preview Panel</span></div>
+            <div class="help-row"><span class="help-key">Space + t</span><span class="help-desc">Open Theme Selector window (&lt;leader&gt;t)</span></div>
+            <div class="help-row"><span class="help-key">Space + h</span><span class="help-desc">Open Help Window manual (&lt;leader&gt;h)</span></div>
+            <div class="help-row"><span class="help-key">Space + s</span><span class="help-desc">Open Settings tab (&lt;leader&gt;s)</span></div>
+            <div class="help-row"><span class="help-key">q</span><span class="help-desc">Close any open floating modal window</span></div>
+          </div>
+          <div style="margin-top: 2ch; color: var(--subtext0); font-size: 11px; text-align: center;">Press [q] or [Esc] to exit help window.</div>
+        </div>
+        <div class="tui-modal-right-edge"></div>
+      </div>
+      <div class="border-h">
+        <span>╰</span>
+        <span class="border-h-fill"></span>
+        <span>╯</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLOATING MODAL: Theme Selector -->
+  <div class="tui-modal-overlay" id="theme-modal">
+    <div class="tui-modal">
+      <div class="border-h">
+        <span>╭─ themes </span>
+        <span class="border-h-fill"></span>
+        <span>╮</span>
+      </div>
+      <div class="tui-modal-middle">
+        <div class="tui-modal-left-edge"></div>
+        <div class="tui-modal-content">
+          <div style="font-weight: bold; color: var(--accent); margin-bottom: 1ch;">Select Color Theme</div>
+          <div id="theme-list">
+            <div class="theme-list-item active" data-theme="catppuccin"><span class="item-indicator">▸</span> Catppuccin Mocha</div>
+            <div class="theme-list-item" data-theme="tokyonight"><span class="item-indicator"> </span> Tokyo Night</div>
+            <div class="theme-list-item" data-theme="nord"><span class="item-indicator"> </span> Nord Theme</div>
+            <div class="theme-list-item" data-theme="dracula"><span class="item-indicator"> </span> Dracula Theme</div>
+            <div class="theme-list-item" data-theme="github"><span class="item-indicator"> </span> GitHub Dark</div>
+            <div class="theme-list-item" data-theme="rosepine"><span class="item-indicator"> </span> Rosé Pine</div>
+          </div>
+          <div style="margin-top: 2ch; color: var(--subtext0); font-size: 11px; text-align: center;">Press j/k to navigate, Enter to select theme.</div>
+        </div>
+        <div class="tui-modal-right-edge"></div>
+      </div>
+      <div class="border-h">
+        <span>╰</span>
+        <span class="border-h-fill"></span>
+        <span>╯</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- ===== INTERACTIVE JAVASCRIPT HANDLERS ===== -->
+  <script>
+    // App State Management
+    const state = {
+      mode: 'NORMAL', // NORMAL, INSERT, COMMAND, CHAT
+      activeTab: 'chats', // chats, files, personas, agents, skills, mcp, memories, settings
+      activeChat: 'chat-1',
+      activeFocus: 'chat-input', // sidebar, chat-input, modal-theme, modal-help
+      isPreviewVisible: false,
+      rightPanelMode: 'preview', // preview, info
+      previewTab: 'code', // code, render, mermaid
+      currentTheme: 'catppuccin',
+      sidebarItems: [], // List of items for j/k navigation in current panel
+      activeSidebarIndex: 0,
+      themeItems: [],
+      activeThemeIndex: 0,
+      typingTimer: null,
+      leaderPressed: false,
+      commandBuffer: '',
+      lastKeyPressed: '',
+      previewFile: null,
+      sendOnEnter: true,
+      nerdFontEnabled: true,
+      dropdownType: null, // 'slash', 'mention'
+      dropdownActiveIndex: 0,
+    };
+
+    // Chat contexts info metadata
+    const chatMetadata = {
+      'chat-1': {
+        title: 'Rust refactor',
+        persona: 'Dev',
+        avatar: '🤖',
+        model: 'Claude 3.5 Sonnet',
+        agent: 'code-helper',
+        skills: 'rust, parsing, cargo-test',
+        mcp: 'filesystem-mcp, github-mcp',
+        created: '2 hours ago',
+        msgCount: '47 messages',
+        tokenCount: '12,433 tokens',
+        tags: ['rust', 'parser', 'refactor']
+      },
+      'chat-2': {
+        title: 'UI brainstorm',
+        persona: 'Luna',
+        avatar: '🎨',
+        model: 'GPT-4o',
+        agent: 'design-review',
+        skills: 'visual design, user experience',
+        mcp: 'slack-mcp',
+        created: '1 day ago',
+        msgCount: '18 messages',
+        tokenCount: '4,521 tokens',
+        tags: ['ui-ux', 'design', 'mermaid']
+      },
+      'chat-3': {
+        title: 'Debug session',
+        persona: 'Dev',
+        avatar: '🤖',
+        model: 'Claude 3.5 Sonnet',
+        agent: 'code-helper',
+        skills: 'tokio, memory-profiling',
+        mcp: 'filesystem-mcp',
+        created: '3 hours ago',
+        msgCount: '32 messages',
+        tokenCount: '9,122 tokens',
+        tags: ['tokio', 'panic', 'debugging']
+      },
+      'chat-4': {
+        title: 'API integration',
+        persona: 'Atlas',
+        avatar: '🌐',
+        model: 'DeepSeek R1',
+        agent: 'systems-architect',
+        skills: 'api routing, python integration',
+        mcp: 'sqlite-mcp, filesystem-mcp',
+        created: '4 hours ago',
+        msgCount: '12 messages',
+        tokenCount: '2,953 tokens',
+        tags: ['python', 'z-ai', 'client']
+      },
+      'chat-5': {
+        title: 'Docs sprint',
+        persona: 'Sage',
+        avatar: '📚',
+        model: 'Gemini 2.5 Pro',
+        agent: 'writing-coach',
+        skills: 'technical writing, formatting',
+        mcp: 'filesystem-mcp',
+        created: 'Yesterday',
+        msgCount: '25 messages',
+        tokenCount: '6,104 tokens',
+        tags: ['documentation', 'v8-proposal']
+      }
+    };
+
+    // Autocomplete dropdown lists
+    const slashCommands = [
+      { cmd: '/agent', desc: 'Switch agent/persona' },
+      { cmd: '/skill', desc: 'Load a skill' },
+      { cmd: '/mcp', desc: 'MCP server management' },
+      { cmd: '/model', desc: 'Switch LLM model' },
+      { cmd: '/config', desc: 'Open configuration' },
+      { cmd: '/run', desc: 'Execute command' },
+      { cmd: '/browse', desc: 'Open browser' },
+      { cmd: '/design', desc: 'Design mode' },
+      { cmd: '/review', desc: 'Code review' },
+      { cmd: '/help', desc: 'Show keybindings' },
+      { cmd: '/theme', desc: 'Change theme' },
+      { cmd: '/image', desc: 'Generate image' }
+    ];
+
+    const mentionList = [
+      { name: '@Dr.Schema', desc: '🎭 Default persona' },
+      { name: '@Dev', desc: '🤖 Full-stack dev' },
+      { name: '@Luna', desc: '🎨 Design expert' },
+      { name: '@Atlas', desc: '🌐 Research agent' }
+    ];
+
+    // Mock Files content
+    const mockFiles = {
+      'parser.rs': {
+        lang: 'Rust',
+        lines: 12,
+        content: `<span class="line-num">1</span><span class="keyword">use</span> serde::{Deserialize, Serialize};
+<span class="line-num">2</span><span class="keyword">use</span> serde_json::Result;
+<span class="line-num">3</span>
+<span class="line-num">4</span><span class="attr">#[derive(Serialize, Deserialize, Debug)]</span>
+<span class="line-num">5</span><span class="keyword">pub struct</span> <span class="type">Config</span> {
+<span class="line-num">6</span>    <span class="keyword">pub</span> version: <span class="type">String</span>,
+<span class="line-num">7</span>    <span class="keyword">pub</span> workspaces: <span class="type">Vec</span>&lt;<span class="type">String</span>&gt;,
+<span class="line-num">8</span>}
+<span class="line-num">9</span>
+<span class="line-num">10</span><span class="keyword">pub fn</span> <span class="function">parse_config</span>(data: &amp;<span class="type">str</span>) -&gt; Result&lt;<span class="type">Config</span>&gt; {
+<span class="line-num">11</span>    serde_json::from_str(data)
+<span class="line-num">12</span>}`,
+        render: `Rust config parser implementation.
+Allows robust deserialization of workspace layouts mapping configuration setups directly from raw strings.`
+      },
+      'main.rs': {
+        lang: 'Rust',
+        lines: 8,
+        content: `<span class="line-num">1</span><span class="keyword">mod</span> parser;
+<span class="line-num">2</span>
+<span class="line-num">3</span><span class="keyword">fn</span> <span class="function">main</span>() {
+<span class="line-num">4</span>    <span class="keyword">let</span> raw = <span class="string">r#"{"version": "v8", "workspaces": ["dev"]}"#</span>;
+<span class="line-num">5</span>    <span class="keyword">let</span> config = parser::parse_config(raw).unwrap();
+<span class="line-num">6</span>    <span class="function">println!</span>(<span class="string">"Config: {:?}"</span>, config);
+<span class="line-num">7</span>}`,
+        render: `Main entry execution script. Instantiates parsing sequences for workspace config layouts.`
+      },
+      'worker.rs': {
+        lang: 'Rust',
+        lines: 11,
+        content: `<span class="line-num">1</span><span class="keyword">use</span> tokio::task::JoinSet;
+<span class="line-num">2</span>
+<span class="line-num">3</span><span class="keyword">pub async fn</span> <span class="function">execute_workers</span>() {
+<span class="line-num">4</span>    <span class="keyword">let mut</span> set = JoinSet::new();
+<span class="line-num">5</span>    <span class="keyword">for</span> i <span class="keyword">in</span> 0..10 {
+<span class="line-num">6</span>        set.spawn(<span class="keyword">async move</span> { i });
+<span class="line-num">7</span>    }
+<span class="line-num">8</span>    <span class="keyword">while let Some</span>(res) = set.join_next().<span class="keyword">await</span> {
+<span class="line-num">9</span>        <span class="comment">// Clean joint termination handling</span>
+<span class="line-num">10</span>    }
+<span class="line-num">11</span>}`,
+        render: `Tokio JoinSet thread loop logic.
+Prevents lock leakages and enforces tidy shutdowns when load capacities peak.`
+      },
+      'client.py': {
+        lang: 'Python',
+        lines: 7,
+        content: `<span class="line-num">1</span><span class="keyword">from</span> z_ai <span class="keyword">import</span> Client
+<span class="line-num">2</span>
+<span class="line-num">3</span>client = Client()
+<span class="line-num">4</span>res = client.chat(
+<span class="line-num">5</span>    prompt=<span class="string">"Hello from client.py!"</span>
+<span class="line-num">6</span>)
+<span class="line-num">7</span><span class="function">print</span>(res)`,
+        render: `Python client logic mapping endpoints of the z.ai orchestrator socket layers.`
+      },
+      'architecture.mermaid': {
+        lang: 'Mermaid',
+        lines: 6,
+        content: `<span class="line-num">1</span>graph TD
+<span class="line-num">2</span>  User[User Request] --&gt; Router[Orchestrator Router]
+<span class="line-num">3</span>  Router --&gt; Dev[Dev Agent]
+<span class="line-num">4</span>  Router --&gt; Luna[Luna UI Agent]
+<span class="line-num">5</span>  Dev --&gt; ACP[ACP CLI Tool]
+<span class="line-num">6</span>  Luna --&gt; ACP`,
+        render: `
+     ┌────────────────────────┐
+     │      User Request      │
+     └───────────┬────────────┘
+                 │
+                 ▼
+     ┌────────────────────────┐
+     │  Orchestration Router  │
+     └─────┬────────────┬─────┘
+           │            │
+           ▼            ▼
+     ┌───────────┐ ┌───────────┐
+     │ Dev Agent │ │ Luna (UI) │
+     └─────┬─────┘ └─────┬─────┘
+           │             │
+           └──────┬──────┘
+                  │
+                  ▼
+     ┌────────────────────────┐
+     │   ACP Tool Execution   │
+     └────────────────────────┘
+        `
+      },
+      'proposal.md': {
+        lang: 'Markdown',
+        lines: 7,
+        content: `<span class="line-num">1</span># HyprCollab v8 Proposal
+<span class="line-num">2</span>
+<span class="line-num">3</span>- **Advanced Chat Header** details
+<span class="line-num">4</span>- **Embedded Terminal Panels** (cargo test logs)
+<span class="line-num">5</span>- **Activity Bar toggling** Nerd Fonts &amp; Emojis
+<span class="line-num">6</span>- **Full Form configuring** inside main view
+<span class="line-num">7</span>- **Dual Mode Right Panel** (Preview + Info)`,
+        render: `
+<h1>HyprCollab v8 Release Plan</h1>
+<p>This draft outlines major v8 upgrades:</p>
+<ul>
+  <li><b>Chat Header Contexts:</b> Tag groups, model indicators, details box.</li>
+  <li><b>Embedded Terminals:</b> Collapse logs, check output, exit codes.</li>
+  <li><b>Visual toggle:</b> Nerd Fonts to Emojis dynamically.</li>
+  <li><b>In-view Form sheets:</b> Replaces chats with box inputs.</li>
+  <li><b>Dual Preview/Info tab:</b> Preview file trees or check metrics.</li>
+</ul>`
+      }
+    };
+
+    // Cache elements
+    const body = document.body;
+    const terminalInput = document.getElementById('terminal-input');
+    const typedText = document.getElementById('typed-text');
+    const inputPlaceholder = document.getElementById('input-placeholder');
+    const modePill = document.getElementById('mode-pill');
+    const statusRightMode = document.getElementById('status-right-mode');
+    const statusTopMode = document.getElementById('status-top-mode');
+    const inputStatusMode = document.getElementById('input-status-mode');
+    const suggestDropdown = document.getElementById('suggest-dropdown');
+    const dropdownItemsContainer = document.getElementById('dropdown-items-container');
+
+    const previewColumn = document.getElementById('preview-column');
+    const previewFilename = document.getElementById('preview-filename');
+    const previewEmpty = document.getElementById('preview-empty');
+    const previewCodeBody = document.getElementById('preview-code-body');
+    const previewRenderBody = document.getElementById('preview-render-body');
+    const previewFooter = document.getElementById('preview-footer');
+    const previewInfoLines = document.getElementById('preview-info-lines');
+    const previewInfoLang = document.getElementById('preview-info-lang');
+    const previewConnectors = document.querySelectorAll('.preview-connector');
+    const previewDividerV = document.getElementById('resize-right');
+
+    const chatCanvasWrapper = document.getElementById('chat-canvas-wrapper');
+    const mainFormView = document.getElementById('main-form-view');
+    const formViewTitle = document.getElementById('form-view-title');
+    const formViewContainer = document.getElementById('form-view-container');
+
+    // Drag Resizing Logic
+    const resizeLeft = document.getElementById('resize-left');
+    const resizeRight = document.getElementById('resize-right');
+    const sidebar = document.getElementById('left-sidebar');
+    const rightPanel = document.getElementById('preview-column');
+    const sepSidebarFlex = document.getElementById('sep-sidebar-flex');
+    const sepPreviewFlex = document.getElementById('sep-preview-flex');
+
+    let isDraggingLeft = false;
+    let isDraggingRight = false;
+
+    resizeLeft.addEventListener('mousedown', function(e) {
+      isDraggingLeft = true;
+      document.body.style.cursor = 'col-resize';
+      e.preventDefault();
+    });
+
+    resizeRight.addEventListener('mousedown', function(e) {
+      isDraggingRight = true;
+      document.body.style.cursor = 'col-resize';
+      e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', function(e) {
+      if (isDraggingLeft) {
+        const actBarWidth = document.querySelector('.activity-bar').getBoundingClientRect().width;
+        const newWidthPx = e.clientX - actBarWidth - 8;
+        if (newWidthPx > 180 && newWidthPx < 500) {
+          sidebar.style.width = newWidthPx + 'px';
+          const chWidth = Math.floor(newWidthPx / 8.5);
+          sepSidebarFlex.style.flex = `0 0 ${chWidth}ch`;
+        }
+      }
+      if (isDraggingRight) {
+        const newWidthPx = window.innerWidth - e.clientX - 8;
+        if (newWidthPx > 180 && newWidthPx < 500) {
+          rightPanel.style.width = newWidthPx + 'px';
+          const chWidth = Math.floor(newWidthPx / 8.5);
+          sepPreviewFlex.style.flex = `0 0 ${chWidth}ch`;
+        }
+      }
+    });
+
+    window.addEventListener('mouseup', function() {
+      if (isDraggingLeft || isDraggingRight) {
+        isDraggingLeft = false;
+        isDraggingRight = false;
+        document.body.style.cursor = 'default';
+        updateTerminalSize();
+      }
+    });
+
+    // Nerd Font Mode Toggle
+    function toggleEmojiNerdFontMode() {
+      state.nerdFontEnabled = !state.nerdFontEnabled;
+      localStorage.setItem('nerdfont_pref', state.nerdFontEnabled);
+
+      // Flash activity toggle item
+      const toggleItem = document.getElementById('act-nfc-toggle');
+      toggleItem.style.backgroundColor = 'var(--accent)';
+      toggleItem.style.color = 'var(--bg-base)';
+      setTimeout(() => {
+        toggleItem.style.backgroundColor = '';
+        toggleItem.style.color = '';
+      }, 200);
+
+      // Re-render icons
+      document.querySelectorAll('.activity-icon').forEach(icon => {
+        const nfVal = icon.getAttribute('data-nf');
+        const emojiVal = icon.getAttribute('data-emoji');
+        if (nfVal && emojiVal) {
+          icon.textContent = state.nerdFontEnabled ? nfVal : emojiVal;
+        }
+      });
+
+      // Update settings checkbox
+      const chkBox = document.getElementById('checkbox-nerdfont');
+      if (chkBox) {
+        chkBox.textContent = state.nerdFontEnabled ? '[x]' : '[ ]';
+      }
+
+      triggerToast(state.nerdFontEnabled ? 'Nerd Font Glyph Mode Activated' : 'Emoji Icon Mode Activated');
+    }
+
+    // Initialize Nerd Fonts Mode from localStorage
+    function initNerdFontMode() {
+      const pref = localStorage.getItem('nerdfont_pref');
+      if (pref !== null) {
+        state.nerdFontEnabled = (pref === 'true');
+      }
+      const chkBox = document.getElementById('checkbox-nerdfont');
+      if (chkBox) chkBox.textContent = state.nerdFontEnabled ? '[x]' : '[ ]';
+
+      document.querySelectorAll('.activity-icon').forEach(icon => {
+        const nfVal = icon.getAttribute('data-nf');
+        const emojiVal = icon.getAttribute('data-emoji');
+        if (nfVal && emojiVal) {
+          icon.textContent = state.nerdFontEnabled ? nfVal : emojiVal;
+        }
+      });
+    }
+
+    // Switch Right Panel Dual Modes (Preview vs Info)
+    function switchRightPanelMode(mode) {
+      state.rightPanelMode = mode;
+      document.getElementById('tab-mode-preview').classList.remove('active');
+      document.getElementById('tab-mode-info').classList.remove('active');
+      
+      const prevViewport = document.getElementById('preview-viewport-mode');
+      const infoViewport = document.getElementById('info-viewport-mode');
+      const subtabs = document.getElementById('preview-subtabs');
+      
+      if (mode === 'preview') {
+        document.getElementById('tab-mode-preview').classList.add('active');
+        prevViewport.style.display = 'flex';
+        infoViewport.style.display = 'none';
+        subtabs.style.display = 'flex';
+        previewFooter.style.display = state.previewFile ? 'flex' : 'none';
+      } else {
+        document.getElementById('tab-mode-info').classList.add('active');
+        prevViewport.style.display = 'none';
+        infoViewport.style.display = 'flex';
+        subtabs.style.display = 'none';
+        previewFooter.style.display = 'none';
+        
+        populateRightPanelInfoMode();
+      }
+    }
+
+    function switchToInfoTab() {
+      togglePreviewPanel(true); // Enforce preview visible
+      switchRightPanelMode('info');
+    }
+
+    function populateRightPanelInfoMode() {
+      const data = chatMetadata[state.activeChat];
+      const container = document.getElementById('chat-info-details-box');
+      if (!data) {
+        container.innerHTML = '<div style="color: var(--overlay0);">No context loaded.</div>';
+        return;
+      }
+      
+      container.innerHTML = `
+        <div class="info-detail-line"><span class="info-detail-label">Title</span><span class="info-detail-value">${data.title}</span></div>
+        <div class="info-detail-line"><span class="info-detail-label">Persona</span><span class="info-detail-value">${data.persona}</span></div>
+        <div class="info-detail-line"><span class="info-detail-label">Model</span><span class="info-detail-value">${data.model}</span></div>
+        <div class="info-detail-line"><span class="info-detail-label">Agent</span><span class="info-detail-value">${data.agent}</span></div>
+        <div class="info-detail-line"><span class="info-detail-label">Skills</span><span class="info-detail-value">${data.skills}</span></div>
+        <div class="info-detail-line"><span class="info-detail-label">MCP</span><span class="info-detail-value">${data.mcp}</span></div>
+        <div class="info-detail-line"><span class="info-detail-label">Created</span><span class="info-detail-value">${data.created}</span></div>
+        <div class="info-detail-line"><span class="info-detail-label">Messages</span><span class="info-detail-value">${data.msgCount}</span></div>
+        <div class="info-detail-line"><span class="info-detail-label">Tokens</span><span class="info-detail-value">${data.tokenCount}</span></div>
+        <div class="info-detail-line"><span class="info-detail-label">Tags</span><span class="info-detail-value">${data.tags.join(', ')}</span></div>
+      `;
+    }
+
+    // Toggle Preview Panel visibility
+    function togglePreviewPanel(forceState) {
+      state.isPreviewVisible = (forceState !== undefined) ? forceState : !state.isPreviewVisible;
+      
+      const bottomSepRow = document.getElementById('bottom-sep-row');
+      const connectors = bottomSepRow.querySelectorAll('.preview-connector');
+      
+      if (state.isPreviewVisible) {
+        body.classList.remove('preview-collapsed');
+        previewDividerV.style.display = 'block';
+        rightPanel.style.display = 'flex';
+        connectors.forEach(el => el.style.display = 'inline-flex');
+        
+        if (!state.previewFile) {
+          previewFile('parser.rs');
+        } else {
+          previewFile(state.previewFile);
+        }
+      } else {
+        body.classList.add('preview-collapsed');
+        previewDividerV.style.display = 'none';
+        rightPanel.style.display = 'none';
+        connectors.forEach(el => el.style.display = 'none');
+      }
+    }
+    
+    function collapsePreviewPanel() {
+      togglePreviewPanel(false);
+    }
+
+    // Preview specific file content
+    function previewFile(filename) {
+      state.previewFile = filename;
+      state.isPreviewVisible = true;
+      
+      body.classList.remove('preview-collapsed');
+      previewDividerV.style.display = 'block';
+      rightPanel.style.display = 'flex';
+      document.getElementById('bottom-sep-row').querySelectorAll('.preview-connector').forEach(el => el.style.display = 'inline-flex');
+      
+      previewFilename.textContent = `Preview: ${filename}`;
+      previewEmpty.style.display = 'none';
+      
+      const fileData = mockFiles[filename];
+      if (fileData) {
+        previewCodeBody.innerHTML = fileData.content;
+        previewRenderBody.innerHTML = fileData.render;
+        
+        switchPreviewSubtab(state.previewTab);
+        
+        previewFooter.style.display = (state.rightPanelMode === 'preview') ? 'flex' : 'none';
+        previewInfoLines.textContent = `Lines: ${fileData.lines}`;
+        previewInfoLang.textContent = `Lang: ${fileData.lang}`;
+      } else {
+        previewCodeBody.textContent = 'File content empty.';
+        previewRenderBody.textContent = 'No text render.';
+        previewFooter.style.display = 'none';
+      }
+    }
+
+    function switchPreviewSubtab(subtab) {
+      state.previewTab = subtab;
+      
+      document.getElementById('tab-preview-code').classList.remove('primary');
+      document.getElementById('tab-preview-render').classList.remove('primary');
+      document.getElementById('tab-preview-mermaid').classList.remove('primary');
+      
+      const viewportCode = document.getElementById('preview-code-body');
+      const viewportRender = document.getElementById('preview-render-body');
+      
+      if (subtab === 'code') {
+        document.getElementById('tab-preview-code').classList.add('primary');
+        viewportCode.style.display = 'block';
+        viewportRender.style.display = 'none';
+      } else if (subtab === 'render') {
+        document.getElementById('tab-preview-render').classList.add('primary');
+        viewportCode.style.display = 'none';
+        viewportRender.style.display = 'block';
+      } else if (subtab === 'mermaid') {
+        document.getElementById('tab-preview-mermaid').classList.add('primary');
+        if (state.previewFile === 'architecture.mermaid') {
+          viewportCode.style.display = 'none';
+          viewportRender.style.display = 'block'; // shows ASCII-art layout
+        } else {
+          viewportCode.style.display = 'block';
+          viewportRender.style.display = 'none';
+        }
+      }
+    }
+
+    // Collapsible Embedded Terminal panels
+    function toggleTerminalBox(id) {
+      const box = document.getElementById(id);
+      if (box) {
+        box.classList.toggle('collapsed');
+        const header = box.querySelector('.border-h span');
+        if (box.classList.contains('collapsed')) {
+          header.textContent = header.textContent.replace('▾', '▸');
+        } else {
+          header.textContent = header.textContent.replace('▸', '▾');
+        }
+      }
+    }
+    
+    function closeTerminalBox(id) {
+      const box = document.getElementById(id);
+      if (box) {
+        box.style.display = 'none';
+        triggerToast('Terminal panel removed');
+      }
+    }
+
+    // Main view forms (Create/Configure)
+    function showFormView(type) {
+      chatCanvasWrapper.style.display = 'none';
+      mainFormView.style.display = 'flex';
+      
+      if (type === 'persona') {
+        formViewTitle.textContent = 'Create New Persona';
+        formViewContainer.innerHTML = `
+          <!-- Section 1 -->
+          <div class="form-section-group">
+            <div class="border-h"><span>┌─ Identity </span><span class="border-h-fill"></span><span>┐</span></div>
+            <div class="form-section-middle">
+              <div class="form-section-left-edge"></div>
+              <div class="form-section-content">
+                <div class="form-row"><span class="form-label">Name:</span><div class="tui-input-box form-input-container"><div class="border-h"><span>┌</span><span class="border-h-fill"></span><span>┐</span></div><div class="tui-input-middle"><input type="text" id="form-persona-name" class="tui-input-element" placeholder="Dr.Schema" /></div><div class="border-h"><span>└</span><span class="border-h-fill"></span><span>┘</span></div></div></div>
+                <div class="form-row"><span class="form-label">Avatar:</span><div class="tui-input-box form-input-container"><div class="border-h"><span>┌</span><span class="border-h-fill"></span><span>┐</span></div><div class="tui-input-middle"><input type="text" id="form-persona-avatar" class="tui-input-element" placeholder="🎭" /></div><div class="border-h"><span>└</span><span class="border-h-fill"></span><span>┘</span></div></div></div>
+                <div class="form-row"><span class="form-label">Tone:</span><div class="tui-input-box form-input-container"><div class="border-h"><span>┌</span><span class="border-h-fill"></span><span>┐</span></div><div class="tui-input-middle"><input type="text" id="form-persona-tone" class="tui-input-element" placeholder="Analytical, precise" /></div><div class="border-h"><span>└</span><span class="border-h-fill"></span><span>┘</span></div></div></div>
+                <div class="form-row"><span class="form-label">Language:</span><div class="tui-input-box form-input-container"><div class="border-h"><span>┌</span><span class="border-h-fill"></span><span>┐</span></div><div class="tui-input-middle"><input type="text" id="form-persona-lang" class="tui-input-element" placeholder="English, Rust" /></div><div class="border-h"><span>└</span><span class="border-h-fill"></span><span>┘</span></div></div></div>
+              </div>
+              <div class="form-section-right-edge"></div>
+            </div>
+            <div class="border-h"><span>└</span><span class="border-h-fill"></span><span>┘</span></div>
+          </div>
+          <!-- Section 2 -->
+          <div class="form-section-group">
+            <div class="border-h"><span>┌─ Personality </span><span class="border-h-fill"></span><span>┐</span></div>
+            <div class="form-section-middle">
+              <div class="form-section-left-edge"></div>
+              <div class="form-section-content">
+                <span class="form-label" style="margin-bottom: 0.5ch;">System Prompt:</span>
+                <div class="form-textarea-box">
+                  <div class="border-h"><span>┌</span><span class="border-h-fill"></span><span>┐</span></div>
+                  <div class="form-textarea-middle">
+                    <textarea class="form-textarea-element" placeholder="You are an expert developer assistant..."></textarea>
+                  </div>
+                  <div class="border-h"><span>└</span><span class="border-h-fill"></span><span>┘</span></div>
+                </div>
+              </div>
+              <div class="form-section-right-edge"></div>
+            </div>
+            <div class="border-h"><span>└</span><span class="border-h-fill"></span><span>┘</span></div>
+          </div>
+          <!-- Section 3 -->
+          <div class="form-section-group">
+            <div class="border-h"><span>┌─ Agent Roles </span><span class="border-h-fill"></span><span>┐</span></div>
+            <div class="form-section-middle">
+              <div class="form-section-left-edge"></div>
+              <div class="form-section-content">
+                <div style="display: flex; flex-wrap: wrap; gap: 2.5ch;">
+                  <div class="tui-checkbox" onclick="toggleFormCheckbox(this)" data-checked="true"><span class="checkbox-box chk-box">[☑]</span><span>terminal</span></div>
+                  <div class="tui-checkbox" onclick="toggleFormCheckbox(this)" data-checked="true"><span class="checkbox-box chk-box">[☑]</span><span>browser</span></div>
+                  <div class="tui-checkbox" onclick="toggleFormCheckbox(this)" data-checked="true"><span class="checkbox-box chk-box">[☑]</span><span>code_execution</span></div>
+                  <div class="tui-checkbox" onclick="toggleFormCheckbox(this)" data-checked="false"><span class="checkbox-box chk-box">[☐]</span><span>files</span></div>
+                  <div class="tui-checkbox" onclick="toggleFormCheckbox(this)" data-checked="false"><span class="checkbox-box chk-box">[☐]</span><span>mcp</span></div>
+                  <div class="tui-checkbox" onclick="toggleFormCheckbox(this)" data-checked="false"><span class="checkbox-box chk-box">[☐]</span><span>image_gen</span></div>
+                </div>
+              </div>
+              <div class="form-section-right-edge"></div>
+            </div>
+            <div class="border-h"><span>└</span><span class="border-h-fill"></span><span>┘</span></div>
+          </div>
+        `;
+      } else if (type === 'agent') {
+        formViewTitle.textContent = 'Configure Agent Session';
+        formViewContainer.innerHTML = `
+          <div class="form-section-group">
+            <div class="border-h"><span>┌─ Session Details </span><span class="border-h-fill"></span><span>┐</span></div>
+            <div class="form-section-middle">
+              <div class="form-section-left-edge"></div>
+              <div class="form-section-content">
+                <div class="form-row"><span class="form-label">Agent Name:</span><div class="tui-input-box form-input-container"><div class="border-h"><span>┌</span><span class="border-h-fill"></span><span>┐</span></div><div class="tui-input-middle"><input type="text" class="tui-input-element" value="code-helper" /></div><div class="border-h"><span>└</span><span class="border-h-fill"></span><span>┘</span></div></div></div>
+                <div class="form-row"><span class="form-label">Attached MCP:</span><div style="display: flex; flex-wrap: wrap; gap: 2ch;">
+                  <div class="tui-checkbox" onclick="toggleFormCheckbox(this)" data-checked="true"><span class="checkbox-box chk-box">[☑]</span><span>sqlite-mcp</span></div>
+                  <div class="tui-checkbox" onclick="toggleFormCheckbox(this)" data-checked="true"><span class="checkbox-box chk-box">[☑]</span><span>github-mcp</span></div>
+                  <div class="tui-checkbox" onclick="toggleFormCheckbox(this)" data-checked="false"><span class="checkbox-box chk-box">[☐]</span><span>slack-mcp</span></div>
+                </div></div>
+              </div>
+              <div class="form-section-right-edge"></div>
+            </div>
+            <div class="border-h"><span>└</span><span class="border-h-fill"></span><span>┘</span></div>
+          </div>
+        `;
+      } else if (type === 'skill') {
+        formViewTitle.textContent = 'Create New TUI Skill';
+        formViewContainer.innerHTML = `
+          <div class="form-section-group">
+            <div class="border-h"><span>┌─ Skill Identity </span><span class="border-h-fill"></span><span>┐</span></div>
+            <div class="form-section-middle">
+              <div class="form-section-left-edge"></div>
+              <div class="form-section-content">
+                <div class="form-row"><span class="form-label">Skill Name:</span><div class="tui-input-box form-input-container"><div class="border-h"><span>┌</span><span class="border-h-fill"></span><span>┐</span></div><div class="tui-input-middle"><input type="text" class="tui-input-element" placeholder="code-review" /></div><div class="border-h"><span>└</span><span class="border-h-fill"></span><span>┘</span></div></div></div>
+                <div class="form-row"><span class="form-label">Description:</span><div class="tui-input-box form-input-container"><div class="border-h"><span>┌</span><span class="border-h-fill"></span><span>┐</span></div><div class="tui-input-middle"><input type="text" class="tui-input-element" placeholder="Performs dry-run syntax audits" /></div><div class="border-h"><span>└</span><span class="border-h-fill"></span><span>┘</span></div></div></div>
+              </div>
+              <div class="form-section-right-edge"></div>
+            </div>
+            <div class="border-h"><span>└</span><span class="border-h-fill"></span><span>┘</span></div>
+          </div>
+        `;
+      } else if (type === 'mcp') {
+        formViewTitle.textContent = 'Add Model Context Protocol Server';
+        formViewContainer.innerHTML = `
+          <div class="form-section-group">
+            <div class="border-h"><span>┌─ Server Protocol </span><span class="border-h-fill"></span><span>┐</span></div>
+            <div class="form-section-middle">
+              <div class="form-section-left-edge"></div>
+              <div class="form-section-content">
+                <div class="form-row"><span class="form-label">Server ID:</span><div class="tui-input-box form-input-container"><div class="border-h"><span>┌</span><span class="border-h-fill"></span><span>┐</span></div><div class="tui-input-middle"><input type="text" class="tui-input-element" placeholder="postgres-mcp" /></div><div class="border-h"><span>└</span><span class="border-h-fill"></span><span>┘</span></div></div></div>
+                <div class="form-row"><span class="form-label">Command:</span><div class="tui-input-box form-input-container"><div class="border-h"><span>┌</span><span class="border-h-fill"></span><span>┐</span></div><div class="tui-input-middle"><input type="text" class="tui-input-element" placeholder="npx -y @modelcontextprotocol/server-postgres" /></div><div class="border-h"><span>└</span><span class="border-h-fill"></span><span>┘</span></div></div></div>
+              </div>
+              <div class="form-section-right-edge"></div>
+            </div>
+            <div class="border-h"><span>└</span><span class="border-h-fill"></span><span>┘</span></div>
+          </div>
+        `;
+      }
+    }
+    
+    function closeFormView() {
+      mainFormView.style.display = 'none';
+      chatCanvasWrapper.style.display = 'flex';
+      setMode('NORMAL');
+    }
+    
+    function saveFormView() {
+      triggerToast('✓ Settings Saved successfully.');
+      closeFormView();
+    }
+    
+    function toggleFormCheckbox(el) {
+      const val = el.getAttribute('data-checked') === 'true';
+      if (val) {
+        el.setAttribute('data-checked', 'false');
+        el.querySelector('.chk-box').textContent = '[☐]';
+      } else {
+        el.setAttribute('data-checked', 'true');
+        el.querySelector('.chk-box').textContent = '[☑]';
+      }
+    }
+
+    // Switch Left Sidebar Tab Panel views
+    function switchPanel(tabName) {
+      state.activeTab = tabName;
+      
+      document.querySelectorAll('.activity-bar .activity-item').forEach(item => {
+        if (item.getAttribute('data-tab') === tabName) {
+          item.classList.add('active');
+        } else {
+          item.classList.remove('active');
+        }
+      });
+      
+      document.querySelectorAll('.sidebar-column .sidebar-panel').forEach(panel => {
+        if (panel.id === 'panel-' + tabName) {
+          panel.classList.add('active');
+        } else {
+          panel.classList.remove('active');
+        }
+      });
+
+      if (tabName === 'chats') {
+        const dot = document.getElementById('chats-unread-dot');
+        if (dot) dot.style.display = 'none';
+      }
+
+      initializeSidebarList();
+      triggerToast('View focused: ' + tabName.toUpperCase());
+    }
+
+    // Set Editor Mode (NORMAL, INSERT, COMMAND, CHAT)
+    function setMode(newMode) {
+      state.mode = newMode;
+      body.className = '';
+      body.classList.add('mode-' + newMode.toLowerCase());
+      body.classList.add('theme-' + state.currentTheme);
+      
+      modePill.textContent = newMode;
+      statusRightMode.textContent = newMode;
+      statusTopMode.textContent = newMode;
+      inputStatusMode.textContent = newMode;
+
+      if (newMode === 'INSERT') {
+        terminalInput.removeAttribute('disabled');
+        terminalInput.focus();
+        inputPlaceholder.style.opacity = '0';
+        typedText.textContent = terminalInput.value;
+      } else {
+        terminalInput.setAttribute('disabled', 'true');
+        terminalInput.blur();
+        if (terminalInput.value === '') {
+          inputPlaceholder.style.opacity = '1';
+        }
+        suggestDropdown.classList.remove('visible');
+      }
+
+      if (newMode === 'COMMAND') {
+        document.getElementById('command-prompt').textContent = ':';
+        document.getElementById('command-prompt').style.display = 'flex';
+        state.commandBuffer = '';
+      } else {
+        document.getElementById('command-prompt').style.display = 'none';
+      }
+    }
+
+    // Modal view triggers
+    function showModal(modalId) {
+      closeModals();
+      const modal = document.getElementById(modalId);
+      if (modal) {
+        modal.classList.add('visible');
+        if (modalId === 'theme-modal') {
+          state.activeFocus = 'modal-theme';
+          initializeThemeList();
+        } else if (modalId === 'help-modal') {
+          state.activeFocus = 'modal-help';
+        }
+      }
+    }
+
+    function closeModals() {
+      document.querySelectorAll('.tui-modal-overlay').forEach(el => {
+        el.classList.remove('visible');
+      });
+      state.activeFocus = 'chat-input';
+      if (state.mode === 'COMMAND') {
+        setMode('NORMAL');
+      }
+    }
+
+    // Toast alerts helper
+    function triggerToast(message) {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = 'toast-box';
+      
+      toast.innerHTML = `
+        <div class="border-h">
+          <span>╭─ notification </span>
+          <span class="border-h-fill"></span>
+          <span>╮</span>
+        </div>
+        <div class="toast-middle">
+          <div class="toast-left-edge"></div>
+          <div class="toast-content">${message}</div>
+          <div class="toast-right-edge"></div>
+        </div>
+        <div class="border-h">
+          <span>╰</span>
+          <span class="border-h-fill"></span>
+          <span>╯</span>
+        </div>
+      `;
+      
+      container.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.classList.add('fade-out');
+        setTimeout(() => {
+          if (toast.parentNode === container) {
+            container.removeChild(toast);
+          }
+        }, 300);
+      }, 3000);
+    }
+
+    // Switch active conversation buffer
+    function switchChat(chatId) {
+      state.activeChat = chatId;
+      
+      document.querySelectorAll('#panel-chats .tree-item').forEach((item) => {
+        const itemTarget = item.getAttribute('data-item-target');
+        if (itemTarget === chatId) {
+          item.classList.add('active');
+          item.querySelector('.item-indicator').textContent = '▸';
+          state.activeSidebarIndex = state.sidebarItems.indexOf(item);
+        } else {
+          item.classList.remove('active');
+          item.querySelector('.item-indicator').textContent = ' ';
+        }
+      });
+      
+      document.querySelectorAll('.chat-canvas').forEach(canvas => {
+        if (canvas.id === 'canvas-' + chatId) {
+          canvas.classList.add('active');
+          canvas.scrollTop = canvas.scrollHeight;
+        } else {
+          canvas.classList.remove('active');
+        }
+      });
+
+      // Update Chat Header details dynamically (v8)
+      const data = chatMetadata[chatId];
+      if (data) {
+        document.getElementById('header-avatar').textContent = data.avatar;
+        document.getElementById('header-name').textContent = data.persona;
+        document.getElementById('header-model').textContent = '● ' + data.model;
+        document.getElementById('header-title').textContent = data.title;
+        document.getElementById('header-msg-count').textContent = data.msgCount;
+        
+        // Tags
+        const tagBox = document.getElementById('header-tags');
+        tagBox.innerHTML = '';
+        data.tags.forEach(t => {
+          tagBox.innerHTML += `<span class="chat-header-tag">#${t}</span> `;
+        });
+
+        // Top Status Bar details
+        document.getElementById('status-top-model').textContent = data.model.toLowerCase().replace(' ', '-');
+        document.getElementById('status-top-tokens').textContent = data.tokenCount.split(' ')[0];
+      }
+
+      // Populate Info Panel if currently active
+      if (state.rightPanelMode === 'info') {
+        populateRightPanelInfoMode();
+      }
+
+      triggerToast('Switched to buffer: ' + chatId.replace('chat-', '#'));
+    }
+
+    // Sidebar items caching & tracking
+    function initializeSidebarList() {
+      const activePanel = document.querySelector(`.sidebar-panel.active`);
+      if (activePanel) {
+        state.sidebarItems = Array.from(activePanel.querySelectorAll('.tree-item'));
+        
+        let foundActive = false;
+        state.sidebarItems.forEach((item, index) => {
+          if (item.classList.contains('active')) {
+            state.activeSidebarIndex = index;
+            foundActive = true;
+          }
+          item.classList.remove('active-nav');
+        });
+        
+        if (!foundActive && state.sidebarItems.length > 0) {
+          state.activeSidebarIndex = 0;
+          state.sidebarItems[0].classList.add('active-nav');
+        } else if (state.sidebarItems.length > 0) {
+          state.sidebarItems[state.activeSidebarIndex].classList.add('active-nav');
+        }
+      } else {
+        state.sidebarItems = [];
+        state.activeSidebarIndex = 0;
+      }
+    }
+
+    function initializeThemeList() {
+      state.themeItems = Array.from(document.querySelectorAll('#theme-list .theme-list-item'));
+      state.themeItems.forEach((item, index) => {
+        if (item.classList.contains('active')) {
+          state.activeThemeIndex = index;
+        }
+        item.classList.remove('active-nav');
+      });
+      if (state.themeItems.length > 0) {
+        state.themeItems[state.activeThemeIndex].classList.add('active-nav');
+      }
+    }
+
+    // Select color theme
+    function selectTheme(themeName) {
+      state.currentTheme = themeName;
+      body.className = '';
+      body.classList.add('mode-' + state.mode.toLowerCase());
+      body.classList.add('theme-' + themeName);
+
+      // Sync settings tab items active class
+      document.querySelectorAll('#panel-settings .theme-list-item').forEach((item) => {
+        const itemText = item.textContent;
+        if (itemText.toLowerCase().includes(themeName.replace('tokyonight', 'tokyo').replace('rosepine', 'rosé'))) {
+          item.classList.add('active');
+          item.querySelector('.item-indicator').textContent = '▸';
+        } else {
+          item.classList.remove('active');
+          item.querySelector('.item-indicator').textContent = ' ';
+        }
+      });
+
+      // Update theme modal selections
+      document.querySelectorAll('#theme-list .theme-list-item').forEach((item, index) => {
+        if (item.getAttribute('data-theme') === themeName) {
+          item.classList.add('active');
+          item.querySelector('.item-indicator').textContent = '▸';
+          state.activeThemeIndex = index;
+        } else {
+          item.classList.remove('active');
+          item.querySelector('.item-indicator').textContent = ' ';
+        }
+      });
+      
+      triggerToast('Palette shifted: ' + themeName.toUpperCase());
+    }
+
+    // Suggest dropdown autocomplete checks
+    function handleAutocomplete(val) {
+      if (val.startsWith('/')) {
+        state.dropdownType = 'slash';
+        const filter = val.slice(1).toLowerCase();
+        const matches = slashCommands.filter(c => c.cmd.startsWith('/' + filter));
+        
+        if (matches.length > 0) {
+          showSuggestDropdown(matches, 'slash');
+        } else {
+          suggestDropdown.classList.remove('visible');
+          state.dropdownType = null;
+        }
+      } else if (val.includes('@') && !val.includes(' ')) {
+        // Simple mention check
+        state.dropdownType = 'mention';
+        const filter = val.split('@').pop().toLowerCase();
+        const matches = mentionList.filter(m => m.name.toLowerCase().startsWith('@' + filter));
+        
+        if (matches.length > 0) {
+          showSuggestDropdown(matches, 'mention');
+        } else {
+          suggestDropdown.classList.remove('visible');
+          state.dropdownType = null;
+        }
+      } else {
+        suggestDropdown.classList.remove('visible');
+        state.dropdownType = null;
+      }
+    }
+
+    function showSuggestDropdown(itemsList, type) {
+      state.dropdownActiveIndex = 0;
+      suggestDropdown.classList.add('visible');
+      dropdownItemsContainer.innerHTML = '';
+      
+      itemsList.forEach((item, idx) => {
+        const primaryText = (type === 'slash') ? item.cmd : item.name;
+        const descText = item.desc;
+        const activeClass = (idx === 0) ? 'active' : '';
+        const indicator = (idx === 0) ? '▸' : ' ';
+        
+        dropdownItemsContainer.innerHTML += `
+          <div class="dropdown-item ${activeClass}" data-index="${idx}" data-val="${primaryText}">
+            <span class="dropdown-item-cmd">${indicator} ${primaryText}</span>
+            <span class="dropdown-item-desc">${descText}</span>
+          </div>
+        `;
+      });
+    }
+
+    function updateDropdownSelection() {
+      const items = dropdownItemsContainer.querySelectorAll('.dropdown-item');
+      items.forEach((item, idx) => {
+        if (idx === state.dropdownActiveIndex) {
+          item.classList.add('active');
+          item.querySelector('.dropdown-item-cmd').textContent = '▸ ' + item.getAttribute('data-val');
+        } else {
+          item.classList.remove('active');
+          item.querySelector('.dropdown-item-cmd').textContent = '  ' + item.getAttribute('data-val');
+        }
+      });
+    }
+
+    // Execute message streams & command buffers
+    function executeMessage(content) {
+      if (content.trim() === '') return;
+      
+      if (content.startsWith('/')) {
+        const cmd = content.split(' ')[0];
+        if (cmd === '/help') {
+          showModal('help-modal');
+        } else if (cmd === '/theme') {
+          showModal('theme-modal');
+        } else if (cmd === '/config') {
+          showFormView('persona');
+        } else if (cmd === '/agent') {
+          switchPanel('personas');
+        } else if (cmd === '/model') {
+          triggerToast('🤖 Switched LLM model to: gemini-2.5-pro');
+        } else {
+          triggerToast('Command registered: ' + cmd);
+        }
+      } else {
+        triggerToast('Sending message stream...');
+        
+        const activeCanvas = document.querySelector('.chat-canvas.active');
+        
+        // User message
+        const userMsg = document.createElement('div');
+        userMsg.className = 'message-container user-msg-align';
+        userMsg.innerHTML = `
+          <div class="message-box user-accent">
+            <div class="border-h"><span>╭─ You ─ ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} </span><span class="border-h-fill"></span><span>╮</span></div>
+            <div class="message-middle">
+              <div class="message-left-edge"></div>
+              <div class="message-content">${content}</div>
+              <div class="message-right-edge"></div>
+            </div>
+            <div class="border-h"><span>╰</span><span class="border-h-fill"></span><span>╯</span></div>
+          </div>
+        `;
+        activeCanvas.appendChild(userMsg);
+        activeCanvas.scrollTop = activeCanvas.scrollHeight;
+
+        // Simulated Streaming Response
+        setTimeout(() => {
+          startResponseStreaming(activeCanvas);
+        }, 800);
+      }
+      
+      terminalInput.value = '';
+      typedText.textContent = '';
+      setMode('NORMAL');
+    }
+
+    function startResponseStreaming(canvas) {
+      const streamContainer = document.getElementById('streaming-message-container');
+      const streamText = document.getElementById('streaming-text');
+      
+      streamText.textContent = '';
+      streamContainer.style.display = 'block';
+      canvas.appendChild(streamContainer);
+      canvas.scrollTop = canvas.scrollHeight;
+      
+      const mockStreamData = "Mock Response stream successfully hooked. Central agent registry initialized.";
+      let idx = 0;
+      setMode('CHAT');
+      
+      if (state.typingTimer) clearInterval(state.typingTimer);
+      
+      state.typingTimer = setInterval(() => {
+        if (idx < mockStreamData.length) {
+          streamText.textContent += mockStreamData[idx];
+          idx++;
+          canvas.scrollTop = canvas.scrollHeight;
+        } else {
+          clearInterval(state.typingTimer);
+          state.typingTimer = null;
+          streamContainer.style.display = 'none';
+          
+          // Append finalized response
+          const finalizedMsg = document.createElement('div');
+          finalizedMsg.className = 'message-container assistant-msg-align';
+          finalizedMsg.innerHTML = `
+            <div class="message-box assistant-accent">
+              <div class="border-h"><span>╭─ 🤖 Dev ─ ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} </span><span class="border-h-fill"></span><span>╮</span></div>
+              <div class="message-middle">
+                <div class="message-left-edge"></div>
+                <div class="message-content">${mockStreamData}</div>
+                <div class="message-right-edge"></div>
+              </div>
+              <div class="border-h"><span>╰</span><span class="border-h-fill"></span><span>╯</span></div>
+            </div>
+          `;
+          canvas.appendChild(finalizedMsg);
+          canvas.scrollTop = canvas.scrollHeight;
+          
+          setMode('NORMAL');
+          triggerToast('✓ Stream response complete.');
+        }
+      }, 35);
+    }
+
+    // Execute colon command lines (COMMAND Mode)
+    function executeCommandPrompt(cmdStr) {
+      if (cmdStr === 'help' || cmdStr === 'h') {
+        showModal('help-modal');
+      } else if (cmdStr.startsWith('theme ') || cmdStr.startsWith('t ')) {
+        const theme = cmdStr.split(' ')[1];
+        if (theme) selectTheme(theme);
+      } else if (cmdStr === 'q') {
+        closeModals();
+      } else if (cmdStr === 'preview' || cmdStr === 'p') {
+        togglePreviewPanel();
+      } else if (cmdStr >= '1' && cmdStr <= '8') {
+        const tabList = ['chats', 'files', 'personas', 'agents', 'skills', 'mcp', 'memories', 'settings'];
+        switchPanel(tabList[cmdStr - 1]);
+      } else {
+        triggerToast('Command not found: :' + cmdStr);
+      }
+      setMode('NORMAL');
+    }
+
+    // Actions & trigger mockups
+    function triggerAttach() { triggerToast('📎 Attach file dialog triggered'); }
+    function triggerVoice() { triggerToast('🎤 Listening to speech channel...'); }
+    
+    function triggerUserTerminal() {
+      // Create empty terminal box inside chat stream
+      const activeCanvas = document.querySelector('.chat-canvas.active');
+      const randomId = 'user-term-' + Math.floor(Math.random() * 1000);
+      
+      const termBox = document.createElement('div');
+      termBox.className = 'terminal-embed-box';
+      termBox.id = randomId;
+      termBox.innerHTML = `
+        <div class="border-h" onclick="toggleTerminalBox('${randomId}')">
+          <span>╭─ ▾ User Terminal ─ empty_session </span>
+          <span class="border-h-fill"></span>
+          <div class="terminal-embed-controls">
+            <span class="terminal-embed-control-btn" onclick="triggerToast('Executing custom script...'); event.stopPropagation();">[▶]</span>
+            <span class="terminal-embed-control-btn" onclick="closeTerminalBox('${randomId}'); event.stopPropagation();">[✕]</span>
+          </div>
+          <span>╮</span>
+        </div>
+        <div class="terminal-embed-middle">
+          <div class="terminal-embed-left-edge"></div>
+          <div class="terminal-embed-collapsible-body">
+            <div class="terminal-embed-content">$ Enter command above...</div>
+          </div>
+          <div class="terminal-embed-right-edge"></div>
+        </div>
+        <div class="border-h"><span>╰</span><span class="border-h-fill"></span><span>╯</span></div>
+      `;
+      activeCanvas.appendChild(termBox);
+      activeCanvas.scrollTop = activeCanvas.scrollHeight;
+      triggerToast('🖥️ User Terminal session opened inside stream');
+    }
+
+    function triggerPersonaPicker() {
+      switchPanel('personas');
+      triggerToast('👤 Pick a persona from left sidebar list');
+    }
+
+    function triggerSend() {
+      executeMessage(terminalInput.value);
+    }
+
+    function toggleSendOnEnter() {
+      const box = document.getElementById('checkbox-send-enter');
+      state.sendOnEnter = !state.sendOnEnter;
+      box.textContent = state.sendOnEnter ? '[x]' : '[ ]';
+      triggerToast(state.sendOnEnter ? 'Send on Enter enabled' : 'Send on Enter disabled');
+    }
+
+    function copyPreviewFile() {
+      if (state.previewFile) triggerToast('✓ File copied to clipboard');
+    }
+    
+    function openPreviewFile() {
+      if (state.previewFile) triggerToast('✓ File opened in editor buffer');
+    }
+
+    function copyMockContent(name) {
+      triggerToast('✓ Copied code for: ' + name);
+    }
+
+    function controlAcp(id, action) {
+      const status = document.getElementById(`acp-${id}-status`);
+      if (action === 'start') {
+        status.style.color = 'var(--yellow)';
+        status.textContent = '● active';
+        triggerToast('ACP Session initiated');
+      } else {
+        status.style.color = 'var(--overlay0)';
+        status.textContent = '○ offline';
+        triggerToast('ACP Session halted');
+      }
+    }
+
+    function renameChat(id, e) {
+      e.stopPropagation();
+      const n = prompt('Enter new chat buffer title:');
+      if (n) {
+        document.querySelector(`[data-item-target="${id}"] .item-text`).textContent = n;
+        chatMetadata[id].title = n;
+        if (state.activeChat === id) {
+          document.getElementById('header-title').textContent = n;
+        }
+        triggerToast('Chat buffer updated');
+      }
+    }
+
+    function deleteChat(id, e) {
+      e.stopPropagation();
+      if (confirm('Delete chat buffer?')) {
+        document.querySelector(`[data-item-target="${id}"]`).style.display = 'none';
+        triggerToast('Buffer deleted');
+      }
+    }
+
+    // Keyboard capture routing
+    window.addEventListener('keydown', function(e) {
+      // Bypass keybinds inside normal inputs
+      if (document.activeElement && (
+        document.activeElement.tagName === 'SELECT' ||
+        document.activeElement.tagName === 'OPTION' ||
+        (document.activeElement.tagName === 'INPUT' && document.activeElement.id !== 'terminal-input') ||
+        document.activeElement.tagName === 'TEXTAREA'
+      )) {
+        if (e.key === 'Escape') {
+          document.activeElement.blur();
+          setMode('NORMAL');
+        }
+        return;
+      }
+
+      // Button flash anim triggers on clicks
+      if (e.target.closest('.tui-btn-box')) {
+        const btn = e.target.closest('.tui-btn-box');
+        btn.classList.add('flash');
+        setTimeout(() => btn.classList.remove('flash'), 150);
+      }
+
+      // 1. INSERT Mode keys
+      if (state.mode === 'INSERT') {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          setMode('NORMAL');
+          return;
+        }
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (suggestDropdown.classList.contains('visible')) {
+            const activeItem = suggestDropdown.querySelectorAll('.dropdown-item')[state.dropdownActiveIndex];
+            if (activeItem) {
+              const selectedVal = activeItem.getAttribute('data-val');
+              if (state.dropdownType === 'slash') {
+                terminalInput.value = selectedVal + ' ';
+              } else if (state.dropdownType === 'mention') {
+                const words = terminalInput.value.split(' ');
+                words.pop();
+                words.push(selectedVal);
+                terminalInput.value = words.join(' ') + ' ';
+              }
+              typedText.textContent = terminalInput.value;
+              suggestDropdown.classList.remove('visible');
+              state.dropdownType = null;
+              return;
+            }
+          }
+          if (state.sendOnEnter) {
+            executeMessage(terminalInput.value);
+          }
+          return;
+        }
+        
+        // Suggest dropdown navigation
+        if (suggestDropdown.classList.contains('visible')) {
+          const items = Array.from(suggestDropdown.querySelectorAll('.dropdown-item'));
+          if (e.key === 'ArrowDown' || (e.ctrlKey && e.key === 'j')) {
+            e.preventDefault();
+            state.dropdownActiveIndex = (state.dropdownActiveIndex + 1) % items.length;
+            updateDropdownSelection();
+            return;
+          }
+          if (e.key === 'ArrowUp' || (e.ctrlKey && e.key === 'k')) {
+            e.preventDefault();
+            state.dropdownActiveIndex = (state.dropdownActiveIndex - 1 + items.length) % items.length;
+            updateDropdownSelection();
+            return;
+          }
+        }
+        return;
+      }
+
+      // 2. COMMAND Mode keys
+      if (state.mode === 'COMMAND') {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          setMode('NORMAL');
+          return;
+        }
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          executeCommandPrompt(state.commandBuffer);
+          return;
+        }
+        if (e.key === 'Backspace') {
+          e.preventDefault();
+          state.commandBuffer = state.commandBuffer.slice(0, -1);
+          document.getElementById('command-prompt').textContent = ':' + state.commandBuffer;
+          return;
+        }
+        if (e.key.length === 1) {
+          e.preventDefault();
+          state.commandBuffer += e.key;
+          document.getElementById('command-prompt').textContent = ':' + state.commandBuffer;
+          return;
+        }
+        return;
+      }
+
+      // 3. Modal Theme selection keybindings
+      if (state.activeFocus === 'modal-theme') {
+        if (e.key === 'Escape' || e.key === 'q') {
+          e.preventDefault();
+          closeModals();
+          return;
+        }
+        if (e.key === 'j' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          state.activeThemeIndex = (state.activeThemeIndex + 1) % state.themeItems.length;
+          state.themeItems.forEach((item, index) => {
+            if (index === state.activeThemeIndex) {
+              item.classList.add('active-nav');
+              item.querySelector('.item-indicator').textContent = '▸';
+            } else {
+              item.classList.remove('active-nav');
+              item.querySelector('.item-indicator').textContent = ' ';
+            }
+          });
+          return;
+        }
+        if (e.key === 'k' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          state.activeThemeIndex = (state.activeThemeIndex - 1 + state.themeItems.length) % state.themeItems.length;
+          state.themeItems.forEach((item, index) => {
+            if (index === state.activeThemeIndex) {
+              item.classList.add('active-nav');
+              item.querySelector('.item-indicator').textContent = '▸';
+            } else {
+              item.classList.remove('active-nav');
+              item.querySelector('.item-indicator').textContent = ' ';
+            }
+          });
+          return;
+        }
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const targetTheme = state.themeItems[state.activeThemeIndex].getAttribute('data-theme');
+          selectTheme(targetTheme);
+          closeModals();
+          return;
+        }
+        return;
+      }
+
+      if (state.activeFocus.startsWith('modal-')) {
+        if (e.key === 'Escape' || e.key === 'q' || e.key === 'Enter') {
+          e.preventDefault();
+          closeModals();
+        }
+        return;
+      }
+
+      // 4. GLOBAL Hotkeys (1-8 keys for Activity bar tabs)
+      if (e.key === '1') { e.preventDefault(); switchPanel('chats'); return; }
+      if (e.key === '2') { e.preventDefault(); switchPanel('files'); return; }
+      if (e.key === '3') { e.preventDefault(); switchPanel('personas'); return; }
+      if (e.key === '4') { e.preventDefault(); switchPanel('agents'); return; }
+      if (e.key === '5') { e.preventDefault(); switchPanel('skills'); return; }
+      if (e.key === '6') { e.preventDefault(); switchPanel('mcp'); return; }
+      if (e.key === '7') { e.preventDefault(); switchPanel('memories'); return; }
+      if (e.key === '8') { e.preventDefault(); switchPanel('settings'); return; }
+
+      // Ctrl+p toggle preview
+      if (e.ctrlKey && e.key === 'p') {
+        e.preventDefault();
+        togglePreviewPanel();
+        return;
+      }
+
+      // Ctrl+w h/l pane navigation
+      if (e.ctrlKey && e.key === 'w') {
+        e.preventDefault();
+        state.leaderPressed = 'ctrl-w';
+        return;
+      }
+      if (state.leaderPressed === 'ctrl-w') {
+        state.leaderPressed = false;
+        if (e.key === 'h') {
+          e.preventDefault();
+          state.activeFocus = 'sidebar';
+          triggerToast('Focus shifted: Left Sidebar');
+          return;
+        }
+        if (e.key === 'l') {
+          e.preventDefault();
+          state.activeFocus = 'chat-input';
+          triggerToast('Focus shifted: Chat Area');
+          return;
+        }
+      }
+
+      // Space leader options
+      if (e.key === ' ') {
+        e.preventDefault();
+        state.leaderPressed = 'space';
+        return;
+      }
+      if (state.leaderPressed === 'space') {
+        state.leaderPressed = false;
+        if (e.key === 't') {
+          e.preventDefault();
+          showModal('theme-modal');
+          return;
+        }
+        if (e.key === 'h') {
+          e.preventDefault();
+          showModal('help-modal');
+          return;
+        }
+        if (e.key === 's') {
+          e.preventDefault();
+          switchPanel('settings');
+          return;
+        }
+      }
+
+      state.leaderPressed = false;
+
+      // Mode triggers
+      if (e.key === 'i') {
+        e.preventDefault();
+        setMode('INSERT');
+        return;
+      }
+
+      if (e.key === ':') {
+        e.preventDefault();
+        setMode('COMMAND');
+        return;
+      }
+
+      // List j/k navigation inside Normal mode
+      if (e.key === 'j' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (state.sidebarItems.length > 0) {
+          state.sidebarItems[state.activeSidebarIndex].classList.remove('active-nav');
+          state.activeSidebarIndex = (state.activeSidebarIndex + 1) % state.sidebarItems.length;
+          
+          const targetEl = state.sidebarItems[state.activeSidebarIndex];
+          targetEl.classList.add('active-nav');
+          targetEl.scrollIntoView({ block: 'nearest' });
+        }
+        return;
+      }
+
+      if (e.key === 'k' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (state.sidebarItems.length > 0) {
+          state.sidebarItems[state.activeSidebarIndex].classList.remove('active-nav');
+          state.activeSidebarIndex = (state.activeSidebarIndex - 1 + state.sidebarItems.length) % state.sidebarItems.length;
+          
+          const targetEl = state.sidebarItems[state.activeSidebarIndex];
+          targetEl.classList.add('active-nav');
+          targetEl.scrollIntoView({ block: 'nearest' });
+        }
+        return;
+      }
+
+      if (e.key === 'g') {
+        if (state.lastKeyPressed === 'g') {
+          e.preventDefault();
+          if (state.sidebarItems.length > 0) {
+            state.sidebarItems[state.activeSidebarIndex].classList.remove('active-nav');
+            state.activeSidebarIndex = 0;
+            state.sidebarItems[0].classList.add('active-nav');
+            state.sidebarItems[0].scrollIntoView({ block: 'nearest' });
+          }
+          state.lastKeyPressed = '';
+          return;
+        }
+        state.lastKeyPressed = 'g';
+        return;
+      }
+
+      if (e.key === 'G') {
+        e.preventDefault();
+        if (state.sidebarItems.length > 0) {
+          state.sidebarItems[state.activeSidebarIndex].classList.remove('active-nav');
+          const lastIdx = state.sidebarItems.length - 1;
+          state.activeSidebarIndex = lastIdx;
+          state.sidebarItems[lastIdx].classList.add('active-nav');
+          state.sidebarItems[lastIdx].scrollIntoView({ block: 'nearest' });
+        }
+        return;
+      }
+
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (state.sidebarItems.length > 0) {
+          const item = state.sidebarItems[state.activeSidebarIndex];
+          const targetType = item.getAttribute('data-item-type');
+          const targetVal = item.getAttribute('data-item-target');
+          
+          if (targetType === 'chat') {
+            switchChat(targetVal);
+          } else if (targetType === 'project-file') {
+            const filename = item.querySelector('.item-text').textContent.trim().split('/').pop();
+            previewFile(filename);
+          } else if (targetType === 'persona') {
+            const per = item.getAttribute('data-target-persona');
+            triggerToast('Switched persona context to: ' + per);
+          } else if (targetType === 'skill') {
+            const textEl = item.querySelector('.item-text');
+            const isEnabled = textEl.textContent.includes('[x]');
+            textEl.textContent = isEnabled ? textEl.textContent.replace('[x]', '[ ]') : textEl.textContent.replace('[ ]', '[x]');
+            triggerToast(isEnabled ? 'Skill disabled' : 'Skill enabled');
+          } else {
+            triggerToast('Item selected');
+          }
+        }
+        return;
+      }
+
+      state.lastKeyPressed = e.key;
+    });
+
+    // Hidden actual input trackers
+    terminalInput.addEventListener('input', function() {
+      typedText.textContent = terminalInput.value;
+      handleAutocomplete(terminalInput.value);
+    });
+
+    // Click delegations
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('.dropdown-item')) {
+        const item = e.target.closest('.dropdown-item');
+        const val = item.getAttribute('data-val');
+        if (state.dropdownType === 'slash') {
+          terminalInput.value = val + ' ';
+        } else if (state.dropdownType === 'mention') {
+          const words = terminalInput.value.split(' ');
+          words.pop();
+          words.push(val);
+          terminalInput.value = words.join(' ') + ' ';
+        }
+        typedText.textContent = terminalInput.value;
+        suggestDropdown.classList.remove('visible');
+        state.dropdownType = null;
+        terminalInput.focus();
+        return;
+      }
+      
+      if (e.target.closest('.activity-bar .activity-item') && !e.target.closest('#act-nfc-toggle')) {
+        const item = e.target.closest('.activity-bar .activity-item');
+        const tabName = item.getAttribute('data-tab');
+        switchPanel(tabName);
+        return;
+      }
+
+      if (e.target.closest('.sidebar-column .tree-item')) {
+        const sidebarEl = e.target.closest('.sidebar-column .tree-item');
+        if (state.sidebarItems.includes(sidebarEl)) {
+          state.sidebarItems[state.activeSidebarIndex].classList.remove('active-nav');
+          state.activeSidebarIndex = state.sidebarItems.indexOf(sidebarEl);
+        }
+        
+        const targetType = sidebarEl.getAttribute('data-item-type');
+        const targetVal = sidebarEl.getAttribute('data-item-target');
+        
+        if (targetType === 'chat') {
+          switchChat(targetVal);
+        } else if (targetType === 'project-file') {
+          const fileId = sidebarEl.getAttribute('data-file-target');
+          previewFile(fileId);
+        } else if (targetType === 'persona') {
+          const p = sidebarEl.getAttribute('data-target-persona');
+          triggerToast('Context loaded: ' + p);
+          sidebarEl.classList.add('active');
+          sidebarEl.querySelector('.item-indicator').textContent = '▸';
+          // reset others
+          document.querySelectorAll('[data-item-type="persona"]').forEach(el => {
+            if (el !== sidebarEl) {
+              el.classList.remove('active');
+              el.querySelector('.item-indicator').textContent = ' ';
+            }
+          });
+        } else if (targetType === 'skill') {
+          const textEl = sidebarEl.querySelector('.item-text');
+          const isEnabled = textEl.textContent.includes('[x]');
+          textEl.textContent = isEnabled ? textEl.textContent.replace('[x]', '[ ]') : textEl.textContent.replace('[ ]', '[x]');
+          triggerToast(isEnabled ? 'Skill disabled' : 'Skill enabled');
+        } else {
+          sidebarEl.classList.add('active-nav');
+          sidebarEl.querySelector('.item-indicator').textContent = '▸';
+        }
+        return;
+      }
+
+      // Enforce cursor focus inside Insert mode
+      if (state.mode === 'INSERT' && 
+          !e.target.closest('.tui-modal') && 
+          !e.target.closest('.sidebar-column') && 
+          !e.target.closest('.activity-bar') && 
+          !e.target.closest('.input-actions-row') &&
+          !e.target.closest('.preview-column') &&
+          !e.target.closest('.artifact-actions') &&
+          !e.target.closest('.tool-box') &&
+          !e.target.closest('.main-form-view')) {
+        terminalInput.focus();
+      }
+    });
+
+    function updateTerminalSize() {
+      const width = Math.floor(window.innerWidth / 8.2); 
+      const height = Math.floor(window.innerHeight / 18); 
+      const sizeEl = document.getElementById('chrome-term-size');
+      if (sizeEl) {
+        sizeEl.textContent = `${width}x${height}`;
+      }
+    }
+
+    function focusInput() {
+      setMode('INSERT');
+    }
+
+    // Windows onload boot sequence
+    window.onload = function() {
+      initNerdFontMode();
+      updateTerminalSize();
+      window.addEventListener('resize', updateTerminalSize);
+      initializeSidebarList();
+      selectTheme('catppuccin');
+      switchChat('chat-1'); // Default Rust refactor active
+      
+      triggerToast('✓ Loaded HyprCollab TUI v8');
+      triggerToast('💡 Press [i] for Insert, [Esc] to exit');
+    };
+  </script>
+</body>
+</html>
